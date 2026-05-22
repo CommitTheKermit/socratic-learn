@@ -28,16 +28,23 @@
 
 ## 테스트
 
-저장소에는 서버 Gradle wrapper만 있으므로, shared 단독 검증은 다음처럼 실행합니다.
+저장소 루트에서는 프론트엔드 `wasmJs`와 shared 의존을 함께 검증할 수 있습니다.
+
+```bash
+./gradlew :frontend:compileKotlinWasmJs
+./gradlew build
+```
+
+저장소에는 서버 Gradle wrapper도 있으므로, shared 단독 검증은 다음처럼 실행합니다.
 
 ```bash
 cd shared
-../server/gradlew -p . jvmTest
+../server/gradlew -p . build
 ```
 
-서버에서 shared 의존까지 함께 검증하려면 다음을 실행합니다.
+서버에서 shared JVM 의존까지 함께 검증하려면 다음을 실행합니다.
 
 ```bash
 cd server
-./gradlew test
+./gradlew clean :shared:clean :shared:jvmTest test --rerun-tasks
 ```
