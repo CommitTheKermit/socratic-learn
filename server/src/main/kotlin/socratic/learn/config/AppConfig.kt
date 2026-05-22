@@ -12,7 +12,7 @@ data class AppConfig(
             claude = ClaudeConfig(
                 apiKey = env["ANTHROPIC_API_KEY"]?.takeIf { it.isNotBlank() },
                 model = env["ANTHROPIC_MODEL"]?.takeIf { it.isNotBlank() }
-                    ?: "claude-sonnet-4-6",
+                    ?: "claude-sonnet-4-20250514",
                 apiUrl = env["ANTHROPIC_API_URL"]?.takeIf { it.isNotBlank() }
                     ?: "https://api.anthropic.com/v1/messages",
                 maxTokens = env["ANTHROPIC_MAX_TOKENS"]?.toIntOrNull() ?: 1200,
