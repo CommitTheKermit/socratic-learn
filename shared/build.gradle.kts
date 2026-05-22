@@ -7,6 +7,7 @@ group = "socratic.learn"
 version = "0.1.0"
 
 kotlin {
+    jvmToolchain(21)
     jvm()
     js(IR) {
         browser()
