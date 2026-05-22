@@ -40,6 +40,7 @@ fun Application.module(
     }
 
     install(CORS) {
+        // 로컬 MVP 검증용 설정입니다. 배포 전에는 허용 origin을 환경별 allow-list로 제한해야 합니다.
         anyHost()
     }
 

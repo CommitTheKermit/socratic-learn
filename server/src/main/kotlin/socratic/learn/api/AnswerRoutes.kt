@@ -13,7 +13,7 @@ fun Route.answerRoutes() {
         if (request.answers.isEmpty()) {
             call.respond(
                 HttpStatusCode.BadRequest,
-                StreamErrorEvent(
+                ErrorResponse(
                     code = "EMPTY_ANSWERS",
                     message = "answers는 최소 1개 이상이어야 합니다.",
                 ),

@@ -1,7 +1,6 @@
 package socratic.learn.claude
 
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
@@ -9,6 +8,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
+import org.slf4j.LoggerFactory
 import socratic.learn.config.ClaudeConfig
 import java.net.URI
 import java.net.http.HttpClient
@@ -21,6 +21,8 @@ class AnthropicClaudeClient(
     private val httpClient: HttpClient = HttpClient.newHttpClient(),
     private val json: Json = Json { ignoreUnknownKeys = true },
 ) : ClaudeClient {
+    private val logger = LoggerFactory.getLogger(AnthropicClaudeClient::class.java)
+
     override fun streamLearning(
         concept: String,
         language: String,
@@ -60,18 +62,12 @@ class AnthropicClaudeClient(
         put("model", config.model)
         put("max_tokens", config.maxTokens)
         put("stream", true)
+        put("system", LearningPrompt.systemInstruction(language = language))
         putJsonArray("messages") {
             add(
                 buildJsonObject {
                     put("role", "user")
-                    put("content", buildJsonArray {
-                        add(
-                            buildJsonObject {
-                                put("type", "text")
-                                put("text", LearningPrompt.build(concept = concept, language = language))
-                            },
-                        )
-                    })
+                    put("content", LearningPrompt.userMessage(concept = concept))
                 },
             )
         }
@@ -85,6 +81,8 @@ class AnthropicClaudeClient(
         if (delta["type"]?.jsonPrimitive?.contentOrNull != "text_delta") return null
 
         delta["text"]?.jsonPrimitive?.contentOrNull
+    }.onFailure { exception ->
+        logger.debug("Claude SSE chunk parse failed and was ignored: {}", exception.message)
     }.getOrNull()
 }
 

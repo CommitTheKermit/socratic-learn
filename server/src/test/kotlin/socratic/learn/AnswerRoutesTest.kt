@@ -10,12 +10,13 @@ import io.ktor.server.testing.testApplication
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import socratic.learn.config.AppConfig
 
 class AnswerRoutesTest {
     @Test
     fun `answers endpoint receives submitted answers`() = testApplication {
         application {
-            module()
+            module(config = AppConfig.fromEnv(emptyMap()))
         }
 
         val response = client.post("/answers") {
@@ -53,7 +54,7 @@ class AnswerRoutesTest {
     @Test
     fun `answers endpoint rejects empty answers`() = testApplication {
         application {
-            module()
+            module(config = AppConfig.fromEnv(emptyMap()))
         }
 
         val response = client.post("/answers") {

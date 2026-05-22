@@ -6,12 +6,13 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.testApplication
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import socratic.learn.config.AppConfig
 
 class ApplicationTest {
     @Test
     fun `health endpoint returns ok`() = testApplication {
         application {
-            module()
+            module(config = AppConfig.fromEnv(emptyMap()))
         }
 
         val response = client.get("/health")

@@ -11,7 +11,7 @@ class AppConfigTest {
 
         assertEquals(8080, config.server.port)
         assertNull(config.claude.apiKey)
-        assertEquals("claude-sonnet-4-5-20250929", config.claude.model)
+        assertEquals("claude-sonnet-4-6", config.claude.model)
         assertEquals("https://api.anthropic.com/v1/messages", config.claude.apiUrl)
         assertEquals(1200, config.claude.maxTokens)
     }

@@ -23,3 +23,9 @@ data class AnswerSubmissionResponse(
     val receivedCount: Int,
     val message: String,
 )
+
+@Serializable
+data class ErrorResponse(
+    val code: String,
+    val message: String,
+)

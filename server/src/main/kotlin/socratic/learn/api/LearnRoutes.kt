@@ -17,7 +17,10 @@ import kotlinx.serialization.json.Json
 import socratic.learn.claude.ClaudeApiException
 import socratic.learn.claude.ClaudeClient
 import socratic.learn.claude.MissingClaudeApiKeyException
+import org.slf4j.LoggerFactory
 import java.io.Writer
+
+private val logger = LoggerFactory.getLogger("socratic.learn.api.LearnRoutes")
 
 private val sseJson = Json {
     encodeDefaults = true
@@ -29,7 +32,7 @@ fun Route.learnRoutes(claudeClient: ClaudeClient) {
         if (request.concept.isBlank()) {
             call.respond(
                 HttpStatusCode.BadRequest,
-                StreamErrorEvent(
+                ErrorResponse(
                     code = "INVALID_CONCEPT",
                     message = "concept는 비어 있을 수 없습니다.",
                 ),
@@ -81,11 +84,12 @@ fun Route.learnRoutes(claudeClient: ClaudeClient) {
                 )
                 flush()
             } catch (exception: Exception) {
+                logger.error("Unhandled learn stream failure", exception)
                 writeSse(
                     event = "error",
                     data = StreamErrorEvent(
                         code = "INTERNAL_ERROR",
-                        message = exception.message ?: "알 수 없는 서버 오류가 발생했습니다.",
+                        message = "알 수 없는 서버 오류가 발생했습니다.",
                     ),
                 )
                 flush()
