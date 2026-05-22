@@ -5,20 +5,21 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.window.ComposeViewport
 
 @OptIn(ExperimentalComposeUiApi::class)
@@ -38,7 +39,9 @@ fun App() {
             contentAlignment = Alignment.Center,
         ) {
             Surface(
-                modifier = Modifier.size(width = 520.dp, height = 280.dp),
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .widthIn(max = 520.dp),
                 color = Color.White,
                 shape = RoundedCornerShape(28.dp),
                 shadowElevation = 10.dp,
@@ -55,13 +58,13 @@ fun App() {
                     )
                     Text(
                         modifier = Modifier.padding(top = 12.dp),
-                        text = "Compose Multiplatform Web(Wasm) ?대씪?댁뼵??以鍮??꾨즺",
+                        text = "Compose Multiplatform Web(Wasm) 클라이언트 준비 완료",
                         fontSize = 18.sp,
                         color = Color(0xFF5B6273),
                     )
                     Text(
                         modifier = Modifier.padding(top = 20.dp),
-                        text = "?ㅼ쓬 PR?먯꽌 媛쒕뀗 ?낅젰 ?붾㈃???곌껐?⑸땲??",
+                        text = "다음 PR에서 실제 기능 화면으로 전환됩니다.",
                         fontSize = 14.sp,
                         color = Color(0xFF8A91A3),
                     )
