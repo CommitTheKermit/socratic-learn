@@ -28,7 +28,6 @@ fun main() {
         App()
     }
 }
-
 @Composable
 fun App() {
     MaterialTheme {
