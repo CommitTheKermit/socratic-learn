@@ -1,3 +1,6 @@
 .gradle/
 build/
 out/
+
+# Kotlin/JS package manager state
+kotlin-js-store/
