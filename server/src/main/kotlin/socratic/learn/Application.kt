@@ -12,6 +12,7 @@ import io.ktor.server.plugins.cors.routing.CORS
 import io.ktor.server.response.respond
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
+import socratic.learn.api.answerRoutes
 import socratic.learn.api.learnRoutes
 import socratic.learn.claude.AnthropicClaudeClient
 import socratic.learn.claude.ClaudeClient
@@ -48,6 +49,7 @@ fun Application.module(
         }
 
         learnRoutes(claudeClient)
+        answerRoutes()
     }
 }
 
