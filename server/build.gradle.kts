@@ -1,6 +1,6 @@
 plugins {
-    kotlin("jvm") version "2.3.21"
-    kotlin("plugin.serialization") version "2.3.21"
+    kotlin("jvm")
+    kotlin("plugin.serialization")
     application
 }
 
@@ -19,6 +19,7 @@ dependencies {
     val ktorVersion = "3.5.0"
     val logbackVersion = "1.5.32"
 
+    implementation(project(":shared"))
     implementation("io.ktor:ktor-server-core-jvm:$ktorVersion")
     implementation("io.ktor:ktor-server-netty-jvm:$ktorVersion")
     implementation("io.ktor:ktor-server-content-negotiation-jvm:$ktorVersion")
