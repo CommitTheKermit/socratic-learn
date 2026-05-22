@@ -1,6 +1,6 @@
 # Socratic Learn Server
 
-정식 MVP 백엔드의 로컬 1차 구현입니다. 모든 서버 관련 파일은 `server/` 내부에 둡니다.
+정식 MVP 백엔드의 로컬 1차 구현입니다. 서버 실행/구현 파일은 `server/`에 두고, 프론트엔드와 공유하는 API 계약은 `shared/` 모듈에서 관리합니다.
 
 ## 목표
 
@@ -39,7 +39,6 @@ cd server
 cd shared
 ../server/gradlew -p . jvmTest
 ```
-
 
 ## 헬스 체크
 
