@@ -1,4 +1,4 @@
-package socratic.learn.api
+package socratic.learn.shared.api
 
 import kotlinx.serialization.Serializable
 
@@ -21,11 +21,5 @@ data class AnswerItem(
 data class AnswerSubmissionResponse(
     val status: String,
     val receivedCount: Int,
-    val message: String,
-)
-
-@Serializable
-data class ErrorResponse(
-    val code: String,
     val message: String,
 )

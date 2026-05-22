@@ -1,6 +1,6 @@
 # Socratic Learn Server
 
-정식 MVP 백엔드의 로컬 1차 구현입니다. 모든 서버 관련 파일은 `server/` 내부에 둡니다.
+정식 MVP 백엔드의 로컬 1차 구현입니다. 서버 실행/구현 파일은 `server/`에 두고, 프론트엔드와 공유하는 API 계약은 `shared/` 모듈에서 관리합니다.
 
 ## 목표
 
@@ -29,6 +29,15 @@ PORT=8081 ./gradlew run
 ```bash
 cd server
 ./gradlew test
+```
+
+## 공유 계약 모듈
+
+프론트엔드와 백엔드가 함께 쓰는 API DTO와 SSE 이벤트 계약은 `../shared` 모듈에 있습니다. 서버는 `server/settings.gradle.kts`에서 `../shared`를 `:shared` 프로젝트로 참조합니다.
+
+```bash
+cd shared
+../server/gradlew -p . jvmTest
 ```
 
 ## 헬스 체크

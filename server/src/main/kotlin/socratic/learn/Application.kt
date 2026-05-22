@@ -17,6 +17,7 @@ import socratic.learn.api.learnRoutes
 import socratic.learn.claude.AnthropicClaudeClient
 import socratic.learn.claude.ClaudeClient
 import socratic.learn.config.AppConfig
+import socratic.learn.shared.api.ApiPaths
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -45,7 +46,7 @@ fun Application.module(
     }
 
     routing {
-        get("/health") {
+        get(ApiPaths.HEALTH) {
             call.respond(HttpStatusCode.OK, HealthResponse(status = "ok"))
         }
 

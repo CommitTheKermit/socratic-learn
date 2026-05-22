@@ -1,12 +1,6 @@
-package socratic.learn.api
+package socratic.learn.shared.event
 
 import kotlinx.serialization.Serializable
-
-@Serializable
-data class LearnStreamRequest(
-    val concept: String,
-    val language: String = "ko",
-)
 
 @Serializable
 data class StreamStatusEvent(

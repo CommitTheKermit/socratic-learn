@@ -6,9 +6,13 @@ import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
+import socratic.learn.shared.api.AnswerSubmissionRequest
+import socratic.learn.shared.api.AnswerSubmissionResponse
+import socratic.learn.shared.api.ApiPaths
+import socratic.learn.shared.api.ErrorResponse
 
 fun Route.answerRoutes() {
-    post("/answers") {
+    post(ApiPaths.ANSWERS) {
         val request = call.receive<AnswerSubmissionRequest>()
         if (request.answers.isEmpty()) {
             call.respond(
