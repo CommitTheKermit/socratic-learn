@@ -15,7 +15,7 @@ kotlin {
             commonWebpackConfig {
                 outputFileName = "frontend.js"
                 devServer = (devServer ?: KotlinWebpackConfig.DevServer()).apply {
-                    port = (System.getenv("FE_PORT") ?: "8080").toInt()
+                    port = System.getenv("FE_PORT")?.toIntOrNull() ?: 8080
                 }
             }
         }
@@ -24,6 +24,7 @@ kotlin {
 
     sourceSets {
         wasmJsMain.dependencies {
+            implementation(project(":shared"))
             implementation(compose.runtime)
             implementation(compose.foundation)
             implementation(compose.material3)

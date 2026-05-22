@@ -1,8 +1,5 @@
-rootProject.name = "socratic-learn"
-
 pluginManagement {
     repositories {
-        google()
         gradlePluginPortal()
         mavenCentral()
     }
@@ -14,10 +11,8 @@ pluginManagement {
 
 dependencyResolutionManagement {
     repositories {
-        google()
         mavenCentral()
     }
 }
 
-include(":frontend")
-include(":shared")
+rootProject.name = "socratic-learn-shared"
