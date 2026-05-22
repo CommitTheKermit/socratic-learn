@@ -7,7 +7,7 @@ data class AppConfig(
     companion object {
         fun fromEnv(env: Map<String, String> = System.getenv()): AppConfig = AppConfig(
             server = ServerConfig(
-                port = env["PORT"]?.toIntOrNull() ?: 8080,
+                port = env["PORT"]?.toIntOrNull() ?: 8081,
             ),
             claude = ClaudeConfig(
                 apiKey = env["ANTHROPIC_API_KEY"]?.takeIf { it.isNotBlank() },
