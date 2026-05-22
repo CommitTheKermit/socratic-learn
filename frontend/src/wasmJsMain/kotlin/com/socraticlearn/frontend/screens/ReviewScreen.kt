@@ -49,10 +49,10 @@ fun ReviewScreen(
                 .fillMaxHeight(),
             verticalArrangement = Arrangement.Center,
         ) {
-            Text("제출이 준비됐어요", color = TextPrimary, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+            Text("로컬 답변 요약", color = TextPrimary, fontSize = 30.sp, fontWeight = FontWeight.Bold)
             Text(
                 modifier = Modifier.padding(top = 8.dp),
-                text = "현재는 API 연결 전이라 제출 결과를 로컬에서만 요약합니다.",
+                text = "API 연결 전 미리보기입니다. 아직 서버로 제출하지 않고 로컬 상태만 요약합니다.",
                 color = TextMuted,
                 fontSize = 16.sp,
             )
@@ -69,7 +69,7 @@ fun ReviewScreen(
                     Text(concept, modifier = Modifier.padding(top = 8.dp), color = TextPrimary, fontSize = 20.sp)
                     Text(
                         modifier = Modifier.padding(top = 22.dp),
-                        text = "답변 ${submission.answers.count { it.value.isNotBlank() }}개 · 모르겠어요 ${submission.skippedQuestionIds.size}개",
+                        text = "답변 ${submission.answers.count { (id, answer) -> id !in submission.skippedQuestionIds && answer.isNotBlank() }}개 · 모르겠어요 ${submission.skippedQuestionIds.size}개",
                         color = TextMuted,
                         fontSize = 16.sp,
                     )

@@ -88,8 +88,9 @@ fun AnswerScreen(
                         skipped = question.id in skipped,
                         onAnswer = { value -> answers[question.id] = value },
                         onToggleSkip = {
-                            skipped = if (question.id in skipped) skipped - question.id else skipped + question.id
-                            if (question.id !in skipped) answers[question.id] = ""
+                            val willSkip = question.id !in skipped
+                            skipped = if (willSkip) skipped + question.id else skipped - question.id
+                            if (willSkip) answers[question.id] = ""
                         },
                     )
                 }
@@ -109,7 +110,9 @@ fun AnswerScreen(
                     onClick = {
                         onSubmit(
                             AnswerSubmissionDraft(
-                                answers = questions.associate { it.id to answers[it.id].orEmpty() },
+                                answers = questions
+                                    .filterNot { it.id in skipped }
+                                    .associate { it.id to answers[it.id].orEmpty() },
                                 skippedQuestionIds = skipped,
                             ),
                         )

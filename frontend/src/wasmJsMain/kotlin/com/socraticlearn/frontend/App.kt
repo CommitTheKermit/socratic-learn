@@ -1,4 +1,4 @@
-﻿package com.socraticlearn.frontend
+package com.socraticlearn.frontend
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
