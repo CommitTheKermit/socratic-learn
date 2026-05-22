@@ -12,17 +12,24 @@ import io.ktor.server.plugins.cors.routing.CORS
 import io.ktor.server.response.respond
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
+import socratic.learn.api.learnRoutes
+import socratic.learn.claude.AnthropicClaudeClient
+import socratic.learn.claude.ClaudeClient
+import socratic.learn.config.AppConfig
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 fun main() {
-    val port = System.getenv("PORT")?.toIntOrNull() ?: 8080
-    embeddedServer(Netty, port = port, host = "0.0.0.0") {
-        module()
+    val config = AppConfig.fromEnv()
+    embeddedServer(Netty, port = config.server.port, host = "0.0.0.0") {
+        module(config = config)
     }.start(wait = true)
 }
 
-fun Application.module() {
+fun Application.module(
+    config: AppConfig = AppConfig.fromEnv(),
+    claudeClient: ClaudeClient = AnthropicClaudeClient(config.claude),
+) {
     install(ContentNegotiation) {
         json(Json {
             prettyPrint = true
@@ -39,6 +46,8 @@ fun Application.module() {
         get("/health") {
             call.respond(HttpStatusCode.OK, HealthResponse(status = "ok"))
         }
+
+        learnRoutes(claudeClient)
     }
 }
 
