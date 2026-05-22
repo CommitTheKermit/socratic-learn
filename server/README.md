@@ -31,6 +31,16 @@ cd server
 ./gradlew test
 ```
 
+## 공유 계약 모듈
+
+프론트엔드와 백엔드가 함께 쓰는 API DTO와 SSE 이벤트 계약은 `../shared` 모듈에 있습니다. 서버는 `server/settings.gradle.kts`에서 `../shared`를 `:shared` 프로젝트로 참조합니다.
+
+```bash
+cd shared
+../server/gradlew -p . jvmTest
+```
+
+
 ## 헬스 체크
 
 ```bash
