@@ -18,10 +18,10 @@ export ANTHROPIC_API_KEY="your-anthropic-api-key"
 ./gradlew run
 ```
 
-기본 포트는 `8080`입니다. 필요하면 `PORT` 환경변수로 변경합니다.
+기본 포트는 `8081`입니다. 필요하면 `PORT` 환경변수로 변경합니다.
 
 ```bash
-PORT=8081 ./gradlew run
+PORT=8082 ./gradlew run
 ```
 
 ## 테스트
@@ -43,7 +43,7 @@ cd shared
 ## 헬스 체크
 
 ```bash
-curl http://localhost:8080/health
+curl http://localhost:8081/health
 ```
 
 ## SSE 학습 스트리밍
@@ -51,7 +51,7 @@ curl http://localhost:8080/health
 ```bash
 curl -N \
   -H "Content-Type: application/json" \
-  -X POST http://localhost:8080/learn/stream \
+  -X POST http://localhost:8081/learn/stream \
   -d '{"concept":"코루틴이 왜 필요한지 알고 싶어요","language":"ko"}'
 ```
 
@@ -77,7 +77,7 @@ data: {"content":"..."}
 ```bash
 curl \
   -H "Content-Type: application/json" \
-  -X POST http://localhost:8080/answers \
+  -X POST http://localhost:8081/answers \
   -d '{
     "sessionId": "local-session-1",
     "concept": "코루틴",

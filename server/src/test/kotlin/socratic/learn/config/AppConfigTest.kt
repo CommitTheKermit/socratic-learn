@@ -9,7 +9,7 @@ class AppConfigTest {
     fun `uses local defaults when env is absent`() {
         val config = AppConfig.fromEnv(emptyMap())
 
-        assertEquals(8080, config.server.port)
+        assertEquals(8081, config.server.port)
         assertNull(config.claude.apiKey)
         assertEquals("claude-sonnet-4-20250514", config.claude.model)
         assertEquals("https://api.anthropic.com/v1/messages", config.claude.apiUrl)
