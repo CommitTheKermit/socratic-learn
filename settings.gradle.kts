@@ -19,5 +19,4 @@ dependencyResolutionManagement {
     }
 }
 
-include(":frontend")
 include(":shared")

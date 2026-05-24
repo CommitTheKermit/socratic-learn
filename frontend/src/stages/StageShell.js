@@ -1,0 +1,4 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+export function StageShell({ eyebrow, title, sub, children, prev, prevLabel = "이전", next, nextLabel = "다음 →", nextDisabled, }) {
+    return (_jsxs("section", { className: "stage", children: [_jsxs("header", { className: "stage-head", children: [_jsx("div", { className: "stage-eyebrow", children: eyebrow }), _jsx("h2", { className: "stage-title", children: title }), sub && _jsx("p", { className: "stage-sub", children: sub })] }), _jsx("div", { className: "stage-body", children: children }), _jsxs("div", { className: "stage-actions", children: [prev ? (_jsxs("button", { className: "btn-ghost", type: "button", onClick: prev, children: ["\u2190 ", prevLabel] })) : (_jsx("span", {})), _jsx("span", { className: "grow" }), _jsx("button", { className: "btn-holo", type: "button", onClick: next, disabled: nextDisabled, children: nextLabel })] })] }));
+}
