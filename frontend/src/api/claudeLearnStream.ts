@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { CLAUDE_MODEL, getClaudeClient } from "./claudeClient";
+import { LEARN_STREAM_SYSTEM, learnStreamUserMessage } from "./prompts";
 import type {
   LearnStreamRequest,
   StreamCompleteEvent,
@@ -19,17 +20,6 @@ export interface ClaudeStreamHandle {
   abort: () => void;
   done: Promise<void>;
 }
-
-const SYSTEM_PROMPT = `당신은 소크라테스식 학습 튜터입니다. 사용자가 입력한 개념을 다음 원칙에 따라 한국어로 설명하세요.
-
-원칙:
-- 짧고 명료한 문단으로 작성하세요. 한 문단은 1-3문장.
-- **굵게**, *기울임*, \`인라인 코드\`, 그리고 트리플 백틱(\`\`\`)으로 감싼 코드 블록만 사용하세요. 헤더(#), 리스트(-, *, 1.), 표는 사용하지 않습니다.
-- 핵심 용어는 **굵게**, 직관/은유는 *기울임*, 식별자/짧은 코드는 \`인라인 코드\` 로 강조하세요.
-- 가능하면 짧은 비유 또는 작은 코드 예제 하나를 포함하세요.
-- 사용자가 알려달라고 하는 "단계 제목" 한정으로 설명하고, 다른 단계로 넘어가지 마세요.
-- 결론이나 정리 문장으로 마무리하세요.
-- 분량은 일반적으로 4-8문단을 넘기지 마세요.`;
 
 export function startClaudeLearnStream(
   req: LearnStreamRequest,
@@ -62,14 +52,14 @@ export function startClaudeLearnStream(
           system: [
             {
               type: "text",
-              text: SYSTEM_PROMPT,
+              text: LEARN_STREAM_SYSTEM,
               cache_control: { type: "ephemeral" },
             },
           ],
           messages: [
             {
               role: "user",
-              content: `다음 개념을 설명해 주세요.\n\n${req.concept}`,
+              content: learnStreamUserMessage(req.concept),
             },
           ],
         },

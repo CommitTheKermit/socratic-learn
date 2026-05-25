@@ -1,6 +1,16 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
 import { CLAUDE_MODEL, getClaudeClient } from "./claudeClient";
+import {
+  EVAL_SYSTEM,
+  OUTLINE_SYSTEM,
+  PROBE_SYSTEM,
+  STEP_DETAIL_SYSTEM,
+  evalUserMessage,
+  outlineUserMessage,
+  probeUserMessage,
+  stepDetailUserMessage,
+} from "./prompts";
 import type { ProbeQuestion, Step } from "../stages/data";
 
 export class ClaudeContentError extends Error {
@@ -102,13 +112,6 @@ const probeSchema = {
   },
 } as const;
 
-const PROBE_SYSTEM = `당신은 소크라테스식 학습 튜터입니다. 사용자가 입력한 임의의 학습 개념에 대해 사전 수준을 빠르게 진단할 3개 질문을 만듭니다.
-
-- 반드시 한국어로 작성하세요.
-- p1 의 4개 선택지 label 은 친숙도 순서를 유지(value 0=전혀 모름 → 3=직접 다뤄봄)하되 개념에 맞춰 자연스럽게 다듬으세요.
-- p2 의 6개 옵션 중 3-4개는 개념과 실제 관련 있는 단어(correct:true), 나머지는 비슷해 보이지만 무관한 단어(correct:false). value 는 영문 슬러그, label 은 한글/원어.
-- p3 는 개념이 해결하려는 문제 또는 핵심 아이디어를 한 줄로 적도록 유도하세요. placeholder 는 "모르면 비워두셔도 괜찮아요" 풍의 안내.`;
-
 export async function generateProbeQuestions(concept: string): Promise<ProbeQuestion[]> {
   let client: Anthropic;
   try {
@@ -126,7 +129,7 @@ export async function generateProbeQuestions(concept: string): Promise<ProbeQues
       messages: [
         {
           role: "user",
-          content: `학습 개념: ${concept}\n\n이 개념에 대한 진단 질문(p1, p2, p3) 을 생성해 주세요.`,
+          content: probeUserMessage(concept),
         },
       ],
       output_config: { format: jsonSchemaOutputFormat(probeSchema) },
@@ -163,13 +166,6 @@ const outlineSchema = {
   },
 } as const;
 
-const OUTLINE_SYSTEM = `당신은 소크라테스식 학습 튜터입니다. 사용자의 사전 수준(0=처음, 4=설명 가능)에 맞춰 3-5개의 학습 단계 outline 을 구성합니다.
-
-- 반드시 한국어로 작성하세요.
-- 각 단계는 제목(title)과 한 줄 부제(desc) 만 작성합니다. 본문/질문은 다음 단계에서 별도로 생성합니다.
-- 수준이 낮으면 기초 정의부터, 수준이 높으면 빠르게 핵심 원리로 진입합니다.
-- 단계 사이에 학습 순서가 자연스럽게 이어지도록 배열하세요.`;
-
 export interface RoadmapOutlineItem {
   title: string;
   desc: string;
@@ -195,7 +191,7 @@ export async function generateRoadmapOutline(
       messages: [
         {
           role: "user",
-          content: `학습 개념: ${concept}\n사용자 사전 수준: L${level} (0=처음, 4=설명 가능)\n\n로드맵 outline 을 생성해 주세요.`,
+          content: outlineUserMessage(concept, level),
         },
       ],
       output_config: { format: jsonSchemaOutputFormat(outlineSchema) },
@@ -238,13 +234,6 @@ const stepDetailSchema = {
   },
 } as const;
 
-const STEP_DETAIL_SYSTEM = `당신은 소크라테스식 학습 튜터입니다. 주어진 학습 로드맵 안에서 한 단계의 개념 설명과 확인 질문을 작성합니다.
-
-- 반드시 한국어로 작성하세요.
-- body 는 2-4문단의 마크다운. 헤더(#)/리스트(-, *, 1.)/표 금지. 핵심 용어는 **굵게**, 직관/은유는 *기울임*, 식별자/짧은 코드는 \`인라인\`, 길면 트리플 백틱 코드블록 사용.
-- 해당 단계 범위만 다루고, 다른 단계의 내용을 미리 설명하지 마세요.
-- questions 는 1-3개의 짧은 회상형 확인 질문 + 한 줄 힌트. id 는 "단계번호-순번" (예: 2-1).`;
-
 export interface StepDetail {
   body: string;
   questions: Step["questions"];
@@ -277,7 +266,14 @@ export async function generateStepDetail(
       messages: [
         {
           role: "user",
-          content: `학습 개념: ${concept}\n사용자 사전 수준: L${level}\n\n전체 로드맵:\n${outlineText}\n\n이번 단계(${stepIdx + 1}. ${cur.title} - ${cur.desc}) 의 본문과 확인 질문을 작성해 주세요. id 의 단계번호는 ${stepIdx + 1} 를 사용하세요.`,
+          content: stepDetailUserMessage(
+            concept,
+            level,
+            outlineText,
+            stepIdx + 1,
+            cur.title,
+            cur.desc,
+          ),
         },
       ],
       output_config: { format: jsonSchemaOutputFormat(stepDetailSchema) },
@@ -325,14 +321,6 @@ const evalSchema = {
   },
 } as const;
 
-const EVAL_SYSTEM = `당신은 소크라테스식 학습 튜터입니다. 한 학습 단계의 확인 질문에 대한 사용자 답변을 평가합니다.
-
-- 반드시 한국어로 작성하세요.
-- 각 질문의 답변을 4등급으로 평가: correct(정답), almost(거의 맞음), partial(부족), wrong(오답/엉뚱).
-- feedback 은 1-2문장으로 짧게. 맞은 점/놓친 점/보강 포인트 중심.
-- 빈 답변이나 의미 없는 답변은 wrong 처리하고 핵심을 한 줄로 알려주세요.
-- 채점은 너그럽되, 핵심 개념이 빠지면 partial/wrong 으로 명확히 표시하세요.`;
-
 export interface EvalQuestionInput {
   id: string;
   q: string;
@@ -368,7 +356,7 @@ export async function generateAnswerEvaluation(
       messages: [
         {
           role: "user",
-          content: `학습 개념: ${concept}\n사용자 수준: L${level}\n\n현재 단계: ${stepTitle} - ${stepDesc}\n단계 본문 요약:\n${stepBody}\n\n평가할 질문/답변:\n${qaText}\n\n각 질문에 대해 grade 와 feedback 을 작성해 주세요. id 는 입력과 동일하게 유지하세요.`,
+          content: evalUserMessage(concept, level, stepTitle, stepDesc, stepBody, qaText),
         },
       ],
       output_config: { format: jsonSchemaOutputFormat(evalSchema) },
