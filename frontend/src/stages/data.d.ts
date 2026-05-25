@@ -35,8 +35,8 @@ export interface ProbeAnswers {
 }
 export declare const PROBE_QUESTIONS: ProbeQuestion[];
 export declare const LEVEL_LABELS: string[];
-export declare function estimateLevel(probes: ProbeAnswers): number;
-export declare function levelReason(probes: ProbeAnswers, level: number): string;
+export declare function estimateLevel(probes: ProbeAnswers, questions?: ProbeQuestion[]): number;
+export declare function levelReason(probes: ProbeAnswers, level: number, questions?: ProbeQuestion[]): string;
 export interface StepQuestion {
     id: string;
     q: string;
@@ -50,7 +50,7 @@ export interface Step {
     questions: StepQuestion[];
 }
 export declare const STEPS: Step[];
-export type Stage = "input" | "probe" | "roadmap" | "explain" | "questions" | "answering" | "done";
+export type Stage = "input" | "probe" | "learn" | "done";
 export declare const STAGE_LABELS: Record<Stage, string>;
 export declare const DEPTHS: {
     value: string;
@@ -59,11 +59,11 @@ export declare const DEPTHS: {
 }[];
 export declare const ACCENT_PRESETS: string[][];
 export declare const PHASES: readonly [{
+    readonly id: "input";
+    readonly label: "개념 입력";
+}, {
     readonly id: "probe";
     readonly label: "수준 확인";
-}, {
-    readonly id: "roadmap";
-    readonly label: "단계 제시";
 }, {
     readonly id: "learn";
     readonly label: "학습 진행";
@@ -71,5 +71,3 @@ export declare const PHASES: readonly [{
     readonly id: "done";
     readonly label: "완료";
 }];
-export declare const LEARN_STAGES: Stage[];
-export declare function phaseOf(stage: Stage): string | null;

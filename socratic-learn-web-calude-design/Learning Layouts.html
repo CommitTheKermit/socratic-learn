@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>학습 진행 — 레이아웃 비교</title>
+
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" />
+
+<!-- v3 tokens + base type / md / qa-pair styles -->
+<link rel="stylesheet" href="styles-v3.css?v=1" />
+<!-- layout-specific styles for the 4 boards -->
+<link rel="stylesheet" href="layouts.css?v=1" />
+
+<style>
+  /* page bg matches design canvas (light warm) */
+  html, body { background: #f0eee9; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<!-- Reuses STEPS data + <Markdown/> from v3 -->
+<script type="text/babel" src="stages-v3.jsx"></script>
+<!-- Design canvas wrapper -->
+<script type="text/babel" src="design-canvas.jsx"></script>
+<!-- Our 4 layout components -->
+<script type="text/babel" src="layouts.jsx"></script>
+
+<script type="text/babel">
+function Page() {
+  return (
+    <DesignCanvas>
+      <DCSection
+        id="layouts"
+        title="학습 진행 — 한 페이지 레이아웃 4가지"
+        subtitle="동일한 콘텐츠(개념 1: 동시성과 병렬성 · 2문항)로 네 가지 배치 비교"
+      >
+        <DCArtboard id="l1" label="01 · 단일 세로 스크롤" width={760} height={1280}>
+          <Layout1 />
+        </DCArtboard>
+
+        <DCArtboard id="l2" label="02 · 좌우 2컬럼 (설명 │ 질문+답)" width={1080} height={920}>
+          <Layout2 />
+        </DCArtboard>
+
+        <DCArtboard id="l3" label="03 · 설명 + 질문 collapsible" width={760} height={1180}>
+          <Layout3 />
+        </DCArtboard>
+
+        <DCArtboard id="l4" label="04 · 좌측 내비 + 수직 세션" width={1080} height={1080}>
+          <Layout4 />
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<Page />);
+</script>
+</body>
+</html>

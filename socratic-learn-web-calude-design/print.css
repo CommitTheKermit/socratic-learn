@@ -1,0 +1,109 @@
+/* Print-specific layout: each <section class="print-page"> is a fixed-size
+   page; main interactive bits (sticky submit, animations) get tamed. */
+
+@page {
+  size: 1280px 1680px;
+  margin: 0;
+}
+
+html, body {
+  background: #ffffff;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+body {
+  font-family: var(--font-sans);
+}
+
+.print-page {
+  width: 1280px;
+  min-height: 1680px;
+  background: var(--bg);
+  break-after: page;
+  page-break-after: always;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.print-page:last-child { break-after: auto; page-break-after: auto; }
+
+.print-page-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 22px 32px 14px;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--bg);
+  flex: 0 0 auto;
+}
+.print-page-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: .12em;
+  color: var(--text-soft);
+  text-transform: uppercase;
+}
+.print-page-label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: .04em;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* The app fills the rest of the page. */
+.print-frame {
+  flex: 1 1 auto;
+  position: relative;
+  overflow: hidden;
+}
+.print-frame .app {
+  min-height: auto;
+  height: 100%;
+}
+.print-frame .sidebar {
+  position: relative;
+  height: auto;
+  min-height: 100%;
+}
+.print-frame .topbar {
+  position: relative;
+  backdrop-filter: none;
+  background: var(--bg);
+}
+
+/* Submit bar — convert from fixed (which would float) to inline at bottom. */
+.print-submit-bar {
+  position: static !important;
+  left: auto !important;
+  padding: 18px 32px 22px !important;
+  background: linear-gradient(to top, var(--bg) 70%, transparent) !important;
+}
+
+/* The canvas has bottom padding to clear the sticky bar in live mode — in
+   print the bar is in-flow so reset it. */
+.print-frame .canvas { padding-bottom: 32px; }
+
+/* Disable any blinking cursor / pulse / fade-in animations in print. */
+* {
+  animation: none !important;
+  transition: none !important;
+}
+.stream-cursor { display: none !important; }
+.fade-in { opacity: 1 !important; transform: none !important; }
+
+/* Hide tweaks panel if it somehow renders. */
+.twk-panel { display: none !important; }
+
+@media print {
+  body { margin: 0; }
+  .print-page {
+    break-after: page;
+    page-break-after: always;
+  }
+  .print-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+}

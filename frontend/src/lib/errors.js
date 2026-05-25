@@ -1,7 +1,9 @@
 export function describeErrorCode(code, fallback) {
     switch (code) {
         case "MISSING_CLAUDE_API_KEY":
-            return "Claude API 키가 설정되지 않았어요. 서버에 ANTHROPIC_API_KEY 환경변수를 설정해 주세요.";
+            return fallback || "Claude API 키가 설정되지 않았어요. frontend/.env.local 의 VITE_ANTHROPIC_API_KEY 를 확인해 주세요.";
+        case "INVALID_RESPONSE":
+            return fallback || "Claude 응답을 해석하지 못했어요. 다시 시도해 주세요.";
         case "CLAUDE_API_ERROR":
             return "Claude API 호출 중 문제가 발생했어요. 잠시 후 다시 시도해 주세요.";
         case "INTERNAL_ERROR":

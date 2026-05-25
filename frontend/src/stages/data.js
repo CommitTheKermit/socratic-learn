@@ -39,12 +39,18 @@ export const LEVEL_LABELS = [
     "직접 다뤄본 단계",
     "설명할 수 있는 단계",
 ];
-export function estimateLevel(probes) {
+function findChoice(qs) {
+    return qs.find((q) => q.kind === "choice");
+}
+function findMulti(qs) {
+    return qs.find((q) => q.kind === "multi");
+}
+export function estimateLevel(probes, questions = PROBE_QUESTIONS) {
     let score = 0;
     if (typeof probes.p1 === "number")
         score += probes.p1 * 1.2;
     const picks = probes.p2 ?? [];
-    const opts = PROBE_QUESTIONS[1].options;
+    const opts = findMulti(questions)?.options ?? [];
     for (const v of picks) {
         const o = opts.find((o) => o.value === v);
         if (o)
@@ -57,13 +63,13 @@ export function estimateLevel(probes) {
         score += 0.7;
     return Math.max(0, Math.min(4, Math.round(score / 1.6)));
 }
-export function levelReason(probes, level) {
+export function levelReason(probes, level, questions = PROBE_QUESTIONS) {
     const parts = [];
-    const p1 = PROBE_QUESTIONS[0].options.find((o) => o.value === probes.p1);
+    const p1 = findChoice(questions)?.options.find((o) => o.value === probes.p1);
     if (p1)
         parts.push(`"${p1.label}"라고 답하셨고`);
     const picks = probes.p2 ?? [];
-    const opts = PROBE_QUESTIONS[1].options;
+    const opts = findMulti(questions)?.options ?? [];
     const correct = picks.filter((v) => opts.find((o) => o.value === v)?.correct).length;
     const wrong = picks.length - correct;
     if (picks.length) {
@@ -137,10 +143,7 @@ suspend fun fetchUser(id: Int): User {
 export const STAGE_LABELS = {
     input: "개념 입력",
     probe: "수준 확인",
-    roadmap: "단계 제시",
-    explain: "개념 설명",
-    questions: "확인 질문",
-    answering: "질문 답변",
+    learn: "학습 진행",
     done: "완료",
 };
 export const DEPTHS = [
@@ -159,16 +162,8 @@ export const ACCENT_PRESETS = [
     ["#C7D2FE", "#A5F3FC", "#BBF7D0"],
 ];
 export const PHASES = [
+    { id: "input", label: "개념 입력" },
     { id: "probe", label: "수준 확인" },
-    { id: "roadmap", label: "단계 제시" },
     { id: "learn", label: "학습 진행" },
     { id: "done", label: "완료" },
 ];
-export const LEARN_STAGES = ["explain", "questions", "answering"];
-export function phaseOf(stage) {
-    if (LEARN_STAGES.includes(stage))
-        return "learn";
-    if (stage === "input")
-        return null;
-    return stage;
-}

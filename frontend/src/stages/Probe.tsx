@@ -1,38 +1,44 @@
+import { useState } from "react";
 import {
-  LEVEL_LABELS,
-  PROBE_QUESTIONS,
-  STEPS,
   estimateLevel,
-  levelReason,
   type ProbeAnswers,
   type ProbeChoiceQ,
   type ProbeMultiQ,
   type ProbeTextQ,
 } from "./data";
+import { useLearnContent } from "../state/LearnContent";
+import { describeErrorCode } from "../lib/errors";
 
 interface Props {
   concept: string;
   probes: ProbeAnswers;
   setProbes: (updater: (prev: ProbeAnswers) => ProbeAnswers) => void;
-  estimatedLevel: number | null;
   setEstimatedLevel: (v: number) => void;
   onPrev: () => void;
   onNext: () => void;
+  onRetry: () => void;
 }
 
 function ChoiceRow({
   p,
   value,
   onChange,
+  highlightRequired,
 }: {
   p: ProbeChoiceQ;
   value: number | undefined;
   onChange: (v: number) => void;
+  highlightRequired?: boolean;
 }) {
   return (
-    <div className="probe-row">
-      <div className="probe-q">{p.q}</div>
+    <div className={"probe-row" + (highlightRequired ? " is-required-missing" : "")}>
+      <div className="probe-q">
+        {p.q} <span className="probe-badge probe-badge--required">필수</span>
+      </div>
       {p.sub && <div className="probe-sub">{p.sub}</div>}
+      {highlightRequired && (
+        <div className="probe-error">선택지를 하나 골라주세요.</div>
+      )}
       <div className="probe-choices">
         {p.options.map((o) => (
           <button
@@ -62,8 +68,10 @@ function MultiRow({
   const picked = value ?? [];
   return (
     <div className="probe-row">
-      <div className="probe-q">{p.q}</div>
-      {p.sub && <div className="probe-sub">{p.sub}</div>}
+      <div className="probe-q">
+        {p.q} <span className="probe-badge">선택</span>
+      </div>
+      <div className="probe-sub">{p.sub ?? "건너뛰셔도 괜찮아요."}</div>
       <div className="probe-chips">
         {p.options.map((o) => (
           <button
@@ -91,7 +99,10 @@ function TextRow({
 }) {
   return (
     <div className="probe-row">
-      <div className="probe-q">{p.q}</div>
+      <div className="probe-q">
+        {p.q} <span className="probe-badge">선택</span>
+      </div>
+      <div className="probe-sub">건너뛰셔도 괜찮아요.</div>
       <textarea
         className="probe-text"
         rows={2}
@@ -107,16 +118,30 @@ export function StageProbe({
   concept,
   probes,
   setProbes,
-  estimatedLevel,
   setEstimatedLevel,
   onPrev,
   onNext,
+  onRetry,
 }: Props) {
-  const allAnswered = typeof probes.p1 === "number" && Array.isArray(probes.p2);
-  const submitted = estimatedLevel != null;
+  const {
+    probeQuestions,
+    probeStatus,
+    probeError,
+    probeFromFallback,
+  } = useLearnContent();
+
+  const requiredFilled = typeof probes.p1 === "number";
+  const loading = probeStatus === "loading";
+  const [showRequiredError, setShowRequiredError] = useState(false);
 
   const submit = () => {
-    setEstimatedLevel(estimateLevel(probes));
+    if (!requiredFilled) {
+      setShowRequiredError(true);
+      return;
+    }
+    setShowRequiredError(false);
+    setEstimatedLevel(estimateLevel(probes, probeQuestions));
+    onNext();
   };
 
   return (
@@ -128,59 +153,69 @@ export function StageProbe({
       </header>
 
       <div className="stage-body">
-        <div className="probe-list">
-          {PROBE_QUESTIONS.map((p) => {
-            if (p.kind === "choice") {
-              return (
-                <ChoiceRow
-                  key={p.id}
-                  p={p}
-                  value={probes.p1}
-                  onChange={(nv) => setProbes((prev) => ({ ...prev, p1: nv }))}
-                />
-              );
-            }
-            if (p.kind === "multi") {
-              return (
-                <MultiRow
-                  key={p.id}
-                  p={p}
-                  value={probes.p2}
-                  onToggle={(val) =>
-                    setProbes((prev) => {
-                      const picked = prev.p2 ?? [];
-                      const next = picked.includes(val)
-                        ? picked.filter((x) => x !== val)
-                        : [...picked, val];
-                      return { ...prev, p2: next };
-                    })
-                  }
-                />
-              );
-            }
-            return (
-              <TextRow
-                key={p.id}
-                p={p}
-                value={probes.p3}
-                onChange={(nv) => setProbes((prev) => ({ ...prev, p3: nv }))}
-              />
-            );
-          })}
-        </div>
+        {loading && (
+          <p className="stage-sub">개념에 맞는 진단 문항을 만들고 있습니다…</p>
+        )}
 
-        {submitted && estimatedLevel != null && (
-          <div className="probe-result">
+        {probeStatus === "error" && probeError && (
+          <div className="probe-result" role="alert">
             <div className="pr-head">
-              <span className="pr-eyebrow">수준 추정 결과</span>
-              <span className="pr-level">
-                L{estimatedLevel} · {LEVEL_LABELS[estimatedLevel]}
-              </span>
+              <span className="pr-eyebrow">진단 문항 생성 실패</span>
             </div>
-            <p className="pr-reason">{levelReason(probes, estimatedLevel)}</p>
-            <p className="pr-note">
-              이 추정에 맞춰 <strong>{STEPS.length}단계</strong> 코스를 짜드릴게요. 다음 화면에서 확인할 수 있어요.
-            </p>
+            <p className="pr-reason">{describeErrorCode(probeError.code, probeError.message)}</p>
+            {probeFromFallback && (
+              <p className="pr-note">샘플 문항을 임시로 보여드렸어요.</p>
+            )}
+            <button className="btn-ghost" type="button" onClick={onRetry}>
+              다시 시도
+            </button>
+          </div>
+        )}
+
+        {!loading && probeQuestions.length > 0 && (
+          <div className="probe-list">
+            {probeQuestions.map((p) => {
+              if (p.kind === "choice") {
+                return (
+                  <ChoiceRow
+                    key={p.id}
+                    p={p}
+                    value={probes.p1}
+                    onChange={(nv) => {
+                      setProbes((prev) => ({ ...prev, p1: nv }));
+                      setShowRequiredError(false);
+                    }}
+                    highlightRequired={showRequiredError && !requiredFilled}
+                  />
+                );
+              }
+              if (p.kind === "multi") {
+                return (
+                  <MultiRow
+                    key={p.id}
+                    p={p}
+                    value={probes.p2}
+                    onToggle={(val) =>
+                      setProbes((prev) => {
+                        const picked = prev.p2 ?? [];
+                        const next = picked.includes(val)
+                          ? picked.filter((x) => x !== val)
+                          : [...picked, val];
+                        return { ...prev, p2: next };
+                      })
+                    }
+                  />
+                );
+              }
+              return (
+                <TextRow
+                  key={p.id}
+                  p={p}
+                  value={probes.p3}
+                  onChange={(nv) => setProbes((prev) => ({ ...prev, p3: nv }))}
+                />
+              );
+            })}
           </div>
         )}
       </div>
@@ -190,15 +225,9 @@ export function StageProbe({
           ← 개념 다시 입력
         </button>
         <span className="grow" />
-        {!submitted ? (
-          <button className="btn-holo" type="button" onClick={submit} disabled={!allAnswered}>
-            제출하고 수준 보기 →
-          </button>
-        ) : (
-          <button className="btn-holo" type="button" onClick={onNext}>
-            단계 만들기 →
-          </button>
-        )}
+        <button className="btn-holo" type="button" onClick={submit} disabled={loading}>
+          단계 만들기 →
+        </button>
       </div>
     </section>
   );

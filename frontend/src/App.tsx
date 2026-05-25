@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { ProgressBar } from "./components/ProgressBar";
 import { Hero } from "./components/Hero";
@@ -6,16 +6,13 @@ import { I } from "./components/icons";
 import {
   ACCENT_PRESETS,
   SAMPLE_CONCEPT,
-  STEPS,
   type ProbeAnswers,
   type Stage,
 } from "./stages/data";
 import { StageProbe } from "./stages/Probe";
-import { StageRoadmap } from "./stages/Roadmap";
-import { StageExplain } from "./stages/Explain";
-import { StageQuestions } from "./stages/Questions";
-import { StageAnswering } from "./stages/Answering";
+import { StageLearn } from "./stages/Learn";
 import { StageDone } from "./stages/Done";
+import { LearnContentProvider, useLearnContent } from "./state/LearnContent";
 
 type AccentVars = CSSProperties & {
   "--holo"?: string;
@@ -24,7 +21,7 @@ type AccentVars = CSSProperties & {
   "--aurora-c"?: string;
 };
 
-export default function App() {
+function AppInner() {
   const [stage, setStage] = useState<Stage>("input");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [depth, setDepth] = useState<string>("0depth");
@@ -37,6 +34,32 @@ export default function App() {
   const [stepIdx, setStepIdx] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [skips, setSkips] = useState<Record<string, boolean>>({});
+
+  const {
+    steps,
+    probeStatus,
+    loadProbe,
+    loadOutline,
+    reset: resetContent,
+  } = useLearnContent();
+
+  useEffect(() => {
+    if (stage === "probe" && probeStatus === "idle") {
+      void loadProbe(concept);
+    }
+  }, [stage, probeStatus, concept, loadProbe]);
+
+  const lastLoadedLevelRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (
+      stage === "learn" &&
+      estimatedLevel != null &&
+      lastLoadedLevelRef.current !== estimatedLevel
+    ) {
+      lastLoadedLevelRef.current = estimatedLevel;
+      void loadOutline(concept, estimatedLevel);
+    }
+  }, [stage, estimatedLevel, concept, loadOutline]);
 
   const accentStyle = useMemo<AccentVars>(() => {
     const colors = Array.isArray(accent) ? accent : ACCENT_PRESETS[0];
@@ -59,23 +82,8 @@ export default function App() {
     setEstimatedLevel(null);
     setAnswers({});
     setSkips({});
-  };
-
-  const onStepDone = () => {
-    if (stepIdx < STEPS.length - 1) {
-      setStepIdx(stepIdx + 1);
-      setStage("explain");
-    } else {
-      setStage("done");
-    }
-  };
-
-  const onPrevFromExplain = () => {
-    if (stepIdx === 0) setStage("roadmap");
-    else {
-      setStepIdx(stepIdx - 1);
-      setStage("answering");
-    }
+    lastLoadedLevelRef.current = null;
+    resetContent();
   };
 
   return (
@@ -117,51 +125,34 @@ export default function App() {
               concept={concept}
               probes={probes}
               setProbes={(updater) => setProbes((prev) => updater(prev))}
-              estimatedLevel={estimatedLevel}
               setEstimatedLevel={setEstimatedLevel}
               onPrev={() => setStage("input")}
-              onNext={() => setStage("roadmap")}
-            />
-          )}
-
-          {stage === "roadmap" && (
-            <StageRoadmap
-              concept={concept}
-              level={estimatedLevel}
-              onPrev={() => setStage("probe")}
               onNext={() => {
                 setStepIdx(0);
-                setStage("explain");
+                setStage("learn");
               }}
+              onRetry={() => loadProbe(concept)}
             />
           )}
 
-          {stage === "explain" && (
-            <StageExplain
+          {stage === "learn" && (
+            <StageLearn
               concept={concept}
+              level={estimatedLevel}
               stepIdx={stepIdx}
-              onPrev={onPrevFromExplain}
-              onNext={() => setStage("questions")}
-            />
-          )}
-
-          {stage === "questions" && (
-            <StageQuestions
-              stepIdx={stepIdx}
-              onPrev={() => setStage("explain")}
-              onNext={() => setStage("answering")}
-            />
-          )}
-
-          {stage === "answering" && (
-            <StageAnswering
-              stepIdx={stepIdx}
+              setStepIdx={setStepIdx}
               answers={answers}
               setAnswers={setAnswers}
               skips={skips}
               setSkips={setSkips}
-              onPrev={() => setStage("questions")}
-              onStepDone={onStepDone}
+              onPrev={() => setStage("probe")}
+              onDone={() => setStage("done")}
+              onRetry={() => {
+                if (estimatedLevel != null) {
+                  lastLoadedLevelRef.current = null;
+                  void loadOutline(concept, estimatedLevel);
+                }
+              }}
             />
           )}
 
@@ -172,8 +163,8 @@ export default function App() {
               answers={answers}
               skips={skips}
               onPrev={() => {
-                setStepIdx(STEPS.length - 1);
-                setStage("answering");
+                setStepIdx(Math.max(0, steps.length - 1));
+                setStage("learn");
               }}
               onRestart={newSession}
             />
@@ -187,5 +178,13 @@ export default function App() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <LearnContentProvider>
+      <AppInner />
+    </LearnContentProvider>
   );
 }
