@@ -163,7 +163,7 @@ export function LearnContentProvider({ children }: { children: ReactNode }) {
       try {
         const items = step.questions
           .filter((q) => !skips[q.id])
-          .map((q) => ({ id: q.id, q: q.q, hint: q.hint, answer: answers[q.id] || "" }));
+          .map((q) => ({ id: q.id, q: q.q, answer: answers[q.id] || "" }));
         const evalResult = await generateAnswerEvaluation(
           concept,
           level,

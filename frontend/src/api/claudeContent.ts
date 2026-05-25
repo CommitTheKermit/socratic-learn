@@ -214,20 +214,19 @@ const stepDetailSchema = {
     body: {
       type: "string",
       description:
-        "본문. **굵게**, *기울임*, `인라인 코드`, 트리플 백틱 코드블록만 허용. 헤더/리스트/표 금지. 2-4문단.",
+        "본문 2-4문단. **굵게**, *기울임*, `인라인 코드`, 트리플 백틱 코드블록 허용. 헤더(#)/순서·글머리 리스트 금지. 비교가 필요하면 마크다운 비교표 또는 트리플 백틱 ASCII 다이어그램을 1회 허용. 마지막 줄에 \"아는 만큼만 짧게 써도 OK. 모르면 '모르겠어요' 라고 적어도 됩니다.\" 포함.",
     },
     questions: {
       type: "array",
-      minItems: 1,
-      maxItems: 3,
+      minItems: 3,
+      maxItems: 8,
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["id", "q", "hint"],
+        required: ["id", "q"],
         properties: {
           id: { type: "string", description: "단계번호-순번 형식 (예: 1-1)" },
           q: { type: "string" },
-          hint: { type: "string" },
         },
       },
     },
@@ -296,14 +295,20 @@ export interface EvaluationItem {
   feedback: string;
 }
 
+export interface EvaluationSummary {
+  overallComment: string;
+  nextFocus: string[];
+}
+
 export interface StepEvaluation {
   evaluations: EvaluationItem[];
+  summary: EvaluationSummary;
 }
 
 const evalSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["evaluations"],
+  required: ["evaluations", "summary"],
   properties: {
     evaluations: {
       type: "array",
@@ -314,7 +319,31 @@ const evalSchema = {
         properties: {
           id: { type: "string" },
           grade: { type: "string", enum: ["correct", "almost", "partial", "wrong"] },
-          feedback: { type: "string", description: "1-2 문장 한국어 피드백. 칭찬/지적/한 가지 보강 포인트." },
+          feedback: {
+            type: "string",
+            description:
+              "1-2 문장 한국어 피드백. 어디가 어긋났는지 구체적으로 + 정확한 한 줄 교정. wrong 인 경우 '정반대로 이해하셨네요...' 식으로 명시적 교정. 이모지 사용 금지.",
+          },
+        },
+      },
+    },
+    summary: {
+      type: "object",
+      additionalProperties: false,
+      required: ["overallComment", "nextFocus"],
+      properties: {
+        overallComment: {
+          type: "string",
+          description: "1-2문장. 잘 잡은 점/가장 위험한 오해 중심의 종합 평가. 칭찬으로 끝내지 말 것.",
+        },
+        nextFocus: {
+          type: "array",
+          minItems: 1,
+          maxItems: 3,
+          items: {
+            type: "string",
+            description: "다음 사이클에서 우선 보강할 항목. 구체적인 짧은 구절. 일반론('더 공부') 금지.",
+          },
         },
       },
     },
@@ -324,7 +353,6 @@ const evalSchema = {
 export interface EvalQuestionInput {
   id: string;
   q: string;
-  hint: string;
   answer: string;
 }
 
@@ -342,9 +370,11 @@ export async function generateAnswerEvaluation(
   } catch (e) {
     throw new ClaudeContentError("MISSING_CLAUDE_API_KEY", (e as Error).message);
   }
-  if (questions.length === 0) return { evaluations: [] };
+  if (questions.length === 0) {
+    return { evaluations: [], summary: { overallComment: "", nextFocus: [] } };
+  }
   const qaText = questions
-    .map((q) => `- id: ${q.id}\n  질문: ${q.q}\n  힌트: ${q.hint}\n  사용자 답변: ${q.answer || "(빈 답변)"}`)
+    .map((q) => `- id: ${q.id}\n  질문: ${q.q}\n  사용자 답변: ${q.answer || "(빈 답변)"}`)
     .join("\n");
   let parsed: StepEvaluation | undefined;
   try {

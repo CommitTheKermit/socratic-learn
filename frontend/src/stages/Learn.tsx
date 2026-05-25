@@ -243,7 +243,6 @@ export function StageLearn({
                       {ev && !isSkipped && (
                         <span className={`grade-badge grade-${ev.grade}`}>{GRADE_LABEL[ev.grade]}</span>
                       )}
-                      {!ev && <span className="qa-hint">힌트 - {q.hint}</span>}
                     </div>
                     <textarea
                       className="qa-answer"
