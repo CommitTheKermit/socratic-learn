@@ -21,7 +21,7 @@ interface LearnContentValue {
   probeStatus: LoadStatus;
   probeError: ErrInfo | null;
   probeFromFallback: boolean;
-  loadProbe: (concept: string) => Promise<void>;
+  loadProbe: (concept: string, materials?: string) => Promise<void>;
 
   steps: Step[];
   outlineStatus: LoadStatus;
@@ -81,12 +81,12 @@ export function LearnContentProvider({ children }: { children: ReactNode }) {
   const [stepEvalErrors, setStepEvalErrors] = useState<Record<number, ErrInfo | null>>({});
   const evalInflightRef = useRef<Set<number>>(new Set());
 
-  const loadProbe = useCallback(async (concept: string) => {
+  const loadProbe = useCallback(async (concept: string, materials?: string) => {
     setProbeStatus("loading");
     setProbeError(null);
     setProbeFromFallback(false);
     try {
-      const qs = await generateProbeQuestions(concept);
+      const qs = await generateProbeQuestions(concept, materials);
       setProbeQuestions(qs);
       setProbeStatus("ready");
     } catch (e) {

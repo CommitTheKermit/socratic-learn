@@ -1218,3 +1218,93 @@ body {
 ::-webkit-scrollbar-thumb { background: oklch(1 0 0 / 0.08); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: oklch(1 0 0 / 0.16); }
 ::-webkit-scrollbar-track { background: transparent; }
+
+/* Markdown table */
+.md-body .md-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+  font-size: 0.95em;
+}
+.md-body .md-table th,
+.md-body .md-table td {
+  border: 1px solid oklch(1 0 0 / 0.14);
+  padding: 0.45rem 0.7rem;
+  text-align: left;
+  vertical-align: top;
+}
+.md-body .md-table th {
+  background: oklch(1 0 0 / 0.04);
+  font-weight: 600;
+}
+
+/* Hero materials toggle */
+.materials-toggle {
+  margin-top: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.materials-toggle-btn {
+  align-self: flex-start;
+  background: transparent;
+  border: 1px dashed oklch(1 0 0 / 0.2);
+  color: oklch(1 0 0 / 0.7);
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85em;
+}
+.materials-toggle-btn:hover { background: oklch(1 0 0 / 0.04); }
+.materials-textarea {
+  width: 100%;
+  min-height: 7.5rem;
+  padding: 0.6rem 0.8rem;
+  background: oklch(1 0 0 / 0.03);
+  border: 1px solid oklch(1 0 0 / 0.12);
+  border-radius: 8px;
+  color: inherit;
+  font-family: inherit;
+  font-size: 0.9em;
+  resize: vertical;
+}
+
+/* Retreat dialog */
+.retreat-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: oklch(0 0 0 / 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.retreat-dialog {
+  background: oklch(0.18 0.01 270);
+  border: 1px solid oklch(1 0 0 / 0.14);
+  border-radius: 12px;
+  padding: 1.5rem;
+  max-width: 480px;
+  width: calc(100% - 2rem);
+  box-shadow: 0 24px 60px oklch(0 0 0 / 0.4);
+}
+.retreat-dialog h3 {
+  margin: 0 0 0.7rem;
+  font-size: 1.1em;
+}
+.retreat-reason {
+  margin: 0 0 0.7rem;
+  color: oklch(1 0 0 / 0.78);
+  line-height: 1.55;
+}
+.retreat-suggestion {
+  margin: 0 0 1.2rem;
+  padding: 0.6rem 0.8rem;
+  background: oklch(1 0 0 / 0.04);
+  border-radius: 8px;
+}
+.retreat-actions {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: flex-end;
+}

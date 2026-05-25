@@ -29,6 +29,7 @@ function AppInner() {
   const showAurora = true;
 
   const [concept, setConcept] = useState<string>(SAMPLE_CONCEPT);
+  const [materials, setMaterials] = useState<string>("");
   const [probes, setProbes] = useState<ProbeAnswers>({});
   const [estimatedLevel, setEstimatedLevel] = useState<number | null>(null);
   const [stepIdx, setStepIdx] = useState(0);
@@ -45,9 +46,9 @@ function AppInner() {
 
   useEffect(() => {
     if (stage === "probe" && probeStatus === "idle") {
-      void loadProbe(concept);
+      void loadProbe(concept, materials);
     }
-  }, [stage, probeStatus, concept, loadProbe]);
+  }, [stage, probeStatus, concept, materials, loadProbe]);
 
   const lastLoadedLevelRef = useRef<number | null>(null);
   useEffect(() => {
@@ -75,7 +76,7 @@ function AppInner() {
     };
   }, [accent]);
 
-  const newSession = () => {
+  const newSession = (suggestedConcept?: string) => {
     setStage("input");
     setStepIdx(0);
     setProbes({});
@@ -84,6 +85,10 @@ function AppInner() {
     setSkips({});
     lastLoadedLevelRef.current = null;
     resetContent();
+    if (typeof suggestedConcept === "string" && suggestedConcept.trim()) {
+      setConcept(suggestedConcept.trim());
+      setMaterials("");
+    }
   };
 
   return (
@@ -116,6 +121,8 @@ function AppInner() {
               onDepth={setDepth}
               concept={concept}
               setConcept={setConcept}
+              materials={materials}
+              setMaterials={setMaterials}
               onStart={() => setStage("probe")}
             />
           )}
@@ -123,6 +130,7 @@ function AppInner() {
           {stage === "probe" && (
             <StageProbe
               concept={concept}
+              materials={materials}
               probes={probes}
               setProbes={(updater) => setProbes((prev) => updater(prev))}
               setEstimatedLevel={setEstimatedLevel}
@@ -131,7 +139,8 @@ function AppInner() {
                 setStepIdx(0);
                 setStage("learn");
               }}
-              onRetry={() => loadProbe(concept)}
+              onRetreat={(suggestedConcept) => newSession(suggestedConcept)}
+              onRetry={() => loadProbe(concept, materials)}
             />
           )}
 

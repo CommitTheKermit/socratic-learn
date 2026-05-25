@@ -8,14 +8,17 @@ import {
 } from "./data";
 import { useLearnContent } from "../state/LearnContent";
 import { describeErrorCode } from "../lib/errors";
+import { detectOverwhelm, type OverwhelmDecision } from "../api/claudeContent";
 
 interface Props {
   concept: string;
+  materials: string;
   probes: ProbeAnswers;
   setProbes: (updater: (prev: ProbeAnswers) => ProbeAnswers) => void;
   setEstimatedLevel: (v: number) => void;
   onPrev: () => void;
   onNext: () => void;
+  onRetreat: (suggestedConcept?: string) => void;
   onRetry: () => void;
 }
 
@@ -116,11 +119,13 @@ function TextRow({
 
 export function StageProbe({
   concept,
+  materials,
   probes,
   setProbes,
   setEstimatedLevel,
   onPrev,
   onNext,
+  onRetreat,
   onRetry,
 }: Props) {
   const {
@@ -133,14 +138,45 @@ export function StageProbe({
   const requiredFilled = typeof probes.p1 === "number";
   const loading = probeStatus === "loading";
   const [showRequiredError, setShowRequiredError] = useState(false);
+  const [checkingOverwhelm, setCheckingOverwhelm] = useState(false);
+  const [retreat, setRetreat] = useState<OverwhelmDecision | null>(null);
 
-  const submit = () => {
+  const buildProbeSummary = (): string => {
+    const lines: string[] = [];
+    if (typeof probes.p1 === "number") {
+      lines.push(`친숙도(p1): ${probes.p1} / 3 (0=전혀 모름, 3=직접 다뤄봄)`);
+    }
+    if (probes.p2?.length) {
+      lines.push(`p2 선택 키워드: ${probes.p2.join(", ")}`);
+    }
+    if (probes.p3?.trim()) {
+      lines.push(`p3 한 줄 설명: ${probes.p3.trim()}`);
+    }
+    return lines.join("\n") || "(답변 없음)";
+  };
+
+  const submit = async () => {
     if (!requiredFilled) {
       setShowRequiredError(true);
       return;
     }
     setShowRequiredError(false);
     setEstimatedLevel(estimateLevel(probes, probeQuestions));
+    // p1=0 (전혀 모름) 일 때만 선제 후퇴 판단
+    if (probes.p1 === 0) {
+      setCheckingOverwhelm(true);
+      try {
+        const decision = await detectOverwhelm(concept, materials, buildProbeSummary());
+        setCheckingOverwhelm(false);
+        if (decision.shouldRetreat) {
+          setRetreat(decision);
+          return;
+        }
+      } catch {
+        setCheckingOverwhelm(false);
+        // 판단 실패 시 그냥 진행
+      }
+    }
     onNext();
   };
 
@@ -225,10 +261,52 @@ export function StageProbe({
           ← 개념 다시 입력
         </button>
         <span className="grow" />
-        <button className="btn-holo" type="button" onClick={submit} disabled={loading}>
-          단계 만들기 →
+        <button
+          className="btn-holo"
+          type="button"
+          onClick={() => void submit()}
+          disabled={loading || checkingOverwhelm}
+        >
+          {checkingOverwhelm ? "난이도 확인 중…" : "단계 만들기 →"}
         </button>
       </div>
+
+      {retreat && (
+        <div className="retreat-dialog-backdrop" role="dialog" aria-modal="true">
+          <div className="retreat-dialog">
+            <h3>한 단계 더 쉬운 개념부터 시작해볼까요?</h3>
+            <p className="retreat-reason">{retreat.reason}</p>
+            {retreat.suggestedConcept && (
+              <p className="retreat-suggestion">
+                제안: <strong>{retreat.suggestedConcept}</strong>
+              </p>
+            )}
+            <div className="retreat-actions">
+              <button
+                className="btn-ghost"
+                type="button"
+                onClick={() => {
+                  setRetreat(null);
+                  onNext();
+                }}
+              >
+                그래도 계속할게요
+              </button>
+              <button
+                className="btn-holo"
+                type="button"
+                onClick={() => {
+                  const s = retreat.suggestedConcept;
+                  setRetreat(null);
+                  onRetreat(s);
+                }}
+              >
+                네, 새로 시작
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

@@ -1,4 +1,4 @@
-import { useRef, type FormEvent, type KeyboardEvent } from "react";
+import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { DEPTHS } from "../stages/data";
 import { I } from "./icons";
 
@@ -7,11 +7,14 @@ interface Props {
   onDepth: (v: string) => void;
   concept: string;
   setConcept: (v: string) => void;
+  materials: string;
+  setMaterials: (v: string) => void;
   onStart: () => void;
 }
 
-export function Hero({ depth, onDepth, concept, setConcept, onStart }: Props) {
+export function Hero({ depth, onDepth, concept, setConcept, materials, setMaterials, onStart }: Props) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  const [open, setOpen] = useState(materials.trim().length > 0);
   const grow = (el: HTMLTextAreaElement | null) => {
     if (!el) return;
     el.style.height = "auto";
@@ -60,6 +63,26 @@ export function Hero({ depth, onDepth, concept, setConcept, onStart }: Props) {
           학습 시작
         </button>
       </form>
+
+      <div className="materials-toggle">
+        <button
+          type="button"
+          className="materials-toggle-btn"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+        >
+          {open ? "− 자료 숨기기" : "+ 관련 자료 첨부 (PR 리뷰, 코드, 문서)"}
+        </button>
+        {open && (
+          <textarea
+            className="materials-textarea"
+            rows={6}
+            placeholder="여기에 PR 리뷰 코멘트, 코드 스니펫, 문서 일부를 붙여넣으세요. 진단 질문이 이 자료에 맞춰 만들어집니다."
+            value={materials}
+            onChange={(e) => setMaterials(e.target.value)}
+          />
+        )}
+      </div>
     </section>
   );
 }

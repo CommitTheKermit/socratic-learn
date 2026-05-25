@@ -4,10 +4,12 @@ import { CLAUDE_MODEL, getClaudeClient } from "./claudeClient";
 import {
   EVAL_SYSTEM,
   OUTLINE_SYSTEM,
+  OVERWHELM_SYSTEM,
   PROBE_SYSTEM,
   STEP_DETAIL_SYSTEM,
   evalUserMessage,
   outlineUserMessage,
+  overwhelmUserMessage,
   probeUserMessage,
   stepDetailUserMessage,
 } from "./prompts";
@@ -112,7 +114,10 @@ const probeSchema = {
   },
 } as const;
 
-export async function generateProbeQuestions(concept: string): Promise<ProbeQuestion[]> {
+export async function generateProbeQuestions(
+  concept: string,
+  materials?: string,
+): Promise<ProbeQuestion[]> {
   let client: Anthropic;
   try {
     client = getClaudeClient();
@@ -123,13 +128,12 @@ export async function generateProbeQuestions(concept: string): Promise<ProbeQues
   try {
     const resp = await client.messages.parse({
       model: CLAUDE_MODEL,
-      max_tokens: 2000,
-      thinking: { type: "adaptive" },
+      max_tokens: 3000,
       system: [{ type: "text", text: PROBE_SYSTEM, cache_control: { type: "ephemeral" } }],
       messages: [
         {
           role: "user",
-          content: probeUserMessage(concept),
+          content: probeUserMessage(concept, materials),
         },
       ],
       output_config: { format: jsonSchemaOutputFormat(probeSchema) },
@@ -144,6 +148,61 @@ export async function generateProbeQuestions(concept: string): Promise<ProbeQues
   return [parsed.p1, parsed.p2, parsed.p3];
 }
 
+const overwhelmSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["shouldRetreat", "reason", "suggestedConcept"],
+  properties: {
+    shouldRetreat: { type: "boolean" },
+    reason: { type: "string", description: "1-2문장 한국어. 왜 후퇴를 권하는지 또는 왜 계속해도 되는지." },
+    suggestedConcept: {
+      type: "string",
+      description: "shouldRetreat=true 일 때 한 단계 더 쉬운 선행 개념. false 이면 빈 문자열.",
+    },
+  },
+} as const;
+
+export interface OverwhelmDecision {
+  shouldRetreat: boolean;
+  reason: string;
+  suggestedConcept: string;
+}
+
+export async function detectOverwhelm(
+  concept: string,
+  materials: string | undefined,
+  probeSummary: string,
+): Promise<OverwhelmDecision> {
+  let client: Anthropic;
+  try {
+    client = getClaudeClient();
+  } catch (e) {
+    throw new ClaudeContentError("MISSING_CLAUDE_API_KEY", (e as Error).message);
+  }
+  let parsed: OverwhelmDecision | undefined;
+  try {
+    const resp = await client.messages.parse({
+      model: CLAUDE_MODEL,
+      max_tokens: 1500,
+      system: [{ type: "text", text: OVERWHELM_SYSTEM, cache_control: { type: "ephemeral" } }],
+      messages: [
+        {
+          role: "user",
+          content: overwhelmUserMessage(concept, materials, probeSummary),
+        },
+      ],
+      output_config: { format: jsonSchemaOutputFormat(overwhelmSchema) },
+    });
+    parsed = resp.parsed_output as OverwhelmDecision;
+  } catch (e) {
+    throw mapAnthropicError(e);
+  }
+  if (!parsed) {
+    throw new ClaudeContentError("INVALID_RESPONSE", "후퇴 판단 응답이 비어 있습니다.");
+  }
+  return parsed;
+}
+
 const outlineSchema = {
   type: "object",
   additionalProperties: false,
@@ -151,8 +210,8 @@ const outlineSchema = {
   properties: {
     steps: {
       type: "array",
-      minItems: 3,
-      maxItems: 5,
+      minItems: 4,
+      maxItems: 7,
       items: {
         type: "object",
         additionalProperties: false,
@@ -185,8 +244,7 @@ export async function generateRoadmapOutline(
   try {
     const resp = await client.messages.parse({
       model: CLAUDE_MODEL,
-      max_tokens: 1500,
-      thinking: { type: "adaptive" },
+      max_tokens: 3000,
       system: [{ type: "text", text: OUTLINE_SYSTEM, cache_control: { type: "ephemeral" } }],
       messages: [
         {
@@ -259,8 +317,7 @@ export async function generateStepDetail(
   try {
     const resp = await client.messages.parse({
       model: CLAUDE_MODEL,
-      max_tokens: 2500,
-      thinking: { type: "adaptive" },
+      max_tokens: 4000,
       system: [{ type: "text", text: STEP_DETAIL_SYSTEM, cache_control: { type: "ephemeral" } }],
       messages: [
         {
@@ -295,20 +352,14 @@ export interface EvaluationItem {
   feedback: string;
 }
 
-export interface EvaluationSummary {
-  overallComment: string;
-  nextFocus: string[];
-}
-
 export interface StepEvaluation {
   evaluations: EvaluationItem[];
-  summary: EvaluationSummary;
 }
 
 const evalSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["evaluations", "summary"],
+  required: ["evaluations"],
   properties: {
     evaluations: {
       type: "array",
@@ -323,26 +374,6 @@ const evalSchema = {
             type: "string",
             description:
               "1-2 문장 한국어 피드백. 어디가 어긋났는지 구체적으로 + 정확한 한 줄 교정. wrong 인 경우 '정반대로 이해하셨네요...' 식으로 명시적 교정. 이모지 사용 금지.",
-          },
-        },
-      },
-    },
-    summary: {
-      type: "object",
-      additionalProperties: false,
-      required: ["overallComment", "nextFocus"],
-      properties: {
-        overallComment: {
-          type: "string",
-          description: "1-2문장. 잘 잡은 점/가장 위험한 오해 중심의 종합 평가. 칭찬으로 끝내지 말 것.",
-        },
-        nextFocus: {
-          type: "array",
-          minItems: 1,
-          maxItems: 3,
-          items: {
-            type: "string",
-            description: "다음 사이클에서 우선 보강할 항목. 구체적인 짧은 구절. 일반론('더 공부') 금지.",
           },
         },
       },
@@ -371,7 +402,7 @@ export async function generateAnswerEvaluation(
     throw new ClaudeContentError("MISSING_CLAUDE_API_KEY", (e as Error).message);
   }
   if (questions.length === 0) {
-    return { evaluations: [], summary: { overallComment: "", nextFocus: [] } };
+    return { evaluations: [] };
   }
   const qaText = questions
     .map((q) => `- id: ${q.id}\n  질문: ${q.q}\n  사용자 답변: ${q.answer || "(빈 답변)"}`)
@@ -380,8 +411,7 @@ export async function generateAnswerEvaluation(
   try {
     const resp = await client.messages.parse({
       model: CLAUDE_MODEL,
-      max_tokens: 2000,
-      thinking: { type: "adaptive" },
+      max_tokens: 3000,
       system: [{ type: "text", text: EVAL_SYSTEM, cache_control: { type: "ephemeral" } }],
       messages: [
         {
