@@ -1,14 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 import { useLearnContent } from "../state/LearnContent";
 import { Markdown } from "../lib/markdown";
-import { LEVEL_LABELS } from "./data";
+import { LEVEL_LABELS, type Step } from "./data";
 import { describeErrorCode } from "../lib/errors";
 import { I } from "../components/icons";
 import type { Grade } from "../api/claudeContent";
 import { BranchDialog } from "../components/branch/BranchDialog";
-import { StepChipsBar } from "../components/branch/StepChipsBar";
 import { useBranchPhase } from "../state/useBranchPhase";
 import type { BranchOption } from "../api/contract";
+
+interface InsertedMeta {
+  parentDisplayBase: string; // e.g. "1" or "1-1"
+  siblingIndex: number;       // 0-based among same-parent siblings
+}
+
+function stripLeadingZero(label: string): string {
+  return label.replace(/^0+(?=\d)/, "");
+}
 
 interface Props {
   concept: string;
@@ -58,8 +66,23 @@ export function StageLearn({
     insertStepAt,
   } = useLearnContent();
   const branch = useBranchPhase();
-  const [insertedIds, setInsertedIds] = useState<Set<number>>(new Set());
-  const branchTriggeredFor = useRef<number | null>(null);
+  const [insertedMeta, setInsertedMeta] = useState<Map<number, InsertedMeta>>(new Map());
+  const [branchVisible, setBranchVisible] = useState(false);
+
+  // 각 step 의 표시 라벨 계산: 원본은 "01","02"…, 삽입은 "1-1","1-2"…
+  const displayLabelOf = (s: Step): string => {
+    const meta = insertedMeta.get(s.id);
+    if (meta) return `${meta.parentDisplayBase}-${meta.siblingIndex + 1}`;
+    // 원본 카운트
+    let count = 0;
+    for (const x of steps) {
+      if (!insertedMeta.has(x.id)) {
+        count += 1;
+        if (x.id === s.id) return String(count).padStart(2, "0");
+      }
+    }
+    return String(count).padStart(2, "0");
+  };
   const safeLevel = level ?? 2;
   const step = steps[stepIdx];
   const detailStatus = stepDetailStatus[stepIdx] ?? "idle";
@@ -91,32 +114,11 @@ export function StageLearn({
     }
   }, [outlineStatus, stepIdx, step, detailStatus, concept, safeLevel, loadStepDetail]);
 
-  // 평가 완료 시 (한 번만) 분기 다이얼로그를 띄운다.
+  // stepIdx 가 바뀌면 분기 가시 상태도 닫는다.
   useEffect(() => {
-    if (!isEvaluated || !step) return;
-    if (branchTriggeredFor.current === stepIdx) return;
-    if (branch.mode !== "closed") return;
-    branchTriggeredFor.current = stepIdx;
-    const roadmapOutlineText = steps
-      .map((s, i) => `${i + 1}. ${s.title} - ${s.desc}`)
-      .join("\n");
-    const qList = step.questions
-      .filter((q) => !skips[q.id])
-      .map((q) => ({ id: q.id, q: q.q, answer: answers[q.id] || "" }));
-    void branch.openBranch({
-      concept,
-      level: safeLevel,
-      step,
-      questions: qList,
-      roadmapOutlineText,
-    });
-  }, [isEvaluated, step, stepIdx, steps, answers, skips, concept, safeLevel, branch]);
-
-  // stepIdx 가 바뀌면 다음 단계에서 다시 트리거될 수 있도록 ref 를 비운다.
-  useEffect(() => {
-    if (branchTriggeredFor.current !== null && branchTriggeredFor.current !== stepIdx) {
-      branchTriggeredFor.current = null;
-    }
+    setBranchVisible(false);
+    branch.closeBranch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stepIdx]);
 
   const handleChoose = (option: BranchOption) => {
@@ -135,12 +137,20 @@ export function StageLearn({
       return;
     }
     if (option.stageContent) {
+      const parentStep = steps[stepIdx];
+      const parentLabel = parentStep ? displayLabelOf(parentStep) : "0";
+      const parentBase = stripLeadingZero(parentLabel);
+      let siblings = 0;
+      for (const m of insertedMeta.values()) {
+        if (m.parentDisplayBase === parentBase) siblings += 1;
+      }
       const assignedId = insertStepAt(stepIdx + 1, option.stageContent);
-      setInsertedIds((prev) => {
-        const next = new Set(prev);
-        next.add(assignedId);
+      setInsertedMeta((prev) => {
+        const next = new Map(prev);
+        next.set(assignedId, { parentDisplayBase: parentBase, siblingIndex: siblings });
         return next;
       });
+      setBranchVisible(false);
       setStepIdx(stepIdx + 1);
     }
   };
@@ -212,7 +222,27 @@ export function StageLearn({
   const submitAnswers = () => {
     if (!step || isEvaluating || isEvaluated) return;
     void submitEvaluation(concept, safeLevel, stepIdx, answers, skips);
+    // 동시에 분기 평가도 백그라운드로 시작. 사용자는 "평가 보기" 버튼으로 다이얼로그를 연다.
+    const roadmapOutlineText = steps
+      .map((s, i) => `${i + 1}. ${s.title} - ${s.desc}`)
+      .join("\n");
+    const qList = step.questions
+      .filter((q) => !skips[q.id])
+      .map((q) => ({ id: q.id, q: q.q, answer: answers[q.id] || "" }));
+    void branch.openBranch({
+      concept,
+      level: safeLevel,
+      step,
+      questions: qList,
+      roadmapOutlineText,
+    });
   };
+
+  // 두 호출의 합산 로딩/완료 상태
+  const branchLoading = branch.mode === "loading";
+  const branchReady = branch.mode === "choosing" || branch.mode === "error";
+  const fullLoading = isEvaluating || branchLoading;
+  const fullReady = isEvaluated && branchReady;
 
   const detailLoading = detailStatus === "loading" || detailStatus === "idle";
   const detailErrored = detailStatus === "error";
@@ -239,17 +269,16 @@ export function StageLearn({
                 "lv-step" +
                 (i === stepIdx ? " is-curr" : "") +
                 (i < stepIdx ? " is-done" : "") +
-                (insertedIds.has(s.id) ? " is-inserted" : "")
+                (insertedMeta.has(s.id) ? " is-inserted" : "")
               }
             >
               <button type="button" onClick={() => setStepIdx(i)}>
-                <span className="lv-step-num">{String(i + 1).padStart(2, "0")}</span>
+                <span className="lv-step-num">{displayLabelOf(s)}</span>
                 <span className="lv-step-title">{s.title}</span>
               </button>
             </li>
           ))}
         </ol>
-        <StepChipsBar steps={steps} currentIndex={stepIdx} insertedIds={insertedIds} />
       </header>
 
       {step && (
@@ -352,15 +381,26 @@ export function StageLearn({
               })}
             {!detailLoading && (
               <div className="lv2-right-sticky-bottom">
-                <button
-                  className="lv-btn-holo lv-submit"
-                  type="button"
-                  onClick={submitAnswers}
-                  disabled={isEvaluating || isEvaluated}
-                >
-                  <span className="lv-submit-icon" aria-hidden>{I.brand}</span>
-                  {isEvaluating ? "평가 중…" : isEvaluated ? "평가 완료" : "답변 제출하기"}
-                </button>
+                {fullReady ? (
+                  <button
+                    className="lv-btn-holo lv-submit"
+                    type="button"
+                    onClick={() => setBranchVisible(true)}
+                  >
+                    <span className="lv-submit-icon" aria-hidden>{I.brand}</span>
+                    평가 보기
+                  </button>
+                ) : (
+                  <button
+                    className="lv-btn-holo lv-submit"
+                    type="button"
+                    onClick={submitAnswers}
+                    disabled={fullLoading || isEvaluated}
+                  >
+                    <span className="lv-submit-icon" aria-hidden>{I.brand}</span>
+                    {fullLoading ? "평가 중…" : "답변 제출하기"}
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -393,11 +433,11 @@ export function StageLearn({
       {toast && <div className="lv-toast" role="status">{toast}</div>}
 
       <BranchDialog
-        open={branch.mode === "choosing" || branch.mode === "error" || branch.mode === "loading"}
+        open={branchVisible && (branch.mode === "choosing" || branch.mode === "error")}
         evaluationText={branch.evaluationText}
         options={branch.options}
         onChoose={handleChoose}
-        onClose={branch.closeBranch}
+        onClose={() => setBranchVisible(false)}
         error={
           branch.mode === "error"
             ? {
