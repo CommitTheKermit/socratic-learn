@@ -953,13 +953,15 @@ body {
 }
 .lv-steps {
   list-style: none;
-  margin: 0; padding: 0 0 4px;
+  margin: 0; padding: 0;
   display: flex;
   flex-wrap: nowrap;
   gap: 8px;
   overflow-x: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
+.lv-steps::-webkit-scrollbar { display: none; }
 .lv-step {
   flex: 0 0 auto;
 }
