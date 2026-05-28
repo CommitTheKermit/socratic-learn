@@ -12,6 +12,7 @@ import {
   generateStepDetail,
   type StepEvaluation,
 } from "../api/claudeContent";
+import { buildRoadmapStages } from "./roadmap";
 
 type LoadStatus = "idle" | "loading" | "ready" | "error";
 type ErrInfo = { code: string; message: string };
@@ -106,13 +107,7 @@ export function LearnContentProvider({ children }: { children: ReactNode }) {
     inflightRef.current.clear();
     try {
       const outline = await generateRoadmapOutline(concept, level);
-      const placeholders: Step[] = outline.map((o, i) => ({
-        id: i + 1,
-        title: o.title,
-        desc: o.desc,
-        body: "",
-        questions: [],
-      }));
+      const placeholders: Step[] = buildRoadmapStages(outline);
       setSteps(placeholders);
       setOutlineStatus("ready");
     } catch (e) {

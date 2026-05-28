@@ -63,5 +63,20 @@ export interface ErrorResponse {
   message: string;
 }
 
+import type { Step } from "../stages/data";
+
+export type BranchOptionType =
+  | "roadmap_next"
+  | "ai_recommended"
+  | "additional"
+  | "exit";
+
+export interface BranchOption {
+  label: string;
+  type: BranchOptionType;
+  isRecommended: boolean;
+  stageContent: Step | null;
+}
+
 export const API_BASE_URL: string =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "http://localhost:8081";
