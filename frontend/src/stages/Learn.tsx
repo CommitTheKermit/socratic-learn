@@ -5,6 +5,10 @@ import { LEVEL_LABELS } from "./data";
 import { describeErrorCode } from "../lib/errors";
 import { I } from "../components/icons";
 import type { Grade } from "../api/claudeContent";
+import { BranchDialog } from "../components/branch/BranchDialog";
+import { StepChipsBar } from "../components/branch/StepChipsBar";
+import { useBranchPhase } from "../state/useBranchPhase";
+import type { BranchOption } from "../api/contract";
 
 interface Props {
   concept: string;
@@ -51,7 +55,11 @@ export function StageLearn({
     stepEvalStatus,
     stepEvalErrors,
     submitEvaluation,
+    insertStepAt,
   } = useLearnContent();
+  const branch = useBranchPhase();
+  const [insertedIds, setInsertedIds] = useState<Set<number>>(new Set());
+  const branchTriggeredFor = useRef<number | null>(null);
   const safeLevel = level ?? 2;
   const step = steps[stepIdx];
   const detailStatus = stepDetailStatus[stepIdx] ?? "idle";
@@ -82,6 +90,77 @@ export function StageLearn({
       void loadStepDetail(concept, safeLevel, stepIdx);
     }
   }, [outlineStatus, stepIdx, step, detailStatus, concept, safeLevel, loadStepDetail]);
+
+  // 평가 완료 시 (한 번만) 분기 다이얼로그를 띄운다.
+  useEffect(() => {
+    if (!isEvaluated || !step) return;
+    if (branchTriggeredFor.current === stepIdx) return;
+    if (branch.mode !== "closed") return;
+    branchTriggeredFor.current = stepIdx;
+    const roadmapOutlineText = steps
+      .map((s, i) => `${i + 1}. ${s.title} - ${s.desc}`)
+      .join("\n");
+    const qList = step.questions
+      .filter((q) => !skips[q.id])
+      .map((q) => ({ id: q.id, q: q.q, answer: answers[q.id] || "" }));
+    void branch.openBranch({
+      concept,
+      level: safeLevel,
+      step,
+      questions: qList,
+      roadmapOutlineText,
+    });
+  }, [isEvaluated, step, stepIdx, steps, answers, skips, concept, safeLevel, branch]);
+
+  // stepIdx 가 바뀌면 다음 단계에서 다시 트리거될 수 있도록 ref 를 비운다.
+  useEffect(() => {
+    if (branchTriggeredFor.current !== null && branchTriggeredFor.current !== stepIdx) {
+      branchTriggeredFor.current = null;
+    }
+  }, [stepIdx]);
+
+  const handleChoose = (option: BranchOption) => {
+    const nextState = branch.chooseBranch(option, {
+      roadmapStages: steps,
+      currentStageIndex: stepIdx,
+      stage: "explain",
+    });
+    if (option.type === "exit" || nextState.stage === "done") {
+      onDone();
+      return;
+    }
+    if (option.type === "roadmap_next") {
+      if (stepIdx >= steps.length - 1) onDone();
+      else setStepIdx(stepIdx + 1);
+      return;
+    }
+    if (option.stageContent) {
+      const assignedId = insertStepAt(stepIdx + 1, option.stageContent);
+      setInsertedIds((prev) => {
+        const next = new Set(prev);
+        next.add(assignedId);
+        return next;
+      });
+      setStepIdx(stepIdx + 1);
+    }
+  };
+
+  const handleRetry = () => {
+    if (!step) return;
+    const roadmapOutlineText = steps
+      .map((s, i) => `${i + 1}. ${s.title} - ${s.desc}`)
+      .join("\n");
+    const qList = step.questions
+      .filter((q) => !skips[q.id])
+      .map((q) => ({ id: q.id, q: q.q, answer: answers[q.id] || "" }));
+    void branch.retryBranch({
+      concept,
+      level: safeLevel,
+      step,
+      questions: qList,
+      roadmapOutlineText,
+    });
+  };
 
   if (outlineStatus === "loading" || outlineStatus === "idle") {
     return (
@@ -159,7 +238,8 @@ export function StageLearn({
               className={
                 "lv-step" +
                 (i === stepIdx ? " is-curr" : "") +
-                (i < stepIdx ? " is-done" : "")
+                (i < stepIdx ? " is-done" : "") +
+                (insertedIds.has(s.id) ? " is-inserted" : "")
               }
             >
               <button type="button" onClick={() => setStepIdx(i)}>
@@ -169,6 +249,7 @@ export function StageLearn({
             </li>
           ))}
         </ol>
+        <StepChipsBar steps={steps} currentIndex={stepIdx} insertedIds={insertedIds} />
       </header>
 
       {step && (
@@ -310,6 +391,25 @@ export function StageLearn({
       </div>
 
       {toast && <div className="lv-toast" role="status">{toast}</div>}
+
+      <BranchDialog
+        open={branch.mode === "choosing" || branch.mode === "error" || branch.mode === "loading"}
+        evaluationText={branch.evaluationText}
+        options={branch.options}
+        onChoose={handleChoose}
+        onClose={branch.closeBranch}
+        error={
+          branch.mode === "error"
+            ? {
+                message: branch.errorMessage ?? "분기 옵션을 불러오지 못했습니다.",
+                retryCount: branch.retryCount,
+                technicalDetail: branch.technicalDetail ?? undefined,
+                onRetry: handleRetry,
+                onExit: onDone,
+              }
+            : null
+        }
+      />
     </div>
   );
 }

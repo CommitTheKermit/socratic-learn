@@ -44,6 +44,13 @@ interface LearnContentValue {
     skips: Record<string, boolean>,
   ) => Promise<void>;
 
+  /**
+   * 분기 선택의 결과로 새 학습 단계를 currentIndex+1 위치에 삽입한다.
+   * - 신규 step.id 는 현 steps 의 max id + 1 로 강제 재할당해 충돌을 방지
+   * - 삽입된 id 를 반환하여 외부에서 inserted 목록 추적 가능
+   */
+  insertStepAt: (index: number, step: Step) => number;
+
   reset: () => void;
 }
 
@@ -179,6 +186,19 @@ export function LearnContentProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const insertStepAt = useCallback(
+    (index: number, step: Step): number => {
+      const cur = stepsRef.current;
+      const maxId = cur.reduce((m, s) => Math.max(m, s.id), 0);
+      const assignedId = maxId + 1;
+      const inserted: Step = { ...step, id: assignedId };
+      const clampedIndex = Math.max(0, Math.min(index, cur.length));
+      setSteps([...cur.slice(0, clampedIndex), inserted, ...cur.slice(clampedIndex)]);
+      return assignedId;
+    },
+    [setSteps],
+  );
+
   const reset = useCallback(() => {
     setProbeQuestions(FALLBACK_PROBES);
     setProbeStatus("idle");
@@ -215,6 +235,7 @@ export function LearnContentProvider({ children }: { children: ReactNode }) {
         stepEvalStatus,
         stepEvalErrors,
         submitEvaluation,
+        insertStepAt,
         reset,
       }}
     >
