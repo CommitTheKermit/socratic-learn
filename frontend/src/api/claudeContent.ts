@@ -7,12 +7,15 @@ import {
   OVERWHELM_SYSTEM,
   PROBE_SYSTEM,
   STEP_DETAIL_SYSTEM,
+  buildBranchEvaluationPrompt,
   evalUserMessage,
   outlineUserMessage,
   overwhelmUserMessage,
   probeUserMessage,
   stepDetailUserMessage,
 } from "./prompts";
+import { parseEvaluationJson } from "./answers";
+import type { EvaluationResponse, ParseFailure } from "./contract";
 import type { ProbeQuestion, Step } from "../stages/data";
 
 export class ClaudeContentError extends Error {
@@ -429,4 +432,57 @@ export async function generateAnswerEvaluation(
     throw new ClaudeContentError("INVALID_RESPONSE", "평가 응답이 비어 있습니다.");
   }
   return parsed;
+}
+
+/**
+ * 평가 + 추천 + 동등성을 단일 JSON 으로 받는 분기 평가 호출.
+ * 네트워크 성공 시: parseEvaluationJson 결과를 그대로 반환
+ *   - 성공: EvaluationResponse
+ *   - 스키마 위반: ParseFailure (parseError 필드)
+ * 네트워크/API 오류 시: ClaudeContentError throw (재시도는 호출자가 결정).
+ */
+export async function generateBranchEvaluation(
+  concept: string,
+  level: number,
+  stepTitle: string,
+  stepDesc: string,
+  stepBody: string,
+  questions: EvalQuestionInput[],
+  roadmapOutlineText: string,
+): Promise<EvaluationResponse | ParseFailure> {
+  let client: Anthropic;
+  try {
+    client = getClaudeClient();
+  } catch (e) {
+    throw new ClaudeContentError("MISSING_CLAUDE_API_KEY", (e as Error).message);
+  }
+  const qaText = questions
+    .map((q) => `- id: ${q.id}\n  질문: ${q.q}\n  사용자 답변: ${q.answer || "(빈 답변)"}`)
+    .join("\n");
+  const { system, user } = buildBranchEvaluationPrompt({
+    concept,
+    level,
+    stepTitle,
+    stepDesc,
+    stepBody,
+    qaText,
+    roadmapOutlineText,
+  });
+  let rawText = "";
+  try {
+    const resp = await client.messages.create({
+      model: CLAUDE_MODEL,
+      max_tokens: 3000,
+      system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
+      messages: [{ role: "user", content: user }],
+    });
+    const block = resp.content.find((b) => b.type === "text");
+    rawText = block && "text" in block ? block.text : "";
+  } catch (e) {
+    throw mapAnthropicError(e);
+  }
+  if (!rawText.trim()) {
+    return { parseError: "응답이 비어 있습니다" };
+  }
+  return parseEvaluationJson(rawText);
 }
