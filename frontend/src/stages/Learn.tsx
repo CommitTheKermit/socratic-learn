@@ -392,10 +392,13 @@ export function StageLearn({
                   </button>
                 ) : (
                   <button
-                    className="lv-btn-holo lv-submit"
+                    className={
+                      "lv-btn-holo lv-submit" + (fullLoading ? " is-loading" : "")
+                    }
                     type="button"
                     onClick={submitAnswers}
                     disabled={fullLoading || isEvaluated}
+                    aria-busy={fullLoading || undefined}
                   >
                     <span className="lv-submit-icon" aria-hidden>{I.brand}</span>
                     {fullLoading ? "평가 중…" : "답변 제출하기"}
