@@ -82,3 +82,50 @@ cd frontend && npm run build    # tsc -b && vite build → dist/
 - SSE 이벤트 이름과 payload DTO도 동일하게 `shared`의 `event` 패키지에 추가하고 TS 미러를 갱신한다. 서버에서 raw 문자열로 이벤트를 작성하지 말 것.
 - CORS는 `anyHost()`로 열려 있으나 로컬 MVP 한정이며, 배포 관련 변경 시 `Application.module`의 CORS 블록을 환경별 allow-list로 좁혀야 한다(코드 주석에 명시되어 있음).
 - 1차 MVP 범위에서 제외된 것: Auth/OAuth, DB/세션 저장, 채점 분기, 토큰 제한/BYOK, 배포, Ktor 정적 호스팅 통합, v3 디자인 시안의 tweaks-panel 포팅, 자동 회귀 테스트. 이 범위에 속하는 기능은 별도 합의 없이 추가하지 말 것.
+
+<!-- ooo:START -->
+<!-- ooo:VERSION:0.39.2 -->
+# Ouroboros - Specification-First AI Development
+
+> Before telling AI what to build, define what should be built.
+> As Socrates asked 2,500 years ago - "What do you truly know?"
+> Ouroboros turns that question into an evolutionary AI workflow engine.
+
+Most AI coding fails at the input, not the output. Ouroboros fixes this by
+**exposing hidden assumptions before any code is written**.
+
+1. **Socratic Clarity** - Question until ambiguity <= 0.2
+2. **Ontological Precision** - Solve the root problem, not symptoms
+3. **Evolutionary Loops** - Each evaluation cycle feeds back into better specs
+
+```
+Interview -> Seed -> Execute -> Evaluate
+    ^                              |
+    +------ Evolutionary Loop -----+
+```
+
+## ooo Commands
+
+Each command loads its agent/MCP on-demand. Details in each skill file.
+
+| Command | Loads |
+|---------|-------|
+| `ooo` | - |
+| `ooo interview` | `ouroboros:socratic-interviewer` |
+| `ooo seed` | `ouroboros:seed-architect` |
+| `ooo run` | MCP required |
+| `ooo evolve` | MCP: `evolve_step` |
+| `ooo evaluate` | `ouroboros:evaluator` |
+| `ooo unstuck` | `ouroboros:{persona}` |
+| `ooo status` | MCP: `session_status` |
+| `ooo setup` | - |
+| `ooo help` | - |
+
+## Agents
+
+Loaded on-demand - not preloaded.
+
+**Core**: socratic-interviewer, ontologist, seed-architect, evaluator,
+wonder, reflect, advocate, contrarian, judge
+**Support**: hacker, simplifier, researcher, architect
+<!-- ooo:END -->

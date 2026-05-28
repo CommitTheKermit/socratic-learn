@@ -1,6 +1,10 @@
 node_modules
 dist
 .vite
+.tsbuild
+*.tsbuildinfo
+src/**/*.js
+src/**/*.d.ts
 *.log
 .DS_Store
 .env
