@@ -78,5 +78,29 @@ export interface BranchOption {
   stageContent: Step | null;
 }
 
+export type BranchPhaseStage =
+  | "idle"
+  | "evaluating"
+  | "awaiting_choice"
+  | "merged"
+  | "error";
+
+export interface EvaluationResponse {
+  evaluationText: string;
+  isMerged: boolean;
+  branchOptions: BranchOption[];
+}
+
+export interface ParseFailure {
+  parseError: string;
+}
+
+export interface BranchPhaseState {
+  stage: BranchPhaseStage;
+  parseError: boolean;
+  retryCount: number;
+  lastErrorMessage: string | null;
+}
+
 export const API_BASE_URL: string =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "http://localhost:8081";

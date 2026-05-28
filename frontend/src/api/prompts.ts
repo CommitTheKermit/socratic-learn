@@ -202,3 +202,89 @@ export const evalUserMessage = (
   qaText: string,
 ): string =>
   `학습 개념: ${concept}\n사용자 수준: L${level}\n\n현재 단계: ${stepTitle} - ${stepDesc}\n단계 본문 요약:\n${stepBody}\n\n평가할 질문/답변:\n${qaText}\n\n각 질문에 대해 grade 와 feedback 을 작성해 주세요. id 는 입력과 동일하게 유지하세요.`;
+
+/* =========================================================================
+ * [7] 분기 단계: 평가 + 추천 + 동등성(merge) 통합 JSON 응답 요구
+ *  - 사용 위치: (Slice 2) answers.ts 파서가 검증할 LLM 응답을 만들 때
+ *  - 사용 시점: 사용자가 한 단계 답변을 제출했을 때, 평가 결과(evaluationText)와
+ *    동등성 판단(isMerged), 그리고 다음 분기 옵션(branchOptions) 을 단일 JSON 으로 요구한다.
+ *  - 응답 스키마(엄격):
+ *      {
+ *        "evaluationText": string,          // 사람이 읽는 평가 요약
+ *        "isMerged": boolean,               // 추천이 로드맵 다음 단계와 사실상 동일한가
+ *        "branchOptions": BranchOption[]    // roadmap_next / ai_recommended / additional / exit
+ *      }
+ *  - 출력은 반드시 단일 JSON 객체. 마크다운/코드펜스/설명문 금지.
+ * ========================================================================= */
+export const BRANCH_EVALUATION_SYSTEM = `당신은 소크라테스식 학습 튜터입니다. 한 학습 단계의 답변을 평가하고, 다음 단계 분기 옵션과 동등성(merge) 여부까지 한 번에 판정합니다.
+
+[출력 형식 - 매우 중요]
+- 출력은 단일 JSON 객체 하나만. 마크다운, 코드펜스(\`\`\`), 설명문, 접두/접미 텍스트를 절대 포함하지 마세요.
+- 최상위 키는 정확히 세 개: "evaluationText", "isMerged", "branchOptions".
+
+[필드 정의]
+- evaluationText: string. 사용자 답변 전체에 대한 1-3문장 한국어 요약 평가. 이모지 금지.
+- isMerged: boolean. AI 추천 단계가 로드맵의 바로 다음 단계와 실질적으로 동일하면 true.
+- branchOptions: 배열. 각 원소는 다음 형태:
+    {
+      "label": string,                            // 사용자에게 보여줄 짧은 한국어 라벨
+      "type": "roadmap_next" | "ai_recommended" | "additional" | "exit",
+      "isRecommended": boolean,                   // 정확히 하나만 true 권장
+      "stageContent": null | {
+        "id": number,
+        "title": string,
+        "desc": string,
+        "body": string,
+        "questions": []
+      }
+    }
+- type 이 "exit" 인 옵션의 stageContent 는 반드시 null.
+- 그 외 type 의 stageContent 는 객체이며 id/title/desc/body 는 비어있지 않은 값.`;
+
+export interface BranchEvaluationUserParams {
+  concept: string;
+  level: number;
+  stepTitle: string;
+  stepDesc: string;
+  stepBody: string;
+  qaText: string;
+  roadmapOutlineText: string;
+}
+
+export const branchEvaluationUserMessage = (
+  params: BranchEvaluationUserParams,
+): string => {
+  const {
+    concept,
+    level,
+    stepTitle,
+    stepDesc,
+    stepBody,
+    qaText,
+    roadmapOutlineText,
+  } = params;
+  return [
+    `학습 개념: ${concept}`,
+    `사용자 수준: L${level}`,
+    "",
+    `현재 단계: ${stepTitle} - ${stepDesc}`,
+    `단계 본문 요약:\n${stepBody}`,
+    "",
+    `전체 로드맵:\n${roadmapOutlineText}`,
+    "",
+    `평가할 질문/답변:\n${qaText}`,
+    "",
+    '응답을 evaluationText / isMerged / branchOptions 세 필드를 가진 단일 JSON 객체로만 출력하세요.',
+  ].join("\n");
+};
+
+/**
+ * 평가 + 추천(branchOptions) + 동등성(isMerged) 을 단일 JSON 으로 요구하는 프롬프트 빌더.
+ * answers.ts 파서가 검증할 system / user 메시지 쌍을 반환한다.
+ */
+export const buildBranchEvaluationPrompt = (
+  params: BranchEvaluationUserParams,
+): { system: string; user: string } => ({
+  system: BRANCH_EVALUATION_SYSTEM,
+  user: branchEvaluationUserMessage(params),
+});
