@@ -13,6 +13,8 @@ import { StageProbe } from "./stages/Probe";
 import { StageLearn } from "./stages/Learn";
 import { StageDone } from "./stages/Done";
 import { LearnContentProvider, useLearnContent } from "./state/LearnContent";
+import { loadSession, persistSession } from "./state/sessionPersist";
+import type { SessionState } from "./state/sessionState";
 
 type AccentVars = CSSProperties & {
   "--holo"?: string;
@@ -21,20 +23,60 @@ type AccentVars = CSSProperties & {
   "--aurora-c"?: string;
 };
 
+/** 현재 활성 세션 id 를 가리키는 localStorage 키. 마운트 시 어떤 세션을 load 할지 결정한다. */
+const ACTIVE_SESSION_KEY = "socratic:activeSessionId";
+
+let sessionSeq = 0;
+function createSessionId(): string {
+  sessionSeq += 1;
+  return `s-${Date.now().toString(36)}-${sessionSeq.toString(36)}`;
+}
+
+/**
+ * 마운트 시점의 초기 세션을 해석한다.
+ * 활성 세션 id 가 있으면 load 하여 복원하고, 없으면 새 세션 id 를 만든다.
+ */
+function resolveInitialSession(): {
+  id: string;
+  createdAt: number;
+  loaded: SessionState | null;
+} {
+  let id: string | null = null;
+  try {
+    id = localStorage.getItem(ACTIVE_SESSION_KEY);
+  } catch {
+    id = null;
+  }
+  if (id) {
+    const loaded = loadSession(id);
+    return { id, createdAt: loaded?.createdAt ?? Date.now(), loaded };
+  }
+  return { id: createSessionId(), createdAt: Date.now(), loaded: null };
+}
+
 function AppInner() {
-  const [stage, setStage] = useState<Stage>("input");
+  const initialRef = useRef<ReturnType<typeof resolveInitialSession> | null>(null);
+  if (initialRef.current === null) initialRef.current = resolveInitialSession();
+  const initial = initialRef.current;
+  const sessionIdRef = useRef(initial.id);
+  const createdAtRef = useRef(initial.createdAt);
+  const loaded = initial.loaded;
+
+  const [stage, setStage] = useState<Stage>(() => loaded?.stage ?? "input");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [depth, setDepth] = useState<string>("0depth");
+  const [depth, setDepth] = useState<string>(() => loaded?.depth ?? "0depth");
   const [accent] = useState<string[]>(ACCENT_PRESETS[0]);
   const showAurora = true;
 
-  const [concept, setConcept] = useState<string>(SAMPLE_CONCEPT);
-  const [materials, setMaterials] = useState<string>("");
-  const [probes, setProbes] = useState<ProbeAnswers>({});
-  const [estimatedLevel, setEstimatedLevel] = useState<number | null>(null);
-  const [stepIdx, setStepIdx] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [skips, setSkips] = useState<Record<string, boolean>>({});
+  const [concept, setConcept] = useState<string>(() => loaded?.concept ?? SAMPLE_CONCEPT);
+  const [materials, setMaterials] = useState<string>(() => loaded?.materials ?? "");
+  const [probes, setProbes] = useState<ProbeAnswers>(() => loaded?.probes ?? {});
+  const [estimatedLevel, setEstimatedLevel] = useState<number | null>(
+    () => loaded?.estimatedLevel ?? null,
+  );
+  const [stepIdx, setStepIdx] = useState(() => loaded?.stepIdx ?? 0);
+  const [answers, setAnswers] = useState<Record<string, string>>(() => loaded?.answers ?? {});
+  const [skips, setSkips] = useState<Record<string, boolean>>(() => loaded?.skips ?? {});
 
   const {
     steps,
@@ -62,6 +104,31 @@ function AppInner() {
     }
   }, [stage, estimatedLevel, concept, loadOutline]);
 
+  // 상태가 바뀔 때마다(마운트 포함) 현재 학습 상태를 활성 세션 키로 persist 한다.
+  useEffect(() => {
+    const snapshot: SessionState = {
+      sessionId: sessionIdRef.current,
+      createdAt: createdAtRef.current,
+      conceptSummary: concept,
+      stage,
+      depth,
+      concept,
+      materials,
+      probes,
+      estimatedLevel,
+      stepIdx,
+      answers,
+      skips,
+      explainStreamComplete: loaded?.explainStreamComplete ?? false,
+    };
+    try {
+      localStorage.setItem(ACTIVE_SESSION_KEY, sessionIdRef.current);
+      persistSession(snapshot);
+    } catch {
+      // 저장 실패(용량 초과 등) 복구는 별도 책임이므로 여기서는 무시한다.
+    }
+  }, [stage, depth, concept, materials, probes, estimatedLevel, stepIdx, answers, skips, loaded]);
+
   const accentStyle = useMemo<AccentVars>(() => {
     const colors = Array.isArray(accent) ? accent : ACCENT_PRESETS[0];
     const stops = colors.length === 1 ? `${colors[0]}, ${colors[0]}` : colors.join(", ");
@@ -77,6 +144,8 @@ function AppInner() {
   }, [accent]);
 
   const newSession = (suggestedConcept?: string) => {
+    sessionIdRef.current = createSessionId();
+    createdAtRef.current = Date.now();
     setStage("input");
     setStepIdx(0);
     setProbes({});
