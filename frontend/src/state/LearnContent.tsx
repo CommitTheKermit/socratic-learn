@@ -9,12 +9,13 @@ import {
   generateAnswerEvaluation,
   generateProbeQuestions,
   generateRoadmapOutline,
-  generateStepDetail,
   type StepEvaluation,
 } from "../api/claudeContent";
+import { streamStepDetail } from "../api/stepDetailStream";
 import { buildRoadmapStages } from "./roadmap";
 
-type LoadStatus = "idle" | "loading" | "ready" | "error";
+// "streaming": body 토큰이 점진적으로 들어오는 중(questions 는 아직 없음). complete 시 "ready".
+type LoadStatus = "idle" | "loading" | "streaming" | "ready" | "error";
 type ErrInfo = { code: string; message: string };
 
 interface LearnContentValue {
@@ -129,23 +130,51 @@ export function LearnContentProvider({ children }: { children: ReactNode }) {
       inflightRef.current.add(stepIdx);
       setStepDetailStatus((m) => ({ ...m, [stepIdx]: "loading" }));
       setStepDetailErrors((m) => ({ ...m, [stepIdx]: null }));
+      // 재시도 시 잔여 본문 제거.
+      setSteps((cur) => cur.map((s, i) => (i === stepIdx ? { ...s, body: "" } : s)));
+
+      const outline = stepsRef.current.map((s) => ({ title: s.title, desc: s.desc }));
+      let acc = "";
+      let settled = false;
+      const handle = streamStepDetail(
+        { concept, level, outline, stepIdx },
+        {
+          onDelta: (text) => {
+            acc += text;
+            setStepDetailStatus((m) =>
+              m[stepIdx] === "streaming" ? m : { ...m, [stepIdx]: "streaming" },
+            );
+            setSteps((cur) => cur.map((s, i) => (i === stepIdx ? { ...s, body: acc } : s)));
+          },
+          onComplete: ({ body, questions }) => {
+            settled = true;
+            setSteps((cur) =>
+              cur.map((s, i) => (i === stepIdx ? { ...s, body: body || acc, questions } : s)),
+            );
+            setStepDetailStatus((m) => ({ ...m, [stepIdx]: "ready" }));
+          },
+          onError: (err) => {
+            settled = true;
+            setStepDetailErrors((m) => ({ ...m, [stepIdx]: err }));
+            setStepDetailStatus((m) => ({ ...m, [stepIdx]: "error" }));
+          },
+        },
+      );
       try {
-        const outline = stepsRef.current.map((s) => ({ title: s.title, desc: s.desc }));
-        const detail = await generateStepDetail(concept, level, outline, stepIdx);
-        setSteps((cur) =>
-          cur.map((s, i) =>
-            i === stepIdx ? { ...s, body: detail.body, questions: detail.questions } : s,
-          ),
-        );
-        setStepDetailStatus((m) => ({ ...m, [stepIdx]: "ready" }));
-      } catch (e) {
-        setStepDetailErrors((m) => ({ ...m, [stepIdx]: toErr(e) }));
-        setStepDetailStatus((m) => ({ ...m, [stepIdx]: "error" }));
+        await handle.done;
+        // 스트림이 complete/error 없이 끊긴 경우 방어.
+        if (!settled) {
+          setStepDetailErrors((m) => ({
+            ...m,
+            [stepIdx]: { code: "STREAM_ERROR", message: "본문 스트림이 완료되지 않았습니다." },
+          }));
+          setStepDetailStatus((m) => ({ ...m, [stepIdx]: "error" }));
+        }
       } finally {
         inflightRef.current.delete(stepIdx);
       }
     },
-    [],
+    [setSteps],
   );
 
   const submitEvaluation = useCallback(

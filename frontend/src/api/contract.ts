@@ -10,7 +10,32 @@ export const ApiPaths = {
   STEP_DETAIL: "/stepDetail",
   ANSWER_EVAL: "/answerEval",
   BRANCH_EVAL: "/branchEval",
+  STEP_DETAIL_STREAM: "/stepDetailStream",
 } as const;
+
+// stepDetailStream SSE 이벤트. body 는 delta 로 흘리고 questions 는 complete 에 담긴다.
+export const StreamEvents = {
+  STATUS: "status",
+  DELTA: "delta",
+  COMPLETE: "complete",
+  ERROR: "error",
+} as const;
+
+export interface StreamStatusPayload {
+  status: string;
+  message: string;
+}
+export interface StreamDeltaPayload {
+  text: string;
+}
+export interface StepDetailStreamComplete {
+  body: string;
+  questions: { id: string; q: string }[];
+}
+export interface StreamErrorPayload {
+  code: string;
+  message: string;
+}
 
 export interface OverwhelmRequest {
   concept: string;

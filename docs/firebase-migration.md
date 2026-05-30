@@ -105,6 +105,16 @@ cd frontend && npm run dev       # .env.local 의 VITE_API_BASE_URL = emulator b
 - ⚠️ 보안: 노출된 적 있는 Anthropic 키는 반드시 폐기/교체. `.env.local`, `.secret.local` 은 커밋 금지(gitignore 확인됨).
 - detectOverwhelm 트리거 조건: probe 첫 질문(친숙도)에서 value 0("전혀 모름") 선택 후 제출(`Probe.tsx:166`).
 
+## 후속 개선: 개념 설명 스트리밍 (stepDetailStream)
+
+slice4 의 `generateStepDetail`(JSON, messages.parse)은 body+questions 를 한 번에 받아 "로딩 후 한 번에" 표시됐다. UX 개선으로 body 를 토큰 스트리밍하도록 `stepDetailStream` 을 추가했다.
+
+- `functions/src/stepDetailStream.ts`: Functions v2 HTTP 스트리밍. `messages.stream` 으로 받아 SSE(`event: status/delta/complete/error`)로 흘린다. body 는 마커 `<<<QUESTIONS_JSON>>>` 전까지 delta, 마커 뒤 questions JSON 은 complete 에 담는다. (emulator 에서 `res.write` chunk 가 실제로 흘러나옴 - 첫 delta ~2s, complete ~21s 점진 도착 확인.)
+- `frontend/src/api/stepDetailStream.ts`: fetch + ReadableStream SSE 파서(`streamStepDetail`). `LearnContent.loadStepDetail` 이 사용. body 점진 `setSteps`, status `"streaming"` → complete 시 questions + `"ready"`.
+- `Learn.tsx`: 좌측 body 는 streaming 중에도 렌더, 우측 questions/제출은 `detailReady`(complete) 후 노출.
+- E2E: `e2e/slice-stepdetail-stream.cjs`(body 점진 증가 + 최종 questions). slice5/6 e2e 는 stepDetailStream 흐름(textarea 렌더 대기)으로 갱신, slice4 e2e 삭제.
+- ⬜ 후속 정리 대상(dead code): JSON 경로 `generateStepDetail` / `functions/src/stepDetail.ts` / `STEP_DETAIL_SYSTEM` / `stepDetailSchema` / `ApiPaths.STEP_DETAIL`(UI 미사용). `StepDetailRequest` 는 stepDetailStream 이 재사용하므로 유지.
+
 ## 참고 파일
 
 - 템플릿 Function: `functions/src/overwhelm.ts`

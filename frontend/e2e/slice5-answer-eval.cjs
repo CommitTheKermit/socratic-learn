@@ -36,19 +36,10 @@ const { chromium } = require("playwright");
     await page.waitForFunction((q) => document.body.innerText.includes(q), p1.q, { timeout: 10000 });
     await page.locator(".probe-choice", { hasText: opt.label }).first().click();
 
-    // probe -> learn: 첫 단계 stepDetail 자동 로드 (questions 확보)
-    const stepDetailRespP = page.waitForResponse(
-      (r) => r.url().includes("/stepDetail") && r.request().method() === "POST",
-      { timeout: 60000 },
-    );
+    // probe -> learn: 첫 단계는 stepDetailStream(SSE)으로 생성된다. questions(textarea) 렌더까지 대기.
     await page.getByRole("button", { name: "단계 만들기" }).click();
-    const stepDetailBody = await (await stepDetailRespP).json();
-    const qCount = stepDetailBody && Array.isArray(stepDetailBody.questions)
-      ? stepDetailBody.questions.length
-      : 0;
-
-    // 질문 textarea 가 렌더될 때까지 대기 후 모두 답변 입력
-    await page.waitForSelector("textarea", { timeout: 15000 });
+    await page.waitForSelector("textarea", { timeout: 60000 });
+    const qCount = await page.locator(".qa-pair").count();
     const tas = page.locator("textarea");
     const n = await tas.count();
     for (let i = 0; i < n; i++) {

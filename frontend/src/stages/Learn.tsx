@@ -246,6 +246,8 @@ export function StageLearn({
 
   const detailLoading = detailStatus === "loading" || detailStatus === "idle";
   const detailErrored = detailStatus === "error";
+  // body 는 streaming 중에도 렌더되지만, questions/제출 영역은 complete(ready) 후에만 노출.
+  const detailReady = detailStatus === "ready";
 
   const gradeFor = (qid: string) =>
     evalResult?.evaluations.find((e) => e.id === qid);
@@ -312,7 +314,7 @@ export function StageLearn({
           <div className="lv2-right">
             <div className="lv2-right-head">
               <span className="label">확인 질문</span>
-              <span className="count">{detailLoading ? "..." : `${step.questions.length}문항`}</span>
+              <span className="count">{detailReady ? `${step.questions.length}문항` : "..."}</span>
             </div>
             {evalStatus === "error" && evalError && (
               <div className="probe-result" role="alert">
@@ -326,13 +328,13 @@ export function StageLearn({
                 </button>
               </div>
             )}
-            {detailLoading && (
+            {!detailReady && !detailErrored && (
               <div className="lv-loading lv-loading-inline">
                 <span className="lv-loading-dot" />
                 <p className="stage-sub">확인 질문을 만들고 있어요…</p>
               </div>
             )}
-            {!detailLoading &&
+            {detailReady &&
               step.questions.map((q, i) => {
                 const val = answers[q.id] || "";
                 const isSkipped = !!skips[q.id];
@@ -379,7 +381,7 @@ export function StageLearn({
                   </div>
                 );
               })}
-            {!detailLoading && (
+            {detailReady && (
               <div className="lv2-right-sticky-bottom">
                 {fullReady ? (
                   <button
