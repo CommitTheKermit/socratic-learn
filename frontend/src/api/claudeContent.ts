@@ -3,11 +3,9 @@ import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
 import { CLAUDE_MODEL, getClaudeClient } from "./claudeClient";
 import {
   EVAL_SYSTEM,
-  OUTLINE_SYSTEM,
   STEP_DETAIL_SYSTEM,
   buildBranchEvaluationPrompt,
   evalUserMessage,
-  outlineUserMessage,
   stepDetailUserMessage,
 } from "./prompts";
 import { parseEvaluationJson } from "./answers";
@@ -109,65 +107,39 @@ export async function detectOverwhelm(
   return (await res.json()) as OverwhelmDecision;
 }
 
-const outlineSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["steps"],
-  properties: {
-    steps: {
-      type: "array",
-      minItems: 4,
-      maxItems: 7,
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["title", "desc"],
-        properties: {
-          title: { type: "string", description: "단계 제목 (8-16자)" },
-          desc: { type: "string", description: "한 줄 부제 (20자 내외)" },
-        },
-      },
-    },
-  },
-} as const;
-
 export interface RoadmapOutlineItem {
   title: string;
   desc: string;
 }
 
+// Firebase Functions(outline) 로 이전됨. 브라우저는 더 이상 Anthropic 을 직접 호출하지 않는다.
 export async function generateRoadmapOutline(
   concept: string,
   level: number,
 ): Promise<RoadmapOutlineItem[]> {
-  let client: Anthropic;
+  let res: Response;
   try {
-    client = getClaudeClient();
-  } catch (e) {
-    throw new ClaudeContentError("MISSING_CLAUDE_API_KEY", (e as Error).message);
-  }
-  let parsed: { steps: RoadmapOutlineItem[] } | undefined;
-  try {
-    const resp = await client.messages.parse({
-      model: CLAUDE_MODEL,
-      max_tokens: 3000,
-      system: [{ type: "text", text: OUTLINE_SYSTEM, cache_control: { type: "ephemeral" } }],
-      messages: [
-        {
-          role: "user",
-          content: outlineUserMessage(concept, level),
-        },
-      ],
-      output_config: { format: jsonSchemaOutputFormat(outlineSchema) },
+    res = await fetch(`${API_BASE_URL}${ApiPaths.OUTLINE}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ concept, level }),
     });
-    parsed = resp.parsed_output as typeof parsed;
   } catch (e) {
-    throw mapAnthropicError(e);
+    throw new ClaudeContentError("CLAUDE_API_ERROR", (e as Error)?.message ?? "네트워크 오류");
   }
-  if (!parsed?.steps?.length) {
-    throw new ClaudeContentError("INVALID_RESPONSE", "로드맵 응답이 비어 있습니다.");
+  if (!res.ok) {
+    let code = "CLAUDE_API_ERROR";
+    let message = `로드맵 요청 실패: HTTP ${res.status}`;
+    try {
+      const body = await res.json();
+      if (body?.code) code = body.code as string;
+      if (body?.message) message = body.message as string;
+    } catch {
+      /* ignore */
+    }
+    throw new ClaudeContentError(code, message);
   }
-  return parsed.steps;
+  return (await res.json()) as RoadmapOutlineItem[];
 }
 
 const stepDetailSchema = {

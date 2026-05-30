@@ -24,8 +24,8 @@ Functions(Node/TS)로 함수 단위로 작게 이전한다. 최종적으로 브�
 | 슬라이스 | 함수 | UI 단계 | 상태 |
 |---|---|---|---|
 | 1 | detectOverwhelm | input(친숙도 0 제출) | ✅ 완료 (commit e06cff7) |
-| 2 | generateProbeQuestions | probe | ⬜ 다음 |
-| 3 | generateRoadmapOutline | roadmap | ⬜ |
+| 2 | generateProbeQuestions | probe | ✅ 완료 (commit a51c2ee) |
+| 3 | generateRoadmapOutline | roadmap | ⬜ 다음 |
 | 4 | generateStepDetail | explain 준비 | ⬜ |
 | 5 | generateAnswerEvaluation | answering | ⬜ |
 | 6 | generateBranchEvaluation | branch 평가 | ⬜ |
@@ -54,9 +54,26 @@ Functions(Node/TS)로 함수 단위로 작게 이전한다. 최종적으로 브�
    내부를 `fetch(\`${API_BASE_URL}${ApiPaths.X}\`, { method:"POST", ... })` 로 교체.
    호출부(컴포넌트)는 건드리지 않는다. 미사용이 된 schema 상수/프롬프트 import 제거.
 6. **빌드 검증**: `cd frontend && npx tsc -b` (exit 0) + `cd functions && npx tsc` (exit 0).
-7. **emulator 검증**: 아래 절차로 해당 UI 단계 브라우저 주행. Network 에서 해당
-   엔드포인트가 `127.0.0.1:5001/.../<fn>` 으로 200 인지 확인(api.anthropic.com 아님).
+7. **emulator 검증**: 아래 "로컬 검증 절차"로 emulator + dev server 를 띄우고 해당 UI
+   단계까지 주행. 해당 엔드포인트가 `127.0.0.1:5001/.../<fn>` 으로 200 이고
+   api.anthropic.com 직호출이 0건인지 확인. 수동 대신 Playwright E2E 자동 주행 권장(아래).
 8. **커밋**: `feat(functions): Slice N - <fn> Firebase Functions 이전`.
+
+### Playwright E2E 자동 검증 (슬라이스2에서 확립, 수동 주행 대체)
+
+수동 브라우저 주행 대신 헤드리스 Playwright 로 UI 흐름을 자동 주행해 검증한다.
+
+- 설치(최초/세션당 1회): 루트에서 `npm i -D playwright@1.60.0 && npx playwright install chromium`.
+  검증 후 루트 오염 제거: `rm -rf node_modules package-lock.json package.json` (루트는 Gradle
+  빌드라 npm 산출물이 남으면 안 됨. chromium 바이너리는 `~/Library/Caches` 에 캐시되어 재설치 빠름).
+- 임시 스크립트(예: `tmp-<fn>-e2e.cjs`)를 루트에 작성해 `node tmp-<fn>-e2e.cjs` 로 실행, 끝나면 삭제.
+- 검증 포인트(스크립트가 자동 판정, exit 0=통과):
+  1. `page.on("response")` 로 `POST /<fn>` 응답을 잡아 `status===200` 이고 url 에 `127.0.0.1:5001` 포함.
+  2. `page.on("request")` 로 `api.anthropic.com` 직호출 0건.
+  3. 응답 body 형태(배열/필드) 검증 + 결과가 DOM 에 실제 렌더됐는지 `waitForFunction`.
+- 주의: dev server 가 IPv6(`::1`)에만 바인딩되면 `127.0.0.1` 은 거부되니 `http://localhost:<port>` 로 접속.
+  이미 5173/5001 이 점유돼 있으면 내 dev server 는 5174 등으로 뜬다(`lsof -nP -iTCP:<port> -sTCP:LISTEN` 로 확인).
+- ⚠️ emulator 는 실제 키로 실제 Anthropic 을 호출하므로 주행마다 소액 과금 발생.
 
 스트리밍(슬라이스7)은 패턴이 다름: `claudeLearnStream.ts` 의 `startClaudeLearnStream`
 (현재 SSE/`stream.on("text")`)을 Functions v2 HTTP 스트리밍(`res.write` chunk)으로 옮기고,
