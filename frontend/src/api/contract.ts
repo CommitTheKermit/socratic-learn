@@ -9,6 +9,7 @@ export const ApiPaths = {
   OVERWHELM: "/overwhelm",
   PROBE: "/probe",
   OUTLINE: "/outline",
+  STEP_DETAIL: "/stepDetail",
 } as const;
 
 export const SseEvents = {
@@ -63,6 +64,13 @@ export interface ProbeRequest {
 export interface OutlineRequest {
   concept: string;
   level: number;
+}
+
+export interface StepDetailRequest {
+  concept: string;
+  level: number;
+  outline: { title: string; desc: string }[];
+  stepIdx: number;
 }
 
 export interface AnswerItem {

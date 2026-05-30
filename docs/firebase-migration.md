@@ -25,9 +25,9 @@ Functions(Node/TS)로 함수 단위로 작게 이전한다. 최종적으로 브�
 |---|---|---|---|
 | 1 | detectOverwhelm | input(친숙도 0 제출) | ✅ 완료 (commit e06cff7) |
 | 2 | generateProbeQuestions | probe | ✅ 완료 (commit a51c2ee) |
-| 3 | generateRoadmapOutline | roadmap | ⬜ 다음 |
-| 4 | generateStepDetail | explain 준비 | ⬜ |
-| 5 | generateAnswerEvaluation | answering | ⬜ |
+| 3 | generateRoadmapOutline | roadmap | ✅ 완료 (commit 2c8e78c) |
+| 4 | generateStepDetail | explain 준비 | ✅ 완료 (E2E: e2e/slice4-step-detail.cjs) |
+| 5 | generateAnswerEvaluation | answering | ⬜ 다음 |
 | 6 | generateBranchEvaluation | branch 평가 | ⬜ |
 | 7 | startClaudeLearnStream | explain(스트리밍) | ⬜ Functions v2 HTTP 스트리밍, 60s 내 |
 | 8a | 정리: `npm run build` 후 `grep -ri ANTHROPIC dist/` 0건 | - | ⬜ slice1~7 후 |
