@@ -114,4 +114,17 @@ export const I = {
       }
     />
   ),
+  trash: (
+    <Ico
+      size={14}
+      d={
+        <>
+          <path d="M4 7h16" />
+          <path d="M9 7V5h6v2" />
+          <path d="M6 7v12a1.5 1.5 0 0 0 1.5 1.5h9A1.5 1.5 0 0 0 18 19V7" />
+          <path d="M10 11v6M14 11v6" />
+        </>
+      }
+    />
+  ),
 };

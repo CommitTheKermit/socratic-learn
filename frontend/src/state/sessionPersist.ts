@@ -3,6 +3,7 @@ import {
   serializeSessionState,
   type SessionState,
 } from "./sessionState";
+import { listSessions, upsertSessionMeta } from "./sessionIndex";
 
 /** localStorage 세션 값 키 접두사. sessionId 별로 분리 저장하여 단일 세션 손상이 전체로 번지지 않게 한다. */
 export const SESSION_KEY_PREFIX = "socratic:session:";
@@ -15,10 +16,25 @@ export function sessionKey(sessionId: string): string {
 /**
  * 학습 상태를 직렬화하여 localStorage 에 저장한다.
  * 키는 sessionId 기반으로 분리되며, 값은 serializeSessionState 결과(JSON 문자열)이다.
+ *
+ * 동시에 세션 인덱스(SESSIONS_INDEX_KEY)도 upsertSessionMeta 로 갱신하여
+ * 사이드바 히스토리가 항상 최신 메타를 반영하게 한다. 같은 sessionId 가
+ * 이미 인덱스에 있으면 createdAt 은 보존하고(최초 생성 시각 유지) conceptSummary/stage 만 갱신한다.
+ *
  * storage 는 테스트에서 mock 을 주입할 수 있도록 인자로 받는다(기본 localStorage).
  */
 export function persistSession(state: SessionState, storage: Storage = localStorage): void {
   storage.setItem(sessionKey(state.sessionId), serializeSessionState(state));
+  const existing = listSessions(storage).find((m) => m.sessionId === state.sessionId);
+  upsertSessionMeta(
+    {
+      sessionId: state.sessionId,
+      createdAt: existing ? existing.createdAt : state.createdAt,
+      conceptSummary: state.conceptSummary,
+      stage: state.stage,
+    },
+    storage,
+  );
 }
 
 /**

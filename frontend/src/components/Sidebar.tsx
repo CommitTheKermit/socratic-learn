@@ -1,15 +1,29 @@
 import { useState } from "react";
 import { I } from "./icons";
 import { STAGE_LABELS, type Stage } from "../stages/data";
+import type { SessionMeta } from "../state/sessionIndex";
 
 interface Props {
   stage: Stage;
   concept: string;
   onNewSession: () => void;
   onToggleCollapse: () => void;
+  sessions?: SessionMeta[];
+  activeSessionId?: string;
+  onSelectSession?: (id: string) => void;
+  onDeleteSession?: (id: string) => void;
 }
 
-export function Sidebar({ stage, concept, onNewSession, onToggleCollapse }: Props) {
+export function Sidebar({
+  stage,
+  concept,
+  onNewSession,
+  onToggleCollapse,
+  sessions,
+  activeSessionId,
+  onSelectSession,
+  onDeleteSession,
+}: Props) {
   const [historyOpen, setHistoryOpen] = useState(true);
   const isActive = stage !== "input";
 
@@ -59,7 +73,47 @@ export function Sidebar({ stage, concept, onNewSession, onToggleCollapse }: Prop
       </button>
 
       {historyOpen &&
-        (isActive ? (
+        (sessions !== undefined ? (
+          sessions.length > 0 ? (
+            <div className="sb-history-list">
+              {sessions.map((s) => {
+                const active = s.sessionId === activeSessionId;
+                return (
+                  <div
+                    key={s.sessionId}
+                    className={"sb-history-item" + (active ? " is-active" : "")}
+                    aria-current={active ? "true" : undefined}
+                  >
+                    <button
+                      className="sb-history-open"
+                      type="button"
+                      onClick={() => onSelectSession?.(s.sessionId)}
+                    >
+                      <span className="ti">{s.conceptSummary}</span>
+                      <span className="mt">{STAGE_LABELS[s.stage]}</span>
+                    </button>
+                    <button
+                      className="sb-history-del"
+                      type="button"
+                      aria-label="세션 삭제"
+                      onClick={() => {
+                        if (window.confirm("이 학습 세션을 삭제할까요?")) {
+                          onDeleteSession?.(s.sessionId);
+                        }
+                      }}
+                    >
+                      {I.trash}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="sb-history-list">
+              <div className="sb-empty">히스토리가 없습니다</div>
+            </div>
+          )
+        ) : isActive ? (
           <div className="sb-history-list">
             <button className="sb-history-item is-active" type="button">
               <span className="ti">{concept}</span>
