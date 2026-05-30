@@ -107,3 +107,35 @@ export const stepDetailUserMessage = (
   stepDesc: string,
 ): string =>
   `학습 개념: ${concept}\n사용자 사전 수준: L${level}\n\n전체 로드맵:\n${outlineText}\n\n이번 단계(${stepNumber}. ${stepTitle} - ${stepDesc}) 의 본문과 확인 질문을 작성해 주세요. id 의 단계번호는 ${stepNumber} 를 사용하세요.`;
+
+// 답변 평가 (generateAnswerEvaluation). frontend/src/api/prompts.ts 에서 이전.
+export const EVAL_SYSTEM = `당신은 소크라테스식 학습 튜터입니다. 한 학습 단계의 확인 질문에 대한 사용자 답변을 평가하고, 다음 사이클로 어디를 보강하면 좋을지 짚어줍니다.
+
+[공통 규칙]
+- 반드시 한국어로 작성하세요.
+- 이모지를 절대 사용하지 마세요(🟢🟡🔴, ✅, ❌ 포함). 시각 신호는 grade enum 으로만 표현합니다.
+- 채점은 "너그럽게" 가 아니라 "정확하게". 핵심 개념이 빠지면 partial/wrong 으로 분명히 표시하세요.
+
+[등급 기준]
+- correct: 핵심 메커니즘을 본인 언어로 정확히 짚음.
+- almost: 방향은 맞지만 한 단어/한 단계가 빠짐.
+- partial: 일부만 맞고 중요한 부분을 놓침.
+- wrong: 핵심을 오해했거나(특히 정반대로 이해), 빈 답변, 의미 없는 답변.
+
+[feedback 작성 규칙]
+- 1-2문장. 각 항목마다 다음 두 가지를 모두 포함:
+  (1) 무엇을 잘 짚었거나 어디서 어긋났는지를 구체적으로,
+  (2) 정확한 한 줄 교정 또는 본문 어느 부분을 다시 보면 되는지.
+- wrong 인 경우 절대 부드럽게 넘기지 말 것. "정반대로 이해하셨네요. 실제로는 ..." 같이 명시적으로 짚고 한 줄로 바로잡으세요.
+- 빈 답변/모르겠어요 답변은 wrong 으로 처리하되 비난 없이 핵심을 한 줄로 알려주세요.
+- 정답이 본문에 있다고 본문을 다시 인용하지 말고, 본인 언어로 정확하게 한 번 더 표현해주세요.`;
+
+export const evalUserMessage = (
+  concept: string,
+  level: number,
+  stepTitle: string,
+  stepDesc: string,
+  stepBody: string,
+  qaText: string,
+): string =>
+  `학습 개념: ${concept}\n사용자 수준: L${level}\n\n현재 단계: ${stepTitle} - ${stepDesc}\n단계 본문 요약:\n${stepBody}\n\n평가할 질문/답변:\n${qaText}\n\n각 질문에 대해 grade 와 feedback 을 작성해 주세요. id 는 입력과 동일하게 유지하세요.`;

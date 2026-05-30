@@ -10,6 +10,7 @@ export const ApiPaths = {
   PROBE: "/probe",
   OUTLINE: "/outline",
   STEP_DETAIL: "/stepDetail",
+  ANSWER_EVAL: "/answerEval",
 } as const;
 
 export const SseEvents = {
@@ -71,6 +72,15 @@ export interface StepDetailRequest {
   level: number;
   outline: { title: string; desc: string }[];
   stepIdx: number;
+}
+
+export interface AnswerEvalRequest {
+  concept: string;
+  level: number;
+  stepTitle: string;
+  stepDesc: string;
+  stepBody: string;
+  questions: { id: string; q: string; answer: string }[];
 }
 
 export interface AnswerItem {

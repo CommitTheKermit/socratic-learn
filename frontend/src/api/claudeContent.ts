@@ -1,11 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
 import { CLAUDE_MODEL, getClaudeClient } from "./claudeClient";
-import {
-  EVAL_SYSTEM,
-  buildBranchEvaluationPrompt,
-  evalUserMessage,
-} from "./prompts";
+import { buildBranchEvaluationPrompt } from "./prompts";
 import { parseEvaluationJson } from "./answers";
 import { API_BASE_URL, ApiPaths } from "./contract";
 import type { EvaluationResponse, OverwhelmDecision, ParseFailure } from "./contract";
@@ -189,37 +185,13 @@ export interface StepEvaluation {
   evaluations: EvaluationItem[];
 }
 
-const evalSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["evaluations"],
-  properties: {
-    evaluations: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["id", "grade", "feedback"],
-        properties: {
-          id: { type: "string" },
-          grade: { type: "string", enum: ["correct", "almost", "partial", "wrong"] },
-          feedback: {
-            type: "string",
-            description:
-              "1-2 문장 한국어 피드백. 어디가 어긋났는지 구체적으로 + 정확한 한 줄 교정. wrong 인 경우 '정반대로 이해하셨네요...' 식으로 명시적 교정. 이모지 사용 금지.",
-          },
-        },
-      },
-    },
-  },
-} as const;
-
 export interface EvalQuestionInput {
   id: string;
   q: string;
   answer: string;
 }
 
+// Firebase Functions(answerEval) 로 이전됨. 브라우저는 더 이상 Anthropic 을 직접 호출하지 않는다.
 export async function generateAnswerEvaluation(
   concept: string,
   level: number,
@@ -228,40 +200,32 @@ export async function generateAnswerEvaluation(
   stepBody: string,
   questions: EvalQuestionInput[],
 ): Promise<StepEvaluation> {
-  let client: Anthropic;
-  try {
-    client = getClaudeClient();
-  } catch (e) {
-    throw new ClaudeContentError("MISSING_CLAUDE_API_KEY", (e as Error).message);
-  }
   if (questions.length === 0) {
     return { evaluations: [] };
   }
-  const qaText = questions
-    .map((q) => `- id: ${q.id}\n  질문: ${q.q}\n  사용자 답변: ${q.answer || "(빈 답변)"}`)
-    .join("\n");
-  let parsed: StepEvaluation | undefined;
+  let res: Response;
   try {
-    const resp = await client.messages.parse({
-      model: CLAUDE_MODEL,
-      max_tokens: 3000,
-      system: [{ type: "text", text: EVAL_SYSTEM, cache_control: { type: "ephemeral" } }],
-      messages: [
-        {
-          role: "user",
-          content: evalUserMessage(concept, level, stepTitle, stepDesc, stepBody, qaText),
-        },
-      ],
-      output_config: { format: jsonSchemaOutputFormat(evalSchema) },
+    res = await fetch(`${API_BASE_URL}${ApiPaths.ANSWER_EVAL}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ concept, level, stepTitle, stepDesc, stepBody, questions }),
     });
-    parsed = resp.parsed_output as StepEvaluation;
   } catch (e) {
-    throw mapAnthropicError(e);
+    throw new ClaudeContentError("CLAUDE_API_ERROR", (e as Error)?.message ?? "네트워크 오류");
   }
-  if (!parsed?.evaluations) {
-    throw new ClaudeContentError("INVALID_RESPONSE", "평가 응답이 비어 있습니다.");
+  if (!res.ok) {
+    let code = "CLAUDE_API_ERROR";
+    let message = `평가 요청 실패: HTTP ${res.status}`;
+    try {
+      const body = await res.json();
+      if (body?.code) code = body.code as string;
+      if (body?.message) message = body.message as string;
+    } catch {
+      /* ignore */
+    }
+    throw new ClaudeContentError(code, message);
   }
-  return parsed;
+  return (await res.json()) as StepEvaluation;
 }
 
 /**
