@@ -3,7 +3,6 @@
 
 export const ApiPaths = {
   HEALTH: "/health",
-  LEARN_STREAM: "/learn/stream",
   ANSWERS: "/answers",
   // Firebase Functions 로 이전된 엔드포인트 (함수명 = 경로)
   OVERWHELM: "/overwhelm",
@@ -13,38 +12,6 @@ export const ApiPaths = {
   ANSWER_EVAL: "/answerEval",
   BRANCH_EVAL: "/branchEval",
 } as const;
-
-export const SseEvents = {
-  STATUS: "status",
-  DELTA: "delta",
-  COMPLETE: "complete",
-  ERROR: "error",
-} as const;
-
-export type SseEventName = (typeof SseEvents)[keyof typeof SseEvents];
-
-export interface LearnStreamRequest {
-  concept: string;
-  language?: string;
-}
-
-export interface StreamStatusEvent {
-  status: string;
-  message: string;
-}
-
-export interface StreamDeltaEvent {
-  text: string;
-}
-
-export interface StreamCompleteEvent {
-  content: string;
-}
-
-export interface StreamErrorEvent {
-  code: string;
-  message: string;
-}
 
 export interface OverwhelmRequest {
   concept: string;
