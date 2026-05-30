@@ -37,7 +37,6 @@ function makeState(id: string, concept: string, over: Partial<SessionState> = {}
     stepIdx: 3,
     answers: { "0": "답" },
     skips: { "1": true },
-    explainStreamComplete: false,
     ...over,
   };
 }

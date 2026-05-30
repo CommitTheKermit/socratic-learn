@@ -120,7 +120,6 @@ function AppInner() {
     stepIdx,
     answers,
     skips,
-    explainStreamComplete: loaded?.explainStreamComplete ?? false,
   });
 
   // answers 디바운스 hook. 즉시 effect 에서 cancelPending() 으로 보류분을 취소한다.
@@ -200,7 +199,6 @@ function AppInner() {
       stepIdx,
       answers,
       skips,
-      explainStreamComplete: loaded?.explainStreamComplete ?? false,
     };
     try {
       persistSession(snapshot);

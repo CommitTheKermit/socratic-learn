@@ -17,7 +17,6 @@ function snap(partial: Partial<SessionState> = {}): SessionState {
     stepIdx: 0,
     answers: {},
     skips: {},
-    explainStreamComplete: false,
     ...partial,
   };
 }

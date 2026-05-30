@@ -19,7 +19,6 @@ function fullState(): SessionState {
     stepIdx: 2,
     answers: { "1-1": "동시성은 번갈아", "2-1": "약 1MB" },
     skips: { "3-1": true },
-    explainStreamComplete: true,
   };
 }
 
@@ -50,7 +49,6 @@ describe("sessionState 직렬화/역직렬화", () => {
       stepIdx: 0,
       answers: {},
       skips: {},
-      explainStreamComplete: false,
     };
     expect(deserializeSessionState(serializeSessionState(initial))).toEqual(initial);
   });

@@ -17,7 +17,6 @@ export interface SessionState {
   stepIdx: number;
   answers: Record<string, string>;
   skips: Record<string, boolean>;
-  explainStreamComplete: boolean;
 }
 
 const STAGES: readonly Stage[] = ["input", "probe", "learn", "done"];
@@ -82,7 +81,6 @@ export function serializeSessionState(state: SessionState): string {
     stepIdx: state.stepIdx,
     answers: state.answers,
     skips: state.skips,
-    explainStreamComplete: state.explainStreamComplete,
   };
   return JSON.stringify(payload);
 }
@@ -113,6 +111,5 @@ export function deserializeSessionState(json: string): SessionState {
     stepIdx: asNumber(o.stepIdx),
     answers: asStringRecord(o.answers),
     skips: asBoolRecord(o.skips),
-    explainStreamComplete: o.explainStreamComplete === true,
   };
 }

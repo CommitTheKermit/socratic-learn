@@ -39,7 +39,6 @@ function seededState(overrides: Partial<Record<string, unknown>> = {}) {
     stepIdx: 0,
     answers: {},
     skips: {},
-    explainStreamComplete: false,
     ...overrides,
   };
 }

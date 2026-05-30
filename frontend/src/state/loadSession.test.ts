@@ -42,7 +42,6 @@ function fullState(): SessionState {
     stepIdx: 2,
     answers: { "1-1": "동시성은 번갈아" },
     skips: { "3-1": true },
-    explainStreamComplete: true,
   };
 }
 
@@ -65,7 +64,6 @@ describe("loadSession - 정상 값 복원", () => {
     expect(restored).not.toBeNull();
     expect(restored!.stage).toBe("learn");
     expect(restored!.stepIdx).toBe(2);
-    expect(restored!.explainStreamComplete).toBe(true);
     expect(restored!.probes).toEqual({ p1: 2, p2: ["thread", "suspend"], p3: "비동기 처리" });
   });
 });
@@ -99,7 +97,6 @@ describe("loadSession - 누락 값 폴백", () => {
     expect(restored!.probes).toEqual({});
     expect(restored!.answers).toEqual({});
     expect(restored!.skips).toEqual({});
-    expect(restored!.explainStreamComplete).toBe(false);
   });
 
   test("필드 타입이 불일치하면 안전한 기본값으로 폴백한다", () => {

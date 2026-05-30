@@ -47,7 +47,6 @@ function fullState(): SessionState {
     stepIdx: 2,
     answers: { "1-1": "동시성은 번갈아" },
     skips: { "3-1": true },
-    explainStreamComplete: true,
   };
 }
 
