@@ -1,5 +1,6 @@
-// 1:1 mirror of shared/src/commonMain/kotlin/socratic/learn/shared
-// SOURCE OF TRUTH: shared/ Kotlin module. Sync manually on any shared change (PR checklist).
+// SOURCE OF TRUTH: 이 파일이 API 경로/DTO 의 단일 진실 출처다.
+// (구 shared/ Kotlin 미러는 Firebase Functions 이전 후 제거됨.)
+// ApiPaths 의 키 = Function 이름 = 경로. functions/src/<fn>.ts 와 같은 PR 에서 함께 수정한다.
 
 export const ApiPaths = {
   // Firebase Functions 로 이전된 엔드포인트 (함수명 = 경로)

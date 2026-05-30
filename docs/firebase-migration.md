@@ -31,9 +31,9 @@ Functions(Node/TS)로 함수 단위로 작게 이전한다. 최종적으로 브�
 | 6 | generateBranchEvaluation | branch 평가 | ✅ 완료 (messages.parse 전환, E2E: e2e/slice6-branch-eval.cjs) |
 | 7 | startClaudeLearnStream | explain(스트리밍) | ✅ 재정의: dead code 제거. react-restack UI 는 본문을 stepDetail(JSON, slice4)로 생성하며 스트리밍 호출부가 0개였음. claudeLearnStream.ts/learnStream.ts 파일 + LEARN_STREAM_SYSTEM/learnStreamUserMessage + contract 의 SseEvents/Stream*Event/LearnStreamRequest/ApiPaths.LEARN_STREAM 제거. Functions 엔드포인트는 만들지 않음 |
 | 8a | 정리: `npm run build` 후 `grep -ri ANTHROPIC dist/` 0건 | - | ✅ 완료 (8c 와 함께. errors.ts 의 VITE_ANTHROPIC 문구도 제거) |
-| 8b | 정리: devtools Network 에 api.anthropic.com 직호출 0건 | - | ⬜ |
+| 8b | 정리: devtools Network 에 api.anthropic.com 직호출 0건 | - | ✅ 완료 (통합 E2E e2e/slice6-branch-eval.cjs, anthropicDirectCount=0) |
 | 8c | 정리: dead code 제거 완료. 삭제 파일: claudeClient.ts, answers.ts(submitAnswers/parseEvaluationJson/AnswersSubmissionError), frontend api/prompts.ts(전체 - 모든 프롬프트가 functions 로 이전돼 미사용), 테스트 2개(parseEvaluationJson.test.ts, branchEvaluationPrompt.test.ts). claudeContent.ts 에서 Anthropic/jsonSchemaOutputFormat/getClaudeClient/CLAUDE_MODEL import + mapAnthropicError 제거. contract.ts 에서 ApiPaths.HEALTH/ANSWERS + AnswerItem/AnswerSubmissionRequest/AnswerSubmissionResponse/ErrorResponse 제거. 검증: tsc 0, 단위테스트 41개 통과 | - | ✅ 완료 |
-| 8d | 정리: server/ 와 shared/ 제거 + 루트 Gradle 설정 정리 | - | ⬜ |
+| 8d | 정리: server/ 와 shared/ 제거 + 루트 Gradle 설정 정리 | - | ✅ 완료 (server/ shared/ gradle/ + 루트 settings/build.gradle.kts/gradlew 삭제. CLAUDE.md/AGENTS.md/contract.ts 주석 갱신. CI 는 Gradle 미사용이라 영향 없음) |
 
 ## 이전 레시피 (슬라이스1에서 확립한 패턴, 슬라이스2~6 동일 적용)
 
