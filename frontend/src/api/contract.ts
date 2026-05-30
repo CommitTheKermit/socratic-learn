@@ -7,6 +7,7 @@ export const ApiPaths = {
   ANSWERS: "/answers",
   // Firebase Functions 로 이전된 엔드포인트 (함수명 = 경로)
   OVERWHELM: "/overwhelm",
+  PROBE: "/probe",
 } as const;
 
 export const SseEvents = {
@@ -51,6 +52,11 @@ export interface OverwhelmDecision {
   shouldRetreat: boolean;
   reason: string;
   suggestedConcept: string;
+}
+
+export interface ProbeRequest {
+  concept: string;
+  materials?: string;
 }
 
 export interface AnswerItem {

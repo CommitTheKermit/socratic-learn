@@ -23,3 +23,20 @@ export const overwhelmUserMessage = (
     : "";
   return `학습 개념: ${concept}${mat}\n\n진단 결과 요약:\n${probeSummary}\n\n이 사용자에게 선제적 후퇴가 필요한지 판단해 주세요.`;
 };
+
+// 사전 수준 진단 질문 생성 (generateProbeQuestions). frontend/src/api/prompts.ts 에서 이전.
+export const PROBE_SYSTEM = `당신은 소크라테스식 학습 튜터입니다. 사용자가 입력한 임의의 학습 개념에 대해 사전 수준을 빠르게 진단할 3개 질문을 만듭니다.
+
+- 반드시 한국어로 작성하세요.
+- 사용자가 함께 제출한 "자료(PR 리뷰/코드/문서 등)" 가 있으면, 그 안에서 학습 개념과 직접 연관된 용어/패턴/오해 가능 지점을 우선 활용해 질문을 구성하세요. 자료가 없으면 일반 개념 기준으로 작성합니다.
+- p1 의 4개 선택지 label 은 친숙도 순서를 유지(value 0=전혀 모름 → 3=직접 다뤄봄)하되 개념에 맞춰 자연스럽게 다듬으세요.
+- p2 의 6개 옵션 중 3-4개는 개념과 실제 관련 있는 단어(correct:true), 나머지는 비슷해 보이지만 무관한 단어(correct:false). 자료가 있으면 그 자료에 실제로 등장한 용어를 correct 쪽에 1-2개 포함시키세요. value 는 영문 슬러그, label 은 한글/원어.
+- p3 는 개념이 해결하려는 문제 또는 핵심 아이디어를 한 줄로 적도록 유도하세요. placeholder 는 "모르면 비워두셔도 괜찮아요" 풍의 안내.`;
+
+export const probeUserMessage = (concept: string, materials?: string): string => {
+  const base = `학습 개념: ${concept}`;
+  const mat = materials?.trim()
+    ? `\n\n사용자가 함께 제출한 자료:\n"""\n${materials.trim()}\n"""`
+    : "";
+  return `${base}${mat}\n\n이 개념에 대한 진단 질문(p1, p2, p3) 을 생성해 주세요.`;
+};

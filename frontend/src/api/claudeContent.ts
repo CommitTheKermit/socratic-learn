@@ -4,12 +4,10 @@ import { CLAUDE_MODEL, getClaudeClient } from "./claudeClient";
 import {
   EVAL_SYSTEM,
   OUTLINE_SYSTEM,
-  PROBE_SYSTEM,
   STEP_DETAIL_SYSTEM,
   buildBranchEvaluationPrompt,
   evalUserMessage,
   outlineUserMessage,
-  probeUserMessage,
   stepDetailUserMessage,
 } from "./prompts";
 import { parseEvaluationJson } from "./answers";
@@ -47,107 +45,34 @@ function mapAnthropicError(e: unknown): ClaudeContentError {
   return new ClaudeContentError("INTERNAL_ERROR", (e as Error)?.message ?? "알 수 없는 오류");
 }
 
-const probeSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["p1", "p2", "p3"],
-  properties: {
-    p1: {
-      type: "object",
-      additionalProperties: false,
-      required: ["id", "kind", "q", "options"],
-      properties: {
-        id: { type: "string", const: "p1" },
-        kind: { type: "string", const: "choice" },
-        q: { type: "string", description: "개념에 대한 친숙도를 묻는 한국어 질문" },
-        options: {
-          type: "array",
-          minItems: 4,
-          maxItems: 4,
-          items: {
-            type: "object",
-            additionalProperties: false,
-            required: ["value", "label"],
-            properties: {
-              value: { type: "integer", minimum: 0, maximum: 3 },
-              label: { type: "string" },
-            },
-          },
-        },
-      },
-    },
-    p2: {
-      type: "object",
-      additionalProperties: false,
-      required: ["id", "kind", "q", "sub", "options"],
-      properties: {
-        id: { type: "string", const: "p2" },
-        kind: { type: "string", const: "multi" },
-        q: { type: "string" },
-        sub: { type: "string" },
-        options: {
-          type: "array",
-          minItems: 6,
-          maxItems: 6,
-          items: {
-            type: "object",
-            additionalProperties: false,
-            required: ["value", "label", "correct"],
-            properties: {
-              value: { type: "string" },
-              label: { type: "string" },
-              correct: { type: "boolean" },
-            },
-          },
-        },
-      },
-    },
-    p3: {
-      type: "object",
-      additionalProperties: false,
-      required: ["id", "kind", "q", "placeholder"],
-      properties: {
-        id: { type: "string", const: "p3" },
-        kind: { type: "string", const: "text" },
-        q: { type: "string" },
-        placeholder: { type: "string" },
-      },
-    },
-  },
-} as const;
-
+// Firebase Functions(probe) 로 이전됨. 브라우저는 더 이상 Anthropic 을 직접 호출하지 않는다.
 export async function generateProbeQuestions(
   concept: string,
   materials?: string,
 ): Promise<ProbeQuestion[]> {
-  let client: Anthropic;
+  let res: Response;
   try {
-    client = getClaudeClient();
-  } catch (e) {
-    throw new ClaudeContentError("MISSING_CLAUDE_API_KEY", (e as Error).message);
-  }
-  let parsed: { p1: ProbeQuestion; p2: ProbeQuestion; p3: ProbeQuestion } | undefined;
-  try {
-    const resp = await client.messages.parse({
-      model: CLAUDE_MODEL,
-      max_tokens: 3000,
-      system: [{ type: "text", text: PROBE_SYSTEM, cache_control: { type: "ephemeral" } }],
-      messages: [
-        {
-          role: "user",
-          content: probeUserMessage(concept, materials),
-        },
-      ],
-      output_config: { format: jsonSchemaOutputFormat(probeSchema) },
+    res = await fetch(`${API_BASE_URL}${ApiPaths.PROBE}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ concept, materials }),
     });
-    parsed = resp.parsed_output as typeof parsed;
   } catch (e) {
-    throw mapAnthropicError(e);
+    throw new ClaudeContentError("CLAUDE_API_ERROR", (e as Error)?.message ?? "네트워크 오류");
   }
-  if (!parsed?.p1 || !parsed?.p2 || !parsed?.p3) {
-    throw new ClaudeContentError("INVALID_RESPONSE", "진단 질문 응답이 비어 있습니다.");
+  if (!res.ok) {
+    let code = "CLAUDE_API_ERROR";
+    let message = `진단 질문 요청 실패: HTTP ${res.status}`;
+    try {
+      const body = await res.json();
+      if (body?.code) code = body.code as string;
+      if (body?.message) message = body.message as string;
+    } catch {
+      /* ignore */
+    }
+    throw new ClaudeContentError(code, message);
   }
-  return [parsed.p1, parsed.p2, parsed.p3];
+  return (await res.json()) as ProbeQuestion[];
 }
 
 // OverwhelmDecision 은 contract.ts 로 이전됨. Probe.tsx 가 이 모듈에서 import 하므로 re-export 유지.
