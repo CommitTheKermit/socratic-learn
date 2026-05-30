@@ -27,6 +27,16 @@ export function Sidebar({
   const [historyOpen, setHistoryOpen] = useState(true);
   const isActive = stage !== "input";
 
+  const relTime = (ts: number): string => {
+    if (!ts) return "";
+    const m = Math.floor((Date.now() - ts) / 60000);
+    if (m < 1) return "방금";
+    if (m < 60) return `${m}분 전`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}시간 전`;
+    return `${Math.floor(h / 24)}일 전`;
+  };
+
   return (
     <aside className="sidebar">
       <div className="sb-brand">
@@ -89,18 +99,23 @@ export function Sidebar({
                       type="button"
                       onClick={() => onSelectSession?.(s.sessionId)}
                     >
-                      <span className="ti">{s.conceptSummary}</span>
-                      <span className="mt">{STAGE_LABELS[s.stage]}</span>
+                      <span className="sb-hi-main">
+                        <span className="sb-hi-title">
+                          {active && <span className="sb-hi-livedot" />}
+                          <span className="nm">{s.conceptSummary}</span>
+                        </span>
+                        <span className="sb-hi-meta">
+                          <span className="stg">{STAGE_LABELS[s.stage]}</span>
+                          <span className="sep">·</span>
+                          {active ? "진행 중" : relTime(s.createdAt)}
+                        </span>
+                      </span>
                     </button>
                     <button
-                      className="sb-history-del"
+                      className="sb-hi-del"
                       type="button"
                       aria-label="세션 삭제"
-                      onClick={() => {
-                        if (window.confirm("이 학습 세션을 삭제할까요?")) {
-                          onDeleteSession?.(s.sessionId);
-                        }
-                      }}
+                      onClick={() => onDeleteSession?.(s.sessionId)}
                     >
                       {I.trash}
                     </button>
@@ -115,10 +130,21 @@ export function Sidebar({
           )
         ) : isActive ? (
           <div className="sb-history-list">
-            <button className="sb-history-item is-active" type="button">
-              <span className="ti">{concept}</span>
-              <span className="mt">진행 중 · {STAGE_LABELS[stage]}</span>
-            </button>
+            <div className="sb-history-item is-active">
+              <button className="sb-history-open" type="button">
+                <span className="sb-hi-main">
+                  <span className="sb-hi-title">
+                    <span className="sb-hi-livedot" />
+                    <span className="nm">{concept}</span>
+                  </span>
+                  <span className="sb-hi-meta">
+                    <span className="stg">{STAGE_LABELS[stage]}</span>
+                    <span className="sep">·</span>
+                    진행 중
+                  </span>
+                </span>
+              </button>
+            </div>
           </div>
         ) : (
           <div className="sb-history-list">

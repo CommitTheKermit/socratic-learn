@@ -76,14 +76,24 @@ function trySetWithEviction(protectId: string, storage: Storage, write: () => vo
  * Quota 처리: setItem 실패 시 활성(state.sessionId) 외 가장 오래된 세션을 1건 evict 후 1회 재시도.
  * 저장 성공 후 MAX_SESSIONS 초과 시 비활성 가장 오래된 세션을 반복 evict 하여 상한 유지.
  *
+ * opts.index(기본 true): false 면 본문만 저장하고 사이드바 인덱스(메타) 등록은 건너뛴다.
+ * 아직 "학습 시작" 전(input 단계) 의 임시 입력 초안을 새로고침 복원용으로만 보관하고,
+ * 학습 히스토리에는 노출하지 않기 위한 용도다.
+ *
  * storage 는 테스트에서 mock 을 주입할 수 있도록 인자로 받는다(기본 localStorage).
  */
-export function persistSession(state: SessionState, storage: Storage = localStorage): void {
+export function persistSession(
+  state: SessionState,
+  storage: Storage = localStorage,
+  opts: { index?: boolean } = {},
+): void {
+  const { index = true } = opts;
   const key = sessionKey(state.sessionId);
   const value = serializeSessionState(state);
   trySetWithEviction(state.sessionId, storage, () => {
     storage.setItem(key, value);
   });
+  if (!index) return;
   const existing = listSessions(storage).find((m) => m.sessionId === state.sessionId);
   const meta = {
     sessionId: state.sessionId,

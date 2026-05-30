@@ -71,12 +71,25 @@ const I = {
   chevSmall: <Ico size={14} d={<><path d="m6 9 6 6 6-6" /></>} />,
   figma:     <Ico size={14} d={<><circle cx="12" cy="12" r="3" /><path d="M9 5h3v7H9a3.5 3.5 0 0 1 0-7Z" /><path d="M12 5h3a3.5 3.5 0 0 1 0 7h-3" /><path d="M12 12H9a3.5 3.5 0 0 0 0 7c2 0 3-1.5 3-3.5V12Z" /></>} />,
   image:     <Ico size={14} d={<><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="1.6" /><path d="m4 18 5-5 4 4 3-3 4 5" /></>} />,
+  trash:     <Ico size={14} d={<><path d="M4 7h16" /><path d="M9 7V5h6v2" /><path d="M6 7l1 13h10l1-13" /></>} />,
 };
+
+// Past learning sessions (mock history)
+const PAST_SESSIONS = [
+  { id: "p1", concept: "코루틴이 왜 필요한지",        stage: "answering", time: "오늘" },
+  { id: "p2", concept: "B+ Tree vs LSM-Tree 인덱스",  stage: "done",      time: "어제" },
+  { id: "p3", concept: "TCP 3-way handshake 의미",    stage: "done",      time: "어제" },
+  { id: "p4", concept: "React useEffect cleanup 시점", stage: "explain",   time: "3일 전" },
+  { id: "p5", concept: "Cache-line false sharing",     stage: "done",      time: "5일 전" },
+];
 
 // ── Sidebar ───────────────────────────────────────────────────────────
 function Sidebar({ stage, concept, onNewSession }) {
   const [historyOpen, setHistoryOpen] = React.useState(true);
+  const [past, setPast] = React.useState(PAST_SESSIONS);
   const isActive = stage !== "input";
+  const removePast = (id) => setPast((l) => l.filter((s) => s.id !== id));
+  const hasAny = isActive || past.length > 0;
 
   return (
     <aside className="sidebar">
@@ -117,14 +130,55 @@ function Sidebar({ stage, concept, onNewSession }) {
 
       {historyOpen && (
         <div className="sb-history-list">
-          {isActive ? (
+          {!hasAny && <div className="sb-empty">아직 학습 기록이 없어요</div>}
+
+          {isActive && (
             <button className="sb-history-item is-active" type="button">
-              <span className="ti">{concept}</span>
-              <span className="mt">진행 중 · {STAGE_LABELS[stage]}</span>
+              <span className="sb-hi-main">
+                <span className="sb-hi-title">
+                  <span className="sb-hi-livedot" />
+                  <span className="nm">{concept}</span>
+                </span>
+                <span className="sb-hi-meta">
+                  <span className="stg">{STAGE_LABELS[stage]}</span>
+                  <span className="sep">·</span>진행 중
+                </span>
+              </span>
+              <span
+                className="sb-hi-del"
+                role="button"
+                aria-label="삭제"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {I.trash}
+              </span>
             </button>
-          ) : (
-            <div className="sb-empty">히스토리가 없습니다</div>
           )}
+
+          {past.map((s) => (
+            <button key={s.id} className="sb-history-item" type="button">
+              <span className="sb-hi-main">
+                <span className="sb-hi-title">
+                  <span className="nm">{s.concept}</span>
+                </span>
+                <span className="sb-hi-meta">
+                  <span className="stg">{s.stage === "done" ? "완료" : STAGE_LABELS[s.stage]}</span>
+                  <span className="sep">·</span>{s.time}
+                </span>
+              </span>
+              <span
+                className="sb-hi-del"
+                role="button"
+                aria-label="삭제"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removePast(s.id);
+                }}
+              >
+                {I.trash}
+              </span>
+            </button>
+          ))}
         </div>
       )}
 

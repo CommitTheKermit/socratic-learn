@@ -139,7 +139,8 @@ function AppInner() {
     const snapshot = buildSnapshot();
     try {
       localStorage.setItem(ACTIVE_SESSION_KEY, sessionIdRef.current);
-      persistSession(snapshot);
+      // input 단계(= "학습 시작" 전)는 본문 초안만 보관하고 히스토리 인덱스에는 등록하지 않는다.
+      persistSession(snapshot, undefined, { index: stage !== "input" });
     } catch {
       // 저장 실패(용량 초과 등) 복구는 별도 책임이므로 여기서는 무시한다.
     }
@@ -201,7 +202,8 @@ function AppInner() {
       skips,
     };
     try {
-      persistSession(snapshot);
+      // 떠나는 세션이 아직 input 초안이면 히스토리 인덱스에 등록하지 않는다.
+      persistSession(snapshot, undefined, { index: stage !== "input" });
     } catch {
       // 저장 실패 복구는 별도 책임이므로 여기서는 무시한다.
     }

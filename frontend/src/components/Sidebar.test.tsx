@@ -55,23 +55,14 @@ describe("Sidebar 학습 히스토리 목록", () => {
     expect(onSelectSession).toHaveBeenCalledWith("s2");
   });
 
-  test("휴지통 버튼 클릭 시 window.confirm 통과하면 onDeleteSession 호출", () => {
+  test("휴지통 버튼 클릭 시 확인 팝업 없이 즉시 onDeleteSession 호출", () => {
     const onDeleteSession = vi.fn();
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const confirmSpy = vi.spyOn(window, "confirm");
     const { container } = renderSidebar({ onDeleteSession });
     const firstRow = container.querySelector(".sb-history-item")!;
     fireEvent.click(within(firstRow as HTMLElement).getByLabelText("세션 삭제"));
-    expect(confirmSpy).toHaveBeenCalled();
+    expect(confirmSpy).not.toHaveBeenCalled();
     expect(onDeleteSession).toHaveBeenCalledWith("s1");
-  });
-
-  test("window.confirm 이 취소되면 onDeleteSession 을 호출하지 않는다", () => {
-    const onDeleteSession = vi.fn();
-    vi.spyOn(window, "confirm").mockReturnValue(false);
-    const { container } = renderSidebar({ onDeleteSession });
-    const firstRow = container.querySelector(".sb-history-item")!;
-    fireEvent.click(within(firstRow as HTMLElement).getByLabelText("세션 삭제"));
-    expect(onDeleteSession).not.toHaveBeenCalled();
   });
 
   test("sessions 빈 배열이면 빈 상태 문구를 보여준다", () => {
