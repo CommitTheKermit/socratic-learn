@@ -2,8 +2,6 @@
 // SOURCE OF TRUTH: shared/ Kotlin module. Sync manually on any shared change (PR checklist).
 
 export const ApiPaths = {
-  HEALTH: "/health",
-  ANSWERS: "/answers",
   // Firebase Functions 로 이전된 엔드포인트 (함수명 = 경로)
   OVERWHELM: "/overwhelm",
   PROBE: "/probe",
@@ -59,30 +57,6 @@ export interface BranchEvalRequest {
   stepBody: string;
   questions: { id: string; q: string; answer: string }[];
   roadmapOutlineText: string;
-}
-
-export interface AnswerItem {
-  questionId?: string;
-  question?: string;
-  answer?: string;
-  unknown?: boolean;
-}
-
-export interface AnswerSubmissionRequest {
-  sessionId?: string;
-  concept?: string;
-  answers: AnswerItem[];
-}
-
-export interface AnswerSubmissionResponse {
-  status: string;
-  receivedCount: number;
-  message: string;
-}
-
-export interface ErrorResponse {
-  code: string;
-  message: string;
 }
 
 import type { Step } from "../stages/data";

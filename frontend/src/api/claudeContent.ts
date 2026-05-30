@@ -1,6 +1,3 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
-import { CLAUDE_MODEL, getClaudeClient } from "./claudeClient";
 import { API_BASE_URL, ApiPaths } from "./contract";
 import type { EvaluationResponse, OverwhelmDecision, ParseFailure } from "./contract";
 import type { ProbeQuestion, Step } from "../stages/data";
@@ -11,28 +8,6 @@ export class ClaudeContentError extends Error {
     super(message);
     this.code = code;
   }
-}
-
-function mapAnthropicError(e: unknown): ClaudeContentError {
-  if (e instanceof Anthropic.AuthenticationError) {
-    return new ClaudeContentError(
-      "MISSING_CLAUDE_API_KEY",
-      "Claude API 키가 유효하지 않습니다. .env.local 의 VITE_ANTHROPIC_API_KEY 를 확인하세요.",
-    );
-  }
-  if (e instanceof Anthropic.RateLimitError) {
-    return new ClaudeContentError(
-      "CLAUDE_API_ERROR",
-      "Claude API 호출 한도를 초과했습니다. 잠시 후 다시 시도해 주세요.",
-    );
-  }
-  if (e instanceof Anthropic.APIError) {
-    return new ClaudeContentError(
-      "CLAUDE_API_ERROR",
-      `Claude API 오류 (${e.status}): ${e.message}`,
-    );
-  }
-  return new ClaudeContentError("INTERNAL_ERROR", (e as Error)?.message ?? "알 수 없는 오류");
 }
 
 // Firebase Functions(probe) 로 이전됨. 브라우저는 더 이상 Anthropic 을 직접 호출하지 않는다.
