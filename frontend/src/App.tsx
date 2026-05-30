@@ -16,6 +16,7 @@ import { LearnContentProvider, useLearnContent } from "./state/LearnContent";
 import { loadSession, persistSession, sessionKey } from "./state/sessionPersist";
 import { listSessions, removeSessionMeta, type SessionMeta } from "./state/sessionIndex";
 import type { SessionState } from "./state/sessionState";
+import { useDebouncedPersist } from "./state/useDebouncedPersist";
 
 type AccentVars = CSSProperties & {
   "--holo"?: string;
@@ -106,32 +107,46 @@ function AppInner() {
     }
   }, [stage, estimatedLevel, concept, loadOutline]);
 
-  // 상태가 바뀔 때마다(마운트 포함) 현재 학습 상태를 활성 세션 키로 persist 한다.
+  const buildSnapshot = (): SessionState => ({
+    sessionId: sessionIdRef.current,
+    createdAt: createdAtRef.current,
+    conceptSummary: concept,
+    stage,
+    depth,
+    concept,
+    materials,
+    probes,
+    estimatedLevel,
+    stepIdx,
+    answers,
+    skips,
+    explainStreamComplete: loaded?.explainStreamComplete ?? false,
+  });
+
+  // answers 디바운스 hook. 즉시 effect 에서 cancelPending() 으로 보류분을 취소한다.
+  const { cancelPending } = useDebouncedPersist(answers, buildSnapshot, (snap) => {
+    try {
+      persistSession(snap);
+    } catch {
+      // 무시
+    }
+    setSessions(listSessions());
+  });
+
+  // 즉시 persist: answers 외 모든 상태 변경. pending 디바운스가 있다면 cancel
+  // 하고 현재 snapshot(= 최신 answers 포함)으로 곧장 저장한다.
   useEffect(() => {
-    const snapshot: SessionState = {
-      sessionId: sessionIdRef.current,
-      createdAt: createdAtRef.current,
-      conceptSummary: concept,
-      stage,
-      depth,
-      concept,
-      materials,
-      probes,
-      estimatedLevel,
-      stepIdx,
-      answers,
-      skips,
-      explainStreamComplete: loaded?.explainStreamComplete ?? false,
-    };
+    cancelPending();
+    const snapshot = buildSnapshot();
     try {
       localStorage.setItem(ACTIVE_SESSION_KEY, sessionIdRef.current);
       persistSession(snapshot);
     } catch {
       // 저장 실패(용량 초과 등) 복구는 별도 책임이므로 여기서는 무시한다.
     }
-    // persist 후 인덱스 변화를 사이드바에 반영(새 세션 첫 입력, conceptSummary/stage 갱신).
     setSessions(listSessions());
-  }, [stage, depth, concept, materials, probes, estimatedLevel, stepIdx, answers, skips, loaded]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage, depth, concept, materials, probes, estimatedLevel, stepIdx, skips, loaded]);
 
   const accentStyle = useMemo<AccentVars>(() => {
     const colors = Array.isArray(accent) ? accent : ACCENT_PRESETS[0];
