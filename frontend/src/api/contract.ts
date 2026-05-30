@@ -11,6 +11,7 @@ export const ApiPaths = {
   OUTLINE: "/outline",
   STEP_DETAIL: "/stepDetail",
   ANSWER_EVAL: "/answerEval",
+  BRANCH_EVAL: "/branchEval",
 } as const;
 
 export const SseEvents = {
@@ -81,6 +82,16 @@ export interface AnswerEvalRequest {
   stepDesc: string;
   stepBody: string;
   questions: { id: string; q: string; answer: string }[];
+}
+
+export interface BranchEvalRequest {
+  concept: string;
+  level: number;
+  stepTitle: string;
+  stepDesc: string;
+  stepBody: string;
+  questions: { id: string; q: string; answer: string }[];
+  roadmapOutlineText: string;
 }
 
 export interface AnswerItem {

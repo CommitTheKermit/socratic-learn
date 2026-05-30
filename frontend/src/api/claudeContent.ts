@@ -1,8 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
 import { CLAUDE_MODEL, getClaudeClient } from "./claudeClient";
-import { buildBranchEvaluationPrompt } from "./prompts";
-import { parseEvaluationJson } from "./answers";
 import { API_BASE_URL, ApiPaths } from "./contract";
 import type { EvaluationResponse, OverwhelmDecision, ParseFailure } from "./contract";
 import type { ProbeQuestion, Step } from "../stages/data";
@@ -235,6 +233,10 @@ export async function generateAnswerEvaluation(
  *   - 스키마 위반: ParseFailure (parseError 필드)
  * 네트워크/API 오류 시: ClaudeContentError throw (재시도는 호출자가 결정).
  */
+// Firebase Functions(branchEval) 로 이전됨. structured output(messages.parse)+branchSchema 로
+// 서버가 EvaluationResponse 를 검증해 반환한다(기존 수기 parseEvaluationJson 역할 대체).
+// 반환 계약(EvaluationResponse | ParseFailure)은 그대로 유지: 형식 해석 실패는 200+{parseError},
+// 네트워크/API 오류는 throw.
 export async function generateBranchEvaluation(
   concept: string,
   level: number,
@@ -244,39 +246,35 @@ export async function generateBranchEvaluation(
   questions: EvalQuestionInput[],
   roadmapOutlineText: string,
 ): Promise<EvaluationResponse | ParseFailure> {
-  let client: Anthropic;
+  let res: Response;
   try {
-    client = getClaudeClient();
-  } catch (e) {
-    throw new ClaudeContentError("MISSING_CLAUDE_API_KEY", (e as Error).message);
-  }
-  const qaText = questions
-    .map((q) => `- id: ${q.id}\n  질문: ${q.q}\n  사용자 답변: ${q.answer || "(빈 답변)"}`)
-    .join("\n");
-  const { system, user } = buildBranchEvaluationPrompt({
-    concept,
-    level,
-    stepTitle,
-    stepDesc,
-    stepBody,
-    qaText,
-    roadmapOutlineText,
-  });
-  let rawText = "";
-  try {
-    const resp = await client.messages.create({
-      model: CLAUDE_MODEL,
-      max_tokens: 3000,
-      system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
-      messages: [{ role: "user", content: user }],
+    res = await fetch(`${API_BASE_URL}${ApiPaths.BRANCH_EVAL}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        concept,
+        level,
+        stepTitle,
+        stepDesc,
+        stepBody,
+        questions,
+        roadmapOutlineText,
+      }),
     });
-    const block = resp.content.find((b) => b.type === "text");
-    rawText = block && "text" in block ? block.text : "";
   } catch (e) {
-    throw mapAnthropicError(e);
+    throw new ClaudeContentError("CLAUDE_API_ERROR", (e as Error)?.message ?? "네트워크 오류");
   }
-  if (!rawText.trim()) {
-    return { parseError: "응답이 비어 있습니다" };
+  if (!res.ok) {
+    let code = "CLAUDE_API_ERROR";
+    let message = `분기 평가 요청 실패: HTTP ${res.status}`;
+    try {
+      const body = await res.json();
+      if (body?.code) code = body.code as string;
+      if (body?.message) message = body.message as string;
+    } catch {
+      /* ignore */
+    }
+    throw new ClaudeContentError(code, message);
   }
-  return parseEvaluationJson(rawText);
+  return (await res.json()) as EvaluationResponse | ParseFailure;
 }

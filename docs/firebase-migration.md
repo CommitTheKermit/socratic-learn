@@ -28,11 +28,11 @@ Functions(Node/TS)로 함수 단위로 작게 이전한다. 최종적으로 브�
 | 3 | generateRoadmapOutline | roadmap | ✅ 완료 (commit 2c8e78c) |
 | 4 | generateStepDetail | explain 준비 | ✅ 완료 (E2E: e2e/slice4-step-detail.cjs) |
 | 5 | generateAnswerEvaluation | answering | ✅ 완료 (E2E: e2e/slice5-answer-eval.cjs) |
-| 6 | generateBranchEvaluation | branch 평가 | ⬜ 다음 |
+| 6 | generateBranchEvaluation | branch 평가 | ✅ 완료 (messages.parse 전환, E2E: e2e/slice6-branch-eval.cjs) |
 | 7 | startClaudeLearnStream | explain(스트리밍) | ⬜ Functions v2 HTTP 스트리밍, 60s 내 |
 | 8a | 정리: `npm run build` 후 `grep -ri ANTHROPIC dist/` 0건 | - | ⬜ slice1~7 후 |
 | 8b | 정리: devtools Network 에 api.anthropic.com 직호출 0건 | - | ⬜ |
-| 8c | 정리: dead code 제거 (learnStream.ts startLearnStream, answers.ts submitAnswers + 미사용 import). 단 parseEvaluationJson 은 claudeContent.ts 가 쓰므로 유지 | - | ⬜ |
+| 8c | 정리: dead code 제거 (learnStream.ts startLearnStream, answers.ts submitAnswers + 미사용 import). claudeContent.ts 는 slice6 후 전부 fetch 라 Anthropic/getClaudeClient/CLAUDE_MODEL/jsonSchemaOutputFormat/mapAnthropicError 가 죽은 코드 → 일괄 제거. parseEvaluationJson 도 slice6 의 messages.parse 전환으로 프로덕션 미사용이 됨(parseEvaluationJson.test.ts 와 함께 제거 판단) | - | ⬜ |
 | 8d | 정리: server/ 와 shared/ 제거 + 루트 Gradle 설정 정리 | - | ⬜ |
 
 ## 이전 레시피 (슬라이스1에서 확립한 패턴, 슬라이스2~6 동일 적용)
