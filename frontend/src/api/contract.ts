@@ -5,6 +5,8 @@ export const ApiPaths = {
   HEALTH: "/health",
   LEARN_STREAM: "/learn/stream",
   ANSWERS: "/answers",
+  // Firebase Functions 로 이전된 엔드포인트 (함수명 = 경로)
+  OVERWHELM: "/overwhelm",
 } as const;
 
 export const SseEvents = {
@@ -37,6 +39,18 @@ export interface StreamCompleteEvent {
 export interface StreamErrorEvent {
   code: string;
   message: string;
+}
+
+export interface OverwhelmRequest {
+  concept: string;
+  materials?: string;
+  probeSummary: string;
+}
+
+export interface OverwhelmDecision {
+  shouldRetreat: boolean;
+  reason: string;
+  suggestedConcept: string;
 }
 
 export interface AnswerItem {

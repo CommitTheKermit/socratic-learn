@@ -4,18 +4,17 @@ import { CLAUDE_MODEL, getClaudeClient } from "./claudeClient";
 import {
   EVAL_SYSTEM,
   OUTLINE_SYSTEM,
-  OVERWHELM_SYSTEM,
   PROBE_SYSTEM,
   STEP_DETAIL_SYSTEM,
   buildBranchEvaluationPrompt,
   evalUserMessage,
   outlineUserMessage,
-  overwhelmUserMessage,
   probeUserMessage,
   stepDetailUserMessage,
 } from "./prompts";
 import { parseEvaluationJson } from "./answers";
-import type { EvaluationResponse, ParseFailure } from "./contract";
+import { API_BASE_URL, ApiPaths } from "./contract";
+import type { EvaluationResponse, OverwhelmDecision, ParseFailure } from "./contract";
 import type { ProbeQuestion, Step } from "../stages/data";
 
 export class ClaudeContentError extends Error {
@@ -151,59 +150,38 @@ export async function generateProbeQuestions(
   return [parsed.p1, parsed.p2, parsed.p3];
 }
 
-const overwhelmSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["shouldRetreat", "reason", "suggestedConcept"],
-  properties: {
-    shouldRetreat: { type: "boolean" },
-    reason: { type: "string", description: "1-2문장 한국어. 왜 후퇴를 권하는지 또는 왜 계속해도 되는지." },
-    suggestedConcept: {
-      type: "string",
-      description: "shouldRetreat=true 일 때 한 단계 더 쉬운 선행 개념. false 이면 빈 문자열.",
-    },
-  },
-} as const;
+// OverwhelmDecision 은 contract.ts 로 이전됨. Probe.tsx 가 이 모듈에서 import 하므로 re-export 유지.
+export type { OverwhelmDecision };
 
-export interface OverwhelmDecision {
-  shouldRetreat: boolean;
-  reason: string;
-  suggestedConcept: string;
-}
-
+// Firebase Functions(overwhelm) 로 이전됨. 브라우저는 더 이상 Anthropic 을 직접 호출하지 않는다.
 export async function detectOverwhelm(
   concept: string,
   materials: string | undefined,
   probeSummary: string,
 ): Promise<OverwhelmDecision> {
-  let client: Anthropic;
+  let res: Response;
   try {
-    client = getClaudeClient();
-  } catch (e) {
-    throw new ClaudeContentError("MISSING_CLAUDE_API_KEY", (e as Error).message);
-  }
-  let parsed: OverwhelmDecision | undefined;
-  try {
-    const resp = await client.messages.parse({
-      model: CLAUDE_MODEL,
-      max_tokens: 1500,
-      system: [{ type: "text", text: OVERWHELM_SYSTEM, cache_control: { type: "ephemeral" } }],
-      messages: [
-        {
-          role: "user",
-          content: overwhelmUserMessage(concept, materials, probeSummary),
-        },
-      ],
-      output_config: { format: jsonSchemaOutputFormat(overwhelmSchema) },
+    res = await fetch(`${API_BASE_URL}${ApiPaths.OVERWHELM}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ concept, materials, probeSummary }),
     });
-    parsed = resp.parsed_output as OverwhelmDecision;
   } catch (e) {
-    throw mapAnthropicError(e);
+    throw new ClaudeContentError("CLAUDE_API_ERROR", (e as Error)?.message ?? "네트워크 오류");
   }
-  if (!parsed) {
-    throw new ClaudeContentError("INVALID_RESPONSE", "후퇴 판단 응답이 비어 있습니다.");
+  if (!res.ok) {
+    let code = "CLAUDE_API_ERROR";
+    let message = `후퇴 판단 요청 실패: HTTP ${res.status}`;
+    try {
+      const body = await res.json();
+      if (body?.code) code = body.code as string;
+      if (body?.message) message = body.message as string;
+    } catch {
+      /* ignore */
+    }
+    throw new ClaudeContentError(code, message);
   }
-  return parsed;
+  return (await res.json()) as OverwhelmDecision;
 }
 
 const outlineSchema = {
