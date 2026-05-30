@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 vi.mock("../api/claudeContent", () => {
@@ -52,10 +52,16 @@ describe("AC1: 주제 입력 후 로드맵이 생성된다", () => {
     const startBtn = screen.getByRole("button", { name: "학습 시작" });
     await user.click(startBtn);
 
-    // After clicking start, stage becomes "probe" which renders ProgressBar with PHASES chips
-    expect(await screen.findByText("개념 입력")).toBeInTheDocument();
-    expect(screen.getByText("수준 확인")).toBeInTheDocument();
-    expect(screen.getByText("학습 진행")).toBeInTheDocument();
-    expect(screen.getByText("완료")).toBeInTheDocument();
+    // After clicking start, stage becomes "probe" which renders ProgressBar with PHASES chips.
+    // Sidebar 의 세션 행에도 stage 라벨이 표시되므로 ProgressBar 영역으로 한정해 검색한다.
+    const phaseBar = await screen.findByText("개념 입력").then((el) =>
+      el.closest(".phase-bar"),
+    );
+    expect(phaseBar).not.toBeNull();
+    const inPhaseBar = within(phaseBar as HTMLElement);
+    expect(inPhaseBar.getByText("개념 입력")).toBeInTheDocument();
+    expect(inPhaseBar.getByText("수준 확인")).toBeInTheDocument();
+    expect(inPhaseBar.getByText("학습 진행")).toBeInTheDocument();
+    expect(inPhaseBar.getByText("완료")).toBeInTheDocument();
   });
 });

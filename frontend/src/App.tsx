@@ -13,7 +13,8 @@ import { StageProbe } from "./stages/Probe";
 import { StageLearn } from "./stages/Learn";
 import { StageDone } from "./stages/Done";
 import { LearnContentProvider, useLearnContent } from "./state/LearnContent";
-import { loadSession, persistSession } from "./state/sessionPersist";
+import { loadSession, persistSession, sessionKey } from "./state/sessionPersist";
+import { listSessions, removeSessionMeta, type SessionMeta } from "./state/sessionIndex";
 import type { SessionState } from "./state/sessionState";
 
 type AccentVars = CSSProperties & {
@@ -77,6 +78,7 @@ function AppInner() {
   const [stepIdx, setStepIdx] = useState(() => loaded?.stepIdx ?? 0);
   const [answers, setAnswers] = useState<Record<string, string>>(() => loaded?.answers ?? {});
   const [skips, setSkips] = useState<Record<string, boolean>>(() => loaded?.skips ?? {});
+  const [sessions, setSessions] = useState<SessionMeta[]>(() => listSessions());
 
   const {
     steps,
@@ -127,6 +129,8 @@ function AppInner() {
     } catch {
       // 저장 실패(용량 초과 등) 복구는 별도 책임이므로 여기서는 무시한다.
     }
+    // persist 후 인덱스 변화를 사이드바에 반영(새 세션 첫 입력, conceptSummary/stage 갱신).
+    setSessions(listSessions());
   }, [stage, depth, concept, materials, probes, estimatedLevel, stepIdx, answers, skips, loaded]);
 
   const accentStyle = useMemo<AccentVars>(() => {
@@ -160,6 +164,86 @@ function AppInner() {
     }
   };
 
+  /**
+   * 세션을 전환한다. 현재 학습 상태를 persistSession 으로 저장한 뒤
+   * sessionIdRef/createdAtRef 를 targetId 의 메타로 갱신하고,
+   * loadSession(targetId) 결과로 학습 상태 전체를 복원한다.
+   * ref 갱신 패턴은 newSession/deleteSession 과 동일하게 유지한다(structural-cohesion).
+   */
+  const switchSession = (targetId: string) => {
+    if (targetId === sessionIdRef.current) return;
+    const snapshot: SessionState = {
+      sessionId: sessionIdRef.current,
+      createdAt: createdAtRef.current,
+      conceptSummary: concept,
+      stage,
+      depth,
+      concept,
+      materials,
+      probes,
+      estimatedLevel,
+      stepIdx,
+      answers,
+      skips,
+      explainStreamComplete: loaded?.explainStreamComplete ?? false,
+    };
+    try {
+      persistSession(snapshot);
+    } catch {
+      // 저장 실패 복구는 별도 책임이므로 여기서는 무시한다.
+    }
+
+    const target = loadSession(targetId);
+    sessionIdRef.current = targetId;
+    createdAtRef.current = target?.createdAt ?? Date.now();
+    setStage(target?.stage ?? "input");
+    setDepth(target?.depth ?? "0depth");
+    setConcept(target?.concept ?? "");
+    setMaterials(target?.materials ?? "");
+    setProbes(target?.probes ?? {});
+    setEstimatedLevel(target?.estimatedLevel ?? null);
+    setStepIdx(target?.stepIdx ?? 0);
+    setAnswers(target?.answers ?? {});
+    setSkips(target?.skips ?? {});
+    lastLoadedLevelRef.current = null;
+    resetContent();
+    try {
+      localStorage.setItem(ACTIVE_SESSION_KEY, targetId);
+    } catch {
+      // 활성 키 기록 실패는 무시한다.
+    }
+    setSessions(listSessions());
+  };
+
+  /**
+   * 세션을 삭제한다. 인덱스 메타(removeSessionMeta)와 본문 키(sessionKey)를 모두 제거하고,
+   * 삭제 대상이 현재 활성 세션이면 새 sessionId 를 발급한 뒤 input 단계의 빈 세션으로 초기화한다.
+   * ref 갱신 패턴은 newSession 과 동일하게 유지한다(structural-cohesion).
+   */
+  const deleteSession = (id: string) => {
+    try {
+      removeSessionMeta(id);
+      localStorage.removeItem(sessionKey(id));
+    } catch {
+      // 삭제 실패 복구는 별도 책임이므로 여기서는 무시한다.
+    }
+    if (id === sessionIdRef.current) {
+      sessionIdRef.current = createSessionId();
+      createdAtRef.current = Date.now();
+      setStage("input");
+      setStepIdx(0);
+      setProbes({});
+      setEstimatedLevel(null);
+      setAnswers({});
+      setSkips({});
+      setConcept("");
+      setMaterials("");
+      lastLoadedLevelRef.current = null;
+      resetContent();
+    }
+    setSessions(listSessions());
+  };
+
   return (
     <div
       className="app"
@@ -172,6 +256,10 @@ function AppInner() {
         concept={concept}
         onNewSession={newSession}
         onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
+        sessions={sessions}
+        activeSessionId={sessionIdRef.current}
+        onSelectSession={switchSession}
+        onDeleteSession={deleteSession}
       />
 
       <main className="main">
