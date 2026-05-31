@@ -9,3 +9,6 @@ build/
 # Node / Firebase emulator 부산물
 node_modules/
 *-debug.log
+
+# Firebase deploy 캐시
+.firebase/
