@@ -93,7 +93,7 @@ cd frontend && npm run dev       # .env.local 의 VITE_API_BASE_URL = emulator b
 ```
 
 - `frontend/.env.local`:
-  - `VITE_API_BASE_URL=http://127.0.0.1:5001/socratic-learn-dev/us-central1`
+  - `VITE_API_BASE_URL=http://127.0.0.1:5001/socratic-learn-web/us-central1`
   - `VITE_ANTHROPIC_API_KEY=<새-키>` (아직 미이전 함수의 브라우저 직호출용. slice8 에서 제거)
 - emulator/프론트는 `.env.local`/`.secret.local` 변경 후 **반드시 재시작**(Vite 는 시작 시 env 로드).
 - firebase CLI 는 npm `firebase-tools` 15.x 사용(구 standalone 12.x 는 v6 build spec 파싱 실패).

@@ -9,7 +9,7 @@
 | File | Description |
 |------|-------------|
 | `CLAUDE.md` | 저장소 작업 규칙(모듈 구성, 명령, 계약, 검증) |
-| `firebase.json` / `.firebaserc` | Firebase Functions + emulator 설정 (프로젝트 `socratic-learn-dev`) |
+| `firebase.json` / `.firebaserc` | Firebase Functions + emulator 설정 (프로젝트 `socratic-learn-web`) |
 | `docs/firebase-migration.md` | Ktor→Functions 이전 이력/레시피 |
 | `.gitignore` | 빌드 산출물/IDE 제외 |
 

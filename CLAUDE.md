@@ -27,7 +27,7 @@ cd functions && npm run serve      # build + emulators:start --only functions (�
 
 - emulator 용 키: 루트에서 `printf 'ANTHROPIC_API_KEY=%s\n' '<키>' > functions/.secret.local` (gitignore 됨).
 - 새 Function 추가 시 emulator 는 hot-reload 가 아니라 트리거 재등록이라 수 초 걸린다(OPTIONS 가 404→204 로 바뀌면 준비됨).
-- firebase CLI 는 npm `firebase-tools` 15.x 사용. 프로젝트는 `socratic-learn-dev`(`.firebaserc`).
+- firebase CLI 는 npm `firebase-tools` 15.x 사용. 프로젝트는 `socratic-learn-web`(`.firebaserc`).
 
 ## 런타임 아키텍처
 
@@ -49,7 +49,7 @@ cd functions && npm run serve      # build + emulators:start --only functions (�
 ## 환경 변수
 
 - functions: `ANTHROPIC_API_KEY` (Secret Manager `defineSecret`. emulator 는 `functions/.secret.local`). 모델은 각 함수의 `CLAUDE_MODEL` 상수.
-- frontend: `VITE_API_BASE_URL` (Functions base URL. emulator 는 `http://127.0.0.1:5001/socratic-learn-dev/us-central1`. Vite 빌드 시점 인라인). `.env.local` 변경 후 dev server 재시작 필요.
+- frontend: `VITE_API_BASE_URL` (Functions base URL. emulator 는 `http://127.0.0.1:5001/socratic-learn-web/us-central1`. Vite 빌드 시점 인라인). `.env.local` 변경 후 dev server 재시작 필요.
 
 ## 검증
 
