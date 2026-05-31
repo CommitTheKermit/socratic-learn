@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import {
   onAuthStateChanged,
+  signInAnonymously,
   signInWithPopup,
   signOut,
   type User,
@@ -32,6 +33,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     return unsub;
   }, []);
+
+  // E2E 자동 로그인: 게이팅을 통과시키려 익명 로그인한다(VITE_E2E_AUTO_SIGNIN 일 때만).
+  // 실서비스 빌드엔 이 변수가 없으므로 호출되지 않는다.
+  useEffect(() => {
+    if (import.meta.env.VITE_E2E_AUTO_SIGNIN === "true" && !loading && !user) {
+      void signInAnonymously(auth);
+    }
+  }, [loading, user]);
 
   const login = async (): Promise<void> => {
     await signInWithPopup(auth, githubProvider);

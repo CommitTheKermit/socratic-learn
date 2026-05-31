@@ -14,7 +14,13 @@ const { chromium } = require("playwright");
 
   const result = { ok: false };
   try {
-    await page.goto("http://localhost:5173", { waitUntil: "networkidle" });
+    await page.goto(process.env.E2E_BASE_URL || "http://localhost:5173", {
+      waitUntil: "networkidle",
+    });
+
+    // 게이팅: E2E 자동 익명 로그인(VITE_E2E_AUTO_SIGNIN) 완료까지 대기.
+    // 로그인되면 사이드바에 로그아웃 버튼이 렌더된다.
+    await page.waitForSelector('[aria-label="로그아웃"]', { timeout: 20000 });
 
     // input -> probe
     const probeRespP = page.waitForResponse(
