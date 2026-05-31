@@ -1,0 +1,326 @@
+/* === Branch Dialog (central modal · 560w) === */
+.bd-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(2px);
+  z-index: 50;
+}
+.bd-frame {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 51;
+}
+.bd-surface {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  background: var(--bg-elev-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 24px 64px -24px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.bd-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 22px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.bd-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+  margin-bottom: 6px;
+  font-family: var(--font-mono);
+}
+.bd-title {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--fg);
+  margin: 0 0 4px;
+}
+.bd-sub {
+  font-size: 13px;
+  color: var(--fg-mut);
+  margin: 0;
+}
+.bd-close {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--fg-mut);
+  border-radius: var(--radius-sm);
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.bd-close:hover {
+  color: var(--fg);
+  border-color: var(--line);
+  background: var(--bg-elev-2);
+}
+.bd-body {
+  padding: 16px 22px 22px;
+  overflow-y: auto;
+}
+
+/* === Eval card === */
+.bd-eval {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  background: var(--bg-elev-2);
+  margin-bottom: 16px;
+}
+.bd-eval-eyebrow {
+  font-size: 11px;
+  color: var(--fg-dim);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  font-family: var(--font-mono);
+}
+.bd-eval-body {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--fg);
+  margin: 0;
+}
+
+/* === Section head === */
+.bd-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 6px 0 10px;
+}
+.bd-section-head .h {
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  color: var(--fg-mut);
+  font-weight: 600;
+}
+.bd-section-head .meta {
+  font-size: 11px;
+  color: var(--fg-dim);
+  font-family: var(--font-mono);
+}
+
+/* === Branch cards (variant A pattern) === */
+.bd-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bd-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-align: left;
+  color: var(--fg);
+  transition: border-color 120ms, background 120ms;
+}
+.bd-card:hover {
+  border-color: var(--fg-faint);
+  background: var(--bg-elev-1);
+}
+.bd-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.bd-card.is-rec {
+  border-color: var(--accent-soft);
+  background: var(--bg-elev-2);
+}
+.bd-card.is-exit {
+  background: transparent;
+  border-style: dashed;
+  color: var(--fg-mut);
+}
+.bd-icon {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--bg-elev-1);
+  border: 1px solid var(--line);
+  color: var(--fg-mut);
+  flex-shrink: 0;
+}
+.bd-icon.is-holo {
+  background: var(--accent-soft);
+  border-color: var(--accent-soft);
+  color: var(--accent);
+}
+.bd-body-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.bd-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg);
+}
+.bd-card.is-exit .bd-label {
+  color: var(--fg-mut);
+  font-weight: 500;
+}
+.bd-rec {
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+.bd-preview {
+  font-size: 12.5px;
+  color: var(--fg-mut);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bd-chev {
+  color: var(--fg-dim);
+  flex-shrink: 0;
+}
+
+/* === Error mode (Variant A inside dialog) === */
+.bd-err-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px 16px;
+  background: var(--bg-elev-2);
+}
+.bd-err-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.bd-err-icon {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(255, 90, 90, 0.1);
+  color: rgb(255, 130, 130);
+  flex-shrink: 0;
+}
+.bd-err-headtxt {
+  flex: 1;
+  min-width: 0;
+}
+.bd-err-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg);
+}
+.bd-err-retries {
+  font-size: 11px;
+  color: var(--fg-dim);
+  font-family: var(--font-mono);
+  margin-top: 2px;
+}
+.bd-err-msg {
+  font-size: 13px;
+  color: var(--fg-mut);
+  line-height: 1.55;
+  margin: 0 0 12px;
+}
+.bd-err-details {
+  margin-bottom: 14px;
+}
+.bd-err-details summary {
+  font-size: 11.5px;
+  color: var(--fg-dim);
+  cursor: pointer;
+  font-family: var(--font-mono);
+}
+.bd-err-details pre {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--bg-elev-1);
+  border: 1px solid var(--line);
+  font-size: 11.5px;
+  color: var(--fg-mut);
+  overflow-x: auto;
+}
+.bd-err-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.bd-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.bd-btn-primary:hover {
+  filter: brightness(1.1);
+}
+.bd-btn-ghost {
+  padding: 8px 14px;
+  font-size: 13px;
+  background: transparent;
+  color: var(--fg-mut);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.bd-btn-ghost:hover {
+  color: var(--fg);
+  background: var(--bg-elev-2);
+}
+
+/* === Progress bar - dotted border + ↳ prefix for inserted chips === */
+.pb-seg.is-inserted {
+  border: 1px dashed var(--accent-soft);
+  border-radius: 6px;
+  padding: 4px 6px;
+  margin: 0 2px;
+}
+.pb-seg.is-inserted .pb-num::before {
+  content: "↳ ";
+  color: var(--accent);
+  font-weight: 700;
+  margin-right: 2px;
+}
+.pb-seg.is-inserted .pb-name {
+  color: var(--accent);
+}
