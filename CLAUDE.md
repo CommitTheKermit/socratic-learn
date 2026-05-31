@@ -33,6 +33,8 @@ cd functions && npm run serve      # build + emulators:start --only functions (�
 
 브라우저(React) → Firebase Functions(`onRequest`) → Anthropic Messages API.
 
+- 인증: 브라우저는 Firebase Auth(GitHub) 로 로그인하고, 모든 Functions 호출에 ID 토큰을 `Authorization: Bearer` 로 싣는다. Functions 는 `functions/src/auth.ts` 의 `requireAuth`(POST 처리 직전, 405 체크 다음)로 검증하고 `recordUsage` 로 Firestore `usage` 에 적재한다. 비로그인/무효 토큰은 401.
+
 - `frontend/src/App.tsx` 의 단일 상태 머신(input → probe → learn → done). 단계 본문/질문/평가/분기는 모두 Functions 호출로 생성한다(스트리밍 아님, JSON).
 - `frontend/src/api/claudeContent.ts` 의 각 함수(`detectOverwhelm`/`generateProbeQuestions`/`generateRoadmapOutline`/`generateStepDetail`/`generateAnswerEvaluation`/`generateBranchEvaluation`)는 `fetch(\`${API_BASE_URL}${ApiPaths.X}\`)` 로 Functions 를 호출한다. 시그니처/반환타입은 이전 전과 동일하게 유지된다.
 - `functions/src/<fn>.ts` - 각 함수는 `onRequest({ secrets: [ANTHROPIC_API_KEY], cors: true, region: "us-central1" }, ...)`. 구조화 출력은 `client.messages.parse({ ..., output_config: { format: jsonSchemaOutputFormat(schema) } })` 를 쓴다(`branchEval` 의 조건부 `stageContent` 는 `anyOf [object, null]`). `functions/src/index.ts` 가 7개 함수를 export 한다.
@@ -50,6 +52,7 @@ cd functions && npm run serve      # build + emulators:start --only functions (�
 
 - functions: `ANTHROPIC_API_KEY` (Secret Manager `defineSecret`. emulator 는 `functions/.secret.local`). 모델은 각 함수의 `CLAUDE_MODEL` 상수.
 - frontend: `VITE_API_BASE_URL` (Functions base URL. emulator 는 `http://127.0.0.1:5001/socratic-learn-web/us-central1`. Vite 빌드 시점 인라인). `.env.local` 변경 후 dev server 재시작 필요.
+- frontend: `VITE_FIREBASE_*` (GitHub 로그인용 Firebase 웹 config. `src/lib/firebase.ts` 에서 주입). `apiKey` 는 비밀이 아니라 식별자라 번들 인라인 무방. 콘솔 설정은 `docs/github-auth-setup.md`.
 
 ## 검증
 
@@ -59,7 +62,8 @@ cd functions && npm run serve      # build + emulators:start --only functions (�
 
 - 경로/DTO 변경은 `contract.ts` 와 `functions/` 를 같은 PR 에서 함께 수정한다.
 - CORS 는 `cors: true` 로 열려 있으나 로컬/MVP 한정. 배포 시 origin allow-list 로 좁힌다.
-- 1차 MVP 범위 제외: Auth/OAuth, DB/세션 저장, 토큰 제한/BYOK, 배포(Hosting), 서버 자동 회귀 테스트. 이 범위는 별도 합의 없이 추가하지 말 것.
+- GitHub 로그인(Firebase Auth GitHub provider) + 사용량 기록(Firestore `usage` 컬렉션) 은 **도입됨**. 학습 시작은 로그인 필수(게이팅): 프론트는 ID 토큰을 `Authorization: Bearer` 로 싣고(`api/authHeaders.ts`), Functions 는 `requireAuth` 로 검증(무효 시 401)하며 `recordUsage(uid, endpoint)` 로 적재한다.
+- 여전히 범위 제외(별도 합의 없이 추가 금지): 학습 세션의 서버 DB 저장(현재 세션은 localStorage), 토큰 제한/BYOK, 배포(Hosting), 서버 자동 회귀 테스트, 사용량 분석 대시보드/조회 UI.
 
 <!-- ooo:START -->
 <!-- ooo:VERSION:0.39.2 -->
