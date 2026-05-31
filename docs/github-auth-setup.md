@@ -40,7 +40,9 @@ Firebase Console -> 프로젝트 `socratic-learn-web` -> **Authentication**
 
 ## 3. Firestore 활성화
 
-Firebase Console -> **Firestore Database** -> **데이터베이스 만들기**
+Firebase Console -> 빌드 메뉴의 **Firestore** (NoSQL 항목. "Cloud Firestore"
+= "Firestore Database" 와 동일 제품. **Realtime Database 는 다른 제품이니 주의**)
+-> **데이터베이스 만들기**
 
 - 모드: **Native 모드**
 - 위치: 리전 선택 (예: `asia-northeast3` 서울. Functions 와 달리 데이터 저장 위치는

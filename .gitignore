@@ -5,3 +5,7 @@ build/
 *.iml
 .DS_Store
 .kotlin/
+
+# Node / Firebase emulator 부산물
+node_modules/
+*-debug.log
