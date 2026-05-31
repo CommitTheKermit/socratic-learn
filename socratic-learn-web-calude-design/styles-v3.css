@@ -222,33 +222,59 @@ body {
   display: grid; place-items: center;
   font-size: 11px; color: var(--fg-mut);
   border: 1px solid var(--line);
+  flex: none;
 }
-.sb-user-name { font-size: 13px; font-weight: 600; }
-.sb-user-meta {
-  font-size: 11.5px;
+.sb-user-name {
+  font-size: 13px; font-weight: 600;
+  flex: 1; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sb-signout {
+  flex: none;
+  display: grid; place-items: center;
+  width: 28px; height: 28px;
+  border-radius: 7px;
   color: var(--fg-dim);
-  font-family: var(--font-mono);
-  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.14s ease, color 0.14s ease, background 0.14s ease;
 }
-.sb-quota {
+.sb-user:hover .sb-signout { opacity: 1; }
+.sb-signout:hover { color: var(--fg); background: var(--bg-elev-2); }
+
+/* ── logged-out: login prompt ─────────────────────────────────────── */
+.sb-auth {
+  display: flex; flex-direction: column; gap: 10px;
+}
+.sb-auth-row {
   display: flex; align-items: center; gap: 10px;
-  font-size: 11.5px;
-  color: var(--fg-dim);
-  font-family: var(--font-mono);
 }
-.sb-quota .pill {
-  display: inline-flex; align-items: center; gap: 5px;
-}
-.sb-quota .pill svg { opacity: 0.55; }
-.sb-upgrade {
-  font-size: 12px;
+.sb-auth-avatar {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: var(--bg-elev-2);
+  display: grid; place-items: center;
   color: var(--fg-dim);
-  padding: 4px 0;
-  text-align: left;
+  border: 1px solid var(--line);
+  flex: none;
+}
+.sb-auth-title {
+  font-size: 13px; font-weight: 600;
+  flex: 1; min-width: 0;
+  text-wrap: pretty;
+}
+.sb-login {
   width: 100%;
-  letter-spacing: -0.005em;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 12.5px; font-weight: 600;
+  color: var(--fg);
+  white-space: nowrap;
+  border: 1px solid var(--line);
+  background: var(--bg-elev-2);
+  transition: border-color 0.14s ease, background 0.14s ease;
 }
-.sb-upgrade:hover { color: var(--fg); }
+.sb-login:hover { border-color: var(--fg-dim); background: var(--bg-elev-3, var(--bg-elev-2)); }
+.sb-login:active { transform: translateY(1px); }
 
 /* ── main canvas ──────────────────────────────────────────────────── */
 .main {

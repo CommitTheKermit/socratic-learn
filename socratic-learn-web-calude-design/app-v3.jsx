@@ -3,6 +3,7 @@
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "stage": "input",
+  "loggedIn": false,
   "sidebarCollapsed": false,
   "depth": "0depth",
   "showAurora": true,
@@ -72,6 +73,8 @@ const I = {
   figma:     <Ico size={14} d={<><circle cx="12" cy="12" r="3" /><path d="M9 5h3v7H9a3.5 3.5 0 0 1 0-7Z" /><path d="M12 5h3a3.5 3.5 0 0 1 0 7h-3" /><path d="M12 12H9a3.5 3.5 0 0 0 0 7c2 0 3-1.5 3-3.5V12Z" /></>} />,
   image:     <Ico size={14} d={<><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="1.6" /><path d="m4 18 5-5 4 4 3-3 4 5" /></>} />,
   trash:     <Ico size={14} d={<><path d="M4 7h16" /><path d="M9 7V5h6v2" /><path d="M6 7l1 13h10l1-13" /></>} />,
+  signout:   <Ico size={15} d={<><path d="M9 21H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" /></>} />,
+  userOutline: <Ico size={18} d={<><circle cx="12" cy="8" r="3.6" /><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6" /></>} />,
 };
 
 // Past learning sessions (mock history)
@@ -84,7 +87,7 @@ const PAST_SESSIONS = [
 ];
 
 // ── Sidebar ───────────────────────────────────────────────────────────
-function Sidebar({ stage, concept, onNewSession }) {
+function Sidebar({ stage, concept, onNewSession, loggedIn, onLogin, onLogout }) {
   const [historyOpen, setHistoryOpen] = React.useState(true);
   const [past, setPast] = React.useState(PAST_SESSIONS);
   const isActive = stage !== "input";
@@ -185,18 +188,30 @@ function Sidebar({ stage, concept, onNewSession }) {
       <div className="sb-spacer" />
 
       <div className="sb-foot">
-        <div className="sb-user">
-          <div className="sb-avatar">유</div>
-          <div style={{ minWidth: 0 }}>
-            <div className="sb-user-name">유아이볼</div>
-            <div className="sb-user-meta">Free plan</div>
+        {loggedIn ? (
+          <div className="sb-user">
+            <div className="sb-avatar">유</div>
+            <div className="sb-user-name">사용자</div>
+            <button
+              className="sb-signout"
+              type="button"
+              aria-label="로그아웃"
+              onClick={onLogout}
+            >
+              {I.signout}
+            </button>
           </div>
-        </div>
-        <div className="sb-quota">
-          <span className="pill">{I.figma} 10건</span>
-          <span className="pill">{I.image} 50건</span>
-        </div>
-        <button className="sb-upgrade" type="button">플랜 업그레이드 →</button>
+        ) : (
+          <div className="sb-auth">
+            <div className="sb-auth-row">
+              <div className="sb-auth-avatar">{I.userOutline}</div>
+              <div className="sb-auth-title">학습 시작을 위해 로그인이 필요해요</div>
+            </div>
+            <button className="sb-login" type="button" onClick={onLogin}>
+              로그인
+            </button>
+          </div>
+        )}
       </div>
     </aside>
   );
@@ -348,7 +363,14 @@ function App() {
       data-stage={stage}
       style={accentStyle}
     >
-      <Sidebar stage={stage} concept={concept} onNewSession={newSession} />
+      <Sidebar
+        stage={stage}
+        concept={concept}
+        onNewSession={newSession}
+        loggedIn={t.loggedIn}
+        onLogin={() => setTweak("loggedIn", true)}
+        onLogout={() => setTweak("loggedIn", false)}
+      />
 
       <main className="main">
         {t.showAurora && (
@@ -456,6 +478,7 @@ function App() {
         )}
 
         <TweakSection label="레이아웃" />
+        <TweakToggle label="로그인 상태" value={t.loggedIn} onChange={(v) => setTweak("loggedIn", v)} />
         <TweakToggle label="사이드바 접기" value={t.sidebarCollapsed} onChange={(v) => setTweak("sidebarCollapsed", v)} />
         <TweakToggle label="배경 오로라" value={t.showAurora} onChange={(v) => setTweak("showAurora", v)} />
 
