@@ -9,6 +9,9 @@ export async function authHeaders(
   extra: Record<string, string> = {},
 ): Promise<Record<string, string>> {
   const headers: Record<string, string> = { "Content-Type": "application/json", ...extra };
+  // 크롬 재시작 직후엔 persistence(IndexedDB)에서 토큰을 복원하는 비동기 과정이 끝나기 전
+  // auth.currentUser 가 null 이다. 복원 완료를 기다린 뒤 읽어야 헤더 누락(→401)을 막는다.
+  await auth.authStateReady();
   const u = auth.currentUser;
   if (u) {
     headers.Authorization = `Bearer ${await u.getIdToken()}`;

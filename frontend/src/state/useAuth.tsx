@@ -51,6 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const getIdToken = async (): Promise<string | null> => {
+    await auth.authStateReady();
     return auth.currentUser ? auth.currentUser.getIdToken() : null;
   };
 
