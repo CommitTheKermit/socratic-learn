@@ -250,10 +250,8 @@ body {
   width: 28px; height: 28px;
   border-radius: 7px;
   color: var(--fg-dim);
-  opacity: 0;
-  transition: opacity 0.14s ease, color 0.14s ease, background 0.14s ease;
+  transition: color 0.14s ease, background 0.14s ease;
 }
-.sb-user:hover .sb-signout { opacity: 1; }
 .sb-signout:hover { color: var(--fg); background: var(--bg-elev-2); }
 
 /* ── logged-out: login prompt ─────────────────────────────────────── */
