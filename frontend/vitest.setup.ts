@@ -7,6 +7,14 @@ import { vi } from "vitest";
 //    아예 import 되지 않는다.
 // 2) App 게이팅(비로그인 시 학습 시작 차단)이 세션 테스트를 막지 않도록 로그인된
 //    더미 유저를 반환한다. 게이팅 자체는 별도 테스트에서 검증한다.
+// authHeaders 가 lib/firebase 를 import 하므로(모듈 로드 시 getAuth 실행) 함께 모킹.
+// currentUser=null 이면 토큰 없이 호출(테스트의 fetch 는 어차피 모킹됨).
+vi.mock("./src/lib/firebase", () => ({
+  auth: { currentUser: null },
+  app: {},
+  githubProvider: {},
+}));
+
 vi.mock("./src/state/useAuth", () => ({
   useAuth: () => ({
     user: { uid: "test-uid", displayName: "테스터", email: "test@example.com" },

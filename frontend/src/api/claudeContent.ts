@@ -1,6 +1,7 @@
 import { API_BASE_URL, ApiPaths } from "./contract";
 import type { EvaluationResponse, OverwhelmDecision, ParseFailure } from "./contract";
 import type { ProbeQuestion, Step } from "../stages/data";
+import { authHeaders } from "./authHeaders";
 
 export class ClaudeContentError extends Error {
   code: string;
@@ -19,7 +20,7 @@ export async function generateProbeQuestions(
   try {
     res = await fetch(`${API_BASE_URL}${ApiPaths.PROBE}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await authHeaders(),
       body: JSON.stringify({ concept, materials }),
     });
   } catch (e) {
@@ -53,7 +54,7 @@ export async function detectOverwhelm(
   try {
     res = await fetch(`${API_BASE_URL}${ApiPaths.OVERWHELM}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await authHeaders(),
       body: JSON.stringify({ concept, materials, probeSummary }),
     });
   } catch (e) {
@@ -88,7 +89,7 @@ export async function generateRoadmapOutline(
   try {
     res = await fetch(`${API_BASE_URL}${ApiPaths.OUTLINE}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await authHeaders(),
       body: JSON.stringify({ concept, level }),
     });
   } catch (e) {
@@ -125,7 +126,7 @@ export async function generateStepDetail(
   try {
     res = await fetch(`${API_BASE_URL}${ApiPaths.STEP_DETAIL}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await authHeaders(),
       body: JSON.stringify({ concept, level, outline, stepIdx }),
     });
   } catch (e) {
@@ -180,7 +181,7 @@ export async function generateAnswerEvaluation(
   try {
     res = await fetch(`${API_BASE_URL}${ApiPaths.ANSWER_EVAL}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await authHeaders(),
       body: JSON.stringify({ concept, level, stepTitle, stepDesc, stepBody, questions }),
     });
   } catch (e) {
@@ -225,7 +226,7 @@ export async function generateBranchEvaluation(
   try {
     res = await fetch(`${API_BASE_URL}${ApiPaths.BRANCH_EVAL}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await authHeaders(),
       body: JSON.stringify({
         concept,
         level,

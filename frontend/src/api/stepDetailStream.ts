@@ -8,6 +8,7 @@ import {
   type StreamErrorPayload,
   type StreamStatusPayload,
 } from "./contract";
+import { authHeaders } from "./authHeaders";
 
 export interface StepDetailStreamHandlers {
   onStatus?: (e: StreamStatusPayload) => void;
@@ -33,7 +34,7 @@ export function streamStepDetail(
     try {
       response = await fetch(`${API_BASE_URL}${ApiPaths.STEP_DETAIL_STREAM}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+        headers: await authHeaders({ Accept: "text/event-stream" }),
         body: JSON.stringify(req),
         signal: controller.signal,
       });
