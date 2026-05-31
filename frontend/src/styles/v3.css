@@ -244,6 +244,16 @@ body {
   flex: 1; min-width: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+/* Auth 복원 미확정 중 보여주는 중립 placeholder. 로그인/사용자 영역 깜빡임을 막는다. */
+.sb-skeleton-line {
+  height: 12px; border-radius: 6px;
+  background: var(--bg-elev-2);
+}
+.sb-user-pending { animation: sb-pending-pulse 1.2s ease-in-out infinite; }
+@keyframes sb-pending-pulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 0.75; }
+}
 .sb-signout {
   flex: none;
   display: grid; place-items: center;

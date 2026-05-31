@@ -12,6 +12,8 @@ interface Props {
   activeSessionId?: string;
   onSelectSession?: (id: string) => void;
   onDeleteSession?: (id: string) => void;
+  /** Auth 복원 미확정. true 면 로그인/사용자 영역 대신 중립 placeholder 를 보여 깜빡임을 막는다. */
+  authPending?: boolean;
   loggedIn?: boolean;
   userName?: string;
   photoURL?: string;
@@ -28,6 +30,7 @@ export function Sidebar({
   activeSessionId,
   onSelectSession,
   onDeleteSession,
+  authPending = false,
   loggedIn = false,
   userName,
   photoURL,
@@ -165,7 +168,12 @@ export function Sidebar({
       <div className="sb-spacer" />
 
       <div className="sb-foot">
-        {loggedIn ? (
+        {authPending ? (
+          <div className="sb-user sb-user-pending" aria-hidden>
+            <div className="sb-avatar" />
+            <div className="sb-user-name sb-skeleton-line" />
+          </div>
+        ) : loggedIn ? (
           <div className="sb-user">
             <div className="sb-avatar">
               {photoURL ? (

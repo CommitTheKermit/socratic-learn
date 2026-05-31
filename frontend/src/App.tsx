@@ -65,7 +65,7 @@ function AppInner() {
   const createdAtRef = useRef(initial.createdAt);
   const loaded = initial.loaded;
 
-  const { user, login, logout } = useAuth();
+  const { user, loading: authLoading, login, logout } = useAuth();
   // GitHub 로그인 핸들(예: octocat). displayName(표시 이름)과 달리 User 타입에 노출되지 않아 reloadUserInfo 에서 추출한다.
   const githubId =
     (user as { reloadUserInfo?: { screenName?: string } } | null)?.reloadUserInfo
@@ -281,6 +281,7 @@ function AppInner() {
         activeSessionId={sessionIdRef.current}
         onSelectSession={switchSession}
         onDeleteSession={deleteSession}
+        authPending={authLoading}
         loggedIn={!!user}
         userName={githubId ?? user?.displayName ?? user?.email ?? undefined}
         photoURL={user?.photoURL ?? undefined}
