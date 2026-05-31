@@ -208,6 +208,14 @@ export const DEPTHS = [
   { value: "2depth", label: "2depth", hint: "깊은 원리까지" },
 ];
 
+// 메인 가이드 — 학습 4단계 흐름 (입력바 아래 접이식)
+export const HOW_STEPS = [
+  { n: "01", title: "수준 확인", desc: "몇 가지 질문으로 지금 아는 만큼을 가늠해요" },
+  { n: "02", title: "단계 제시", desc: "개념을 작은 단계로 나눠 학습 순서를 그려요" },
+  { n: "03", title: "학습 진행", desc: "설명을 읽고, 직접 답하며 이해를 확인해요" },
+  { n: "04", title: "완료", desc: "무엇을 알게 됐는지 정리해드려요" },
+];
+
 export const ACCENT_PRESETS: string[][] = [
   ["#A8FFC9", "#7DE3FF", "#C8B6FF", "#FFB3D9"],
   ["#FFD6A5", "#FFADAD", "#FFC6FF", "#BDB2FF"],

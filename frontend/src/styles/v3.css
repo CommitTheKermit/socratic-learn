@@ -458,6 +458,80 @@ body {
 }
 .btn-capture:active { transform: translateY(1px); }
 
+/* ── Hero guide (입력바 아래 접이식 · 가로 4-스텝, 뉴트럴) ──────────── */
+.hero-guide {
+  width: 100%;
+  margin-top: 18px;
+  position: relative;
+}
+.hg-toggle-wrap { display: flex; justify-content: center; }
+.hg-toggle {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  color: var(--fg-mut);
+  font-size: 12.5px;
+  letter-spacing: -0.005em;
+  transition: color .15s ease, background .15s ease;
+}
+.hg-toggle:hover { color: var(--fg); background: var(--line-2); }
+.hg-toggle .chev {
+  display: grid; place-items: center;
+  width: 14px; height: 14px;
+  opacity: 0.55;
+  transition: transform .2s ease;
+}
+.hg-toggle.is-open .chev { transform: rotate(180deg); }
+
+/* Panel floats out of flow (absolute) so toggling never shifts the
+   hero / input bar above it. */
+.hg-panel {
+  position: absolute;
+  left: 0; right: 0;
+  top: calc(100% + 16px);
+  animation: hgIn .28s ease both;
+}
+@keyframes hgIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+.hg-steps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  position: relative;
+}
+.hg-steps::before {
+  content: "";
+  position: absolute;
+  top: 13px; left: 12%; right: 12%;
+  height: 1px;
+  background: var(--line);
+}
+.hg-step {
+  display: flex; flex-direction: column;
+  align-items: center; text-align: center;
+  gap: 10px;
+  padding: 0 8px;
+}
+.hg-node {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--fg-mut);
+}
+.hg-title {
+  font-size: 13.5px; font-weight: 600;
+  color: var(--fg); letter-spacing: -0.01em;
+}
+.hg-desc {
+  font-size: 11.5px; line-height: 1.5;
+  color: var(--fg-dim); text-wrap: pretty;
+}
+
 /* Bottom-right floating brand badge */
 .brand-badge {
   position: absolute;
@@ -1348,37 +1422,6 @@ body {
 .md-body .md-table th {
   background: oklch(1 0 0 / 0.04);
   font-weight: 600;
-}
-
-/* Hero materials toggle */
-.materials-toggle {
-  margin-top: 0.9rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-.materials-toggle-btn {
-  align-self: flex-start;
-  background: transparent;
-  border: 1px dashed oklch(1 0 0 / 0.2);
-  color: oklch(1 0 0 / 0.7);
-  padding: 0.4rem 0.8rem;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.85em;
-}
-.materials-toggle-btn:hover { background: oklch(1 0 0 / 0.04); }
-.materials-textarea {
-  width: 100%;
-  min-height: 7.5rem;
-  padding: 0.6rem 0.8rem;
-  background: oklch(1 0 0 / 0.03);
-  border: 1px solid oklch(1 0 0 / 0.12);
-  border-radius: 8px;
-  color: inherit;
-  font-family: inherit;
-  font-size: 0.9em;
-  resize: vertical;
 }
 
 /* Retreat dialog */

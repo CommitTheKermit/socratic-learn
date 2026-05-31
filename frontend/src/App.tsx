@@ -304,8 +304,6 @@ function AppInner() {
               onDepth={setDepth}
               concept={concept}
               setConcept={setConcept}
-              materials={materials}
-              setMaterials={setMaterials}
               onStart={async () => {
                 // 게이팅: 비로그인 시 GitHub 로그인 팝업 -> 성공해야 probe 진입.
                 if (!user) {

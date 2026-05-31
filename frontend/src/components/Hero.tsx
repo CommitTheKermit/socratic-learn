@@ -1,5 +1,5 @@
 import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
-import { DEPTHS } from "../stages/data";
+import { DEPTHS, HOW_STEPS } from "../stages/data";
 import { I } from "./icons";
 
 interface Props {
@@ -7,14 +7,12 @@ interface Props {
   onDepth: (v: string) => void;
   concept: string;
   setConcept: (v: string) => void;
-  materials: string;
-  setMaterials: (v: string) => void;
   onStart: () => void;
 }
 
-export function Hero({ depth, onDepth, concept, setConcept, materials, setMaterials, onStart }: Props) {
+export function Hero({ depth, onDepth, concept, setConcept, onStart }: Props) {
   const ref = useRef<HTMLTextAreaElement>(null);
-  const [open, setOpen] = useState(materials.trim().length > 0);
+  const [guideOpen, setGuideOpen] = useState(true);
   const grow = (el: HTMLTextAreaElement | null) => {
     if (!el) return;
     el.style.height = "auto";
@@ -64,23 +62,30 @@ export function Hero({ depth, onDepth, concept, setConcept, materials, setMateri
         </button>
       </form>
 
-      <div className="materials-toggle">
-        <button
-          type="button"
-          className="materials-toggle-btn"
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open}
-        >
-          {open ? "− 자료 숨기기" : "+ 관련 자료 첨부 (PR 리뷰, 코드, 문서)"}
-        </button>
-        {open && (
-          <textarea
-            className="materials-textarea"
-            rows={6}
-            placeholder="여기에 PR 리뷰 코멘트, 코드 스니펫, 문서 일부를 붙여넣으세요. 진단 질문이 이 자료에 맞춰 만들어집니다."
-            value={materials}
-            onChange={(e) => setMaterials(e.target.value)}
-          />
+      <div className="hero-guide">
+        <div className="hg-toggle-wrap">
+          <button
+            type="button"
+            className={"hg-toggle" + (guideOpen ? " is-open" : "")}
+            aria-expanded={guideOpen}
+            onClick={() => setGuideOpen((v) => !v)}
+          >
+            Socratic은 이렇게 학습해요
+            <span className="chev">{I.chevSmall}</span>
+          </button>
+        </div>
+        {guideOpen && (
+          <div className="hg-panel">
+            <div className="hg-steps">
+              {HOW_STEPS.map((s) => (
+                <div className="hg-step" key={s.n}>
+                  <span className="hg-node">{s.n}</span>
+                  <span className="hg-title">{s.title}</span>
+                  <span className="hg-desc">{s.desc}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </div>
     </section>
