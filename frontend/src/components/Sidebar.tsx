@@ -14,6 +14,7 @@ interface Props {
   onDeleteSession?: (id: string) => void;
   loggedIn?: boolean;
   userName?: string;
+  photoURL?: string;
   onLogin?: () => void;
   onLogout?: () => void;
 }
@@ -29,6 +30,7 @@ export function Sidebar({
   onDeleteSession,
   loggedIn = false,
   userName,
+  photoURL,
   onLogin,
   onLogout,
 }: Props) {
@@ -165,7 +167,18 @@ export function Sidebar({
       <div className="sb-foot">
         {loggedIn ? (
           <div className="sb-user">
-            <div className="sb-avatar">{(userName?.[0] ?? "유").toUpperCase()}</div>
+            <div className="sb-avatar">
+              {photoURL ? (
+                <img
+                  className="sb-avatar-img"
+                  src={photoURL}
+                  alt=""
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                (userName?.[0] ?? "유").toUpperCase()
+              )}
+            </div>
             <div className="sb-user-name">{userName ?? "사용자"}</div>
             <button
               className="sb-signout"

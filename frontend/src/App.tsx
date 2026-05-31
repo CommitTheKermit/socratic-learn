@@ -279,6 +279,7 @@ function AppInner() {
         onDeleteSession={deleteSession}
         loggedIn={!!user}
         userName={user?.displayName ?? user?.email ?? undefined}
+        photoURL={user?.photoURL ?? undefined}
         onLogin={() => void login()}
         onLogout={() => void logout()}
       />

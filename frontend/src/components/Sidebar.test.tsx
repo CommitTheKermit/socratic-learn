@@ -93,4 +93,31 @@ describe("Sidebar 로그인 상태 분기 (sb-foot)", () => {
     fireEvent.click(screen.getByLabelText("로그아웃"));
     expect(onLogout).toHaveBeenCalledTimes(1);
   });
+
+  test("photoURL 이 있으면 아바타 이미지를, 없으면 이름 이니셜을 렌더한다", () => {
+    const { container, rerender } = renderSidebar({
+      loggedIn: true,
+      userName: "유아이볼",
+      photoURL: "https://example.com/a.png",
+    });
+    const img = container.querySelector("img.sb-avatar-img");
+    expect(img).toHaveAttribute("src", "https://example.com/a.png");
+
+    rerender(
+      <Sidebar
+        stage="input"
+        concept=""
+        onNewSession={noop}
+        onToggleCollapse={noop}
+        sessions={sessions}
+        activeSessionId="s1"
+        onSelectSession={noop}
+        onDeleteSession={noop}
+        loggedIn
+        userName="유아이볼"
+      />,
+    );
+    expect(container.querySelector("img.sb-avatar-img")).not.toBeInTheDocument();
+    expect(screen.getByText("유")).toBeInTheDocument();
+  });
 });
