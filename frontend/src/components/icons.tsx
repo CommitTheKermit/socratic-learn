@@ -127,4 +127,27 @@ export const I = {
       }
     />
   ),
+  signout: (
+    <Ico
+      size={15}
+      d={
+        <>
+          <path d="M9 21H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3" />
+          <path d="M16 17l5-5-5-5" />
+          <path d="M21 12H9" />
+        </>
+      }
+    />
+  ),
+  userOutline: (
+    <Ico
+      size={18}
+      d={
+        <>
+          <circle cx="12" cy="8" r="3.6" />
+          <path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6" />
+        </>
+      }
+    />
+  ),
 };

@@ -12,6 +12,10 @@ interface Props {
   activeSessionId?: string;
   onSelectSession?: (id: string) => void;
   onDeleteSession?: (id: string) => void;
+  loggedIn?: boolean;
+  userName?: string;
+  onLogin?: () => void;
+  onLogout?: () => void;
 }
 
 export function Sidebar({
@@ -23,6 +27,10 @@ export function Sidebar({
   activeSessionId,
   onSelectSession,
   onDeleteSession,
+  loggedIn = false,
+  userName,
+  onLogin,
+  onLogout,
 }: Props) {
   const [historyOpen, setHistoryOpen] = useState(true);
   const isActive = stage !== "input";
@@ -155,20 +163,30 @@ export function Sidebar({
       <div className="sb-spacer" />
 
       <div className="sb-foot">
-        <div className="sb-user">
-          <div className="sb-avatar">유</div>
-          <div style={{ minWidth: 0 }}>
-            <div className="sb-user-name">유아이볼</div>
-            <div className="sb-user-meta">Free plan</div>
+        {loggedIn ? (
+          <div className="sb-user">
+            <div className="sb-avatar">{(userName?.[0] ?? "유").toUpperCase()}</div>
+            <div className="sb-user-name">{userName ?? "사용자"}</div>
+            <button
+              className="sb-signout"
+              type="button"
+              aria-label="로그아웃"
+              onClick={onLogout}
+            >
+              {I.signout}
+            </button>
           </div>
-        </div>
-        <div className="sb-quota">
-          <span className="pill">{I.figma} 10건</span>
-          <span className="pill">{I.image} 50건</span>
-        </div>
-        <button className="sb-upgrade" type="button">
-          플랜 업그레이드 →
-        </button>
+        ) : (
+          <div className="sb-auth">
+            <div className="sb-auth-row">
+              <div className="sb-auth-avatar">{I.userOutline}</div>
+              <div className="sb-auth-title">학습 시작을 위해 로그인이 필요해요</div>
+            </div>
+            <button className="sb-login" type="button" onClick={onLogin}>
+              로그인
+            </button>
+          </div>
+        )}
       </div>
     </aside>
   );

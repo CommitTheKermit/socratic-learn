@@ -1,1 +1,19 @@
 import "@testing-library/jest-dom/vitest";
+import { vi } from "vitest";
+
+// useAuth 를 전역 모킹한다. 이유:
+// 1) src/lib/firebase.ts 는 모듈 로드 시점에 getAuth() 를 실행하는데 jsdom 테스트엔
+//    VITE_FIREBASE_* env 가 없어 auth/invalid-api-key 로 터진다. 모킹하면 firebase 가
+//    아예 import 되지 않는다.
+// 2) App 게이팅(비로그인 시 학습 시작 차단)이 세션 테스트를 막지 않도록 로그인된
+//    더미 유저를 반환한다. 게이팅 자체는 별도 테스트에서 검증한다.
+vi.mock("./src/state/useAuth", () => ({
+  useAuth: () => ({
+    user: { uid: "test-uid", displayName: "테스터", email: "test@example.com" },
+    loading: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+    getIdToken: vi.fn(async () => "test-token"),
+  }),
+  AuthProvider: (props: { children: unknown }) => props.children,
+}));

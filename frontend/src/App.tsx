@@ -17,6 +17,7 @@ import { loadSession, persistSession, sessionKey } from "./state/sessionPersist"
 import { listSessions, removeSessionMeta, type SessionMeta } from "./state/sessionIndex";
 import type { SessionState } from "./state/sessionState";
 import { useDebouncedPersist } from "./state/useDebouncedPersist";
+import { useAuth } from "./state/useAuth";
 
 type AccentVars = CSSProperties & {
   "--holo"?: string;
@@ -64,6 +65,7 @@ function AppInner() {
   const createdAtRef = useRef(initial.createdAt);
   const loaded = initial.loaded;
 
+  const { user, login, logout } = useAuth();
   const [stage, setStage] = useState<Stage>(() => loaded?.stage ?? "input");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [depth, setDepth] = useState<string>(() => loaded?.depth ?? "0depth");
@@ -275,6 +277,10 @@ function AppInner() {
         activeSessionId={sessionIdRef.current}
         onSelectSession={switchSession}
         onDeleteSession={deleteSession}
+        loggedIn={!!user}
+        userName={user?.displayName ?? user?.email ?? undefined}
+        onLogin={() => void login()}
+        onLogout={() => void logout()}
       />
 
       <main className="main">
@@ -295,7 +301,17 @@ function AppInner() {
               setConcept={setConcept}
               materials={materials}
               setMaterials={setMaterials}
-              onStart={() => setStage("probe")}
+              onStart={async () => {
+                // 게이팅: 비로그인 시 GitHub 로그인 팝업 -> 성공해야 probe 진입.
+                if (!user) {
+                  try {
+                    await login();
+                  } catch {
+                    return;
+                  }
+                }
+                setStage("probe");
+              }}
             />
           )}
 
