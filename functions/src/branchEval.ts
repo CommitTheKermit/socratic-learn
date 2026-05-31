@@ -1,4 +1,5 @@
 import { onRequest } from "firebase-functions/v2/https";
+import { requireAuth, recordUsage } from "./auth";
 import { defineSecret } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import Anthropic from "@anthropic-ai/sdk";
@@ -78,6 +79,10 @@ export const branchEval = onRequest(
       res.status(405).json({ code: "METHOD_NOT_ALLOWED", message: "POST only" });
       return;
     }
+
+    const uid = await requireAuth(req, res);
+    if (!uid) return;
+    recordUsage(uid, "branchEval");
 
     const { concept, level, stepTitle, stepDesc, stepBody, questions, roadmapOutlineText } =
       (req.body ?? {}) as {
