@@ -87,8 +87,8 @@ describe("Sidebar 로그인 상태 분기 (sb-foot)", () => {
 
   test("로그인 상태면 userName 과 로그아웃 버튼을 보여주고, 클릭 시 onLogout 호출", () => {
     const onLogout = vi.fn();
-    renderSidebar({ loggedIn: true, userName: "유아이볼", onLogout });
-    expect(screen.getByText("유아이볼")).toBeInTheDocument();
+    renderSidebar({ loggedIn: true, userName: "테스터", onLogout });
+    expect(screen.getByText("테스터")).toBeInTheDocument();
     expect(screen.queryByText("학습 시작을 위해 로그인이 필요해요")).not.toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("로그아웃"));
     expect(onLogout).toHaveBeenCalledTimes(1);
@@ -97,7 +97,7 @@ describe("Sidebar 로그인 상태 분기 (sb-foot)", () => {
   test("photoURL 이 있으면 아바타 이미지를, 없으면 이름 이니셜을 렌더한다", () => {
     const { container, rerender } = renderSidebar({
       loggedIn: true,
-      userName: "유아이볼",
+      userName: "테스터",
       photoURL: "https://example.com/a.png",
     });
     const img = container.querySelector("img.sb-avatar-img");
@@ -114,10 +114,10 @@ describe("Sidebar 로그인 상태 분기 (sb-foot)", () => {
         onSelectSession={noop}
         onDeleteSession={noop}
         loggedIn
-        userName="유아이볼"
+        userName="테스터"
       />,
     );
     expect(container.querySelector("img.sb-avatar-img")).not.toBeInTheDocument();
-    expect(screen.getByText("유")).toBeInTheDocument();
+    expect(screen.getByText("테")).toBeInTheDocument();
   });
 });
