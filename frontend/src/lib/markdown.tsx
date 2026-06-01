@@ -36,12 +36,15 @@ function splitRow(line: string): string[] {
 }
 
 function isTableRow(line: string): boolean {
-  return /^\s*\|.*\|\s*$/.test(line);
+  // GFM 은 바깥 파이프를 생략해도 표로 본다. | 가 하나라도 있으면 후보.
+  return line.includes("|") && line.trim() !== "";
 }
 
 function isTableSeparator(line: string): boolean {
-  if (!isTableRow(line)) return false;
-  return splitRow(line).every((c) => /^:?-{2,}:?$/.test(c));
+  const s = line.trim();
+  if (!s.includes("-") || !/^[|\s:-]+$/.test(s)) return false;
+  const cells = splitRow(line);
+  return cells.length > 0 && cells.every((c) => /^:?-{2,}:?$/.test(c));
 }
 
 export function Markdown({ text }: { text: string }) {
