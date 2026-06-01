@@ -39,6 +39,21 @@ const GRADE_LABEL: Record<Grade, string> = {
   wrong: "오답",
 };
 
+type Orient = "vertical" | "horizontal";
+
+const IcoRows = () => (
+  <svg className="ico" viewBox="0 0 16 16" fill="none" aria-hidden>
+    <rect x="1.5" y="2" width="13" height="4" rx="1.2" fill="currentColor" />
+    <rect x="1.5" y="8.5" width="13" height="5.5" rx="1.2" fill="currentColor" opacity="0.45" />
+  </svg>
+);
+const IcoCols = () => (
+  <svg className="ico" viewBox="0 0 16 16" fill="none" aria-hidden>
+    <rect x="1.5" y="2" width="5.5" height="12" rx="1.2" fill="currentColor" />
+    <rect x="9" y="2" width="5.5" height="12" rx="1.2" fill="currentColor" opacity="0.45" />
+  </svg>
+);
+
 export function StageLearn({
   concept,
   level,
@@ -68,6 +83,10 @@ export function StageLearn({
   const branch = useBranchPhase();
   const [insertedMeta, setInsertedMeta] = useState<Map<number, InsertedMeta>>(new Map());
   const [branchVisible, setBranchVisible] = useState(false);
+  // 레이아웃 방향: 기본 세로(접이식 설명 ▸ 질문). 저장값 의존 없이 항상 세로로 시작.
+  const [orient, setOrient] = useState<Orient>("vertical");
+  // 세로 모드에서 개념 설명 카드 접힘 여부 (기본 펼침).
+  const [explainOpen, setExplainOpen] = useState(true);
 
   // 각 step 의 표시 라벨 계산: 원본은 "01","02"…, 삽입은 "1-1","1-2"…
   const displayLabelOf = (s: Step): string => {
@@ -252,6 +271,123 @@ export function StageLearn({
   const gradeFor = (qid: string) =>
     evalResult?.evaluations.find((e) => e.id === qid);
 
+  // 가로/세로 두 방향이 공유하는 조각들 (래퍼만 방향별로 달라진다).
+  const submitButton = fullReady ? (
+    <button
+      className="lv-btn-holo lv-submit"
+      type="button"
+      onClick={() => setBranchVisible(true)}
+    >
+      <span className="lv-submit-icon" aria-hidden>{I.brand}</span>
+      평가 보기
+    </button>
+  ) : (
+    <button
+      className={"lv-btn-holo lv-submit" + (fullLoading ? " is-loading" : "")}
+      type="button"
+      onClick={submitAnswers}
+      disabled={fullLoading || isEvaluated}
+      aria-busy={fullLoading || undefined}
+    >
+      <span className="lv-submit-icon" aria-hidden>{I.brand}</span>
+      {fullLoading ? "평가 중…" : "답변 제출하기"}
+    </button>
+  );
+
+  const explainDetail = step ? (
+    <>
+      {detailLoading && (
+        <div className="lv-loading lv-loading-inline">
+          <span className="lv-loading-dot" />
+          <p className="stage-sub">개념 설명을 생성하고 있어요…</p>
+        </div>
+      )}
+      {detailErrored && detailError && (
+        <div className="probe-result" role="alert">
+          <p className="pr-reason">{describeErrorCode(detailError.code, detailError.message)}</p>
+          <button
+            className="btn-ghost"
+            type="button"
+            onClick={() => loadStepDetail(concept, safeLevel, stepIdx)}
+          >
+            다시 시도
+          </button>
+        </div>
+      )}
+      {!detailLoading && !detailErrored && step.body && <Markdown text={step.body} />}
+    </>
+  ) : null;
+
+  const questionsList = step ? (
+    <>
+      {evalStatus === "error" && evalError && (
+        <div className="probe-result" role="alert">
+          <p className="pr-reason">{describeErrorCode(evalError.code, evalError.message)}</p>
+          <button
+            className="btn-ghost"
+            type="button"
+            onClick={() => submitEvaluation(concept, safeLevel, stepIdx, answers, skips)}
+          >
+            다시 시도
+          </button>
+        </div>
+      )}
+      {!detailReady && !detailErrored && (
+        <div className="lv-loading lv-loading-inline">
+          <span className="lv-loading-dot" />
+          <p className="stage-sub">확인 질문을 만들고 있어요…</p>
+        </div>
+      )}
+      {detailReady &&
+        step.questions.map((q, i) => {
+          const val = answers[q.id] || "";
+          const isSkipped = !!skips[q.id];
+          const ev = gradeFor(q.id);
+          const locked = isEvaluated;
+          return (
+            <div
+              key={q.id}
+              className={
+                "qa-pair" +
+                (isSkipped ? " is-skipped" : "") +
+                (ev ? ` is-graded grade-${ev.grade}` : "")
+              }
+            >
+              <div className="qa-head">
+                <span className="qa-num">Q{i + 1}</span>
+                <span className="qa-question">{q.q}</span>
+                {ev && !isSkipped && (
+                  <span className={`grade-badge grade-${ev.grade}`}>{GRADE_LABEL[ev.grade]}</span>
+                )}
+              </div>
+              <textarea
+                className="qa-answer"
+                placeholder="자유롭게 적어주세요. 짧아도 좋아요."
+                value={val}
+                readOnly={locked}
+                onChange={(e) => {
+                  if (locked) return;
+                  setAnswers({ ...answers, [q.id]: e.target.value });
+                  if (isSkipped) setSkips({ ...skips, [q.id]: false });
+                }}
+              />
+              {ev && !isSkipped && (
+                <div className="qa-feedback">
+                  <span className="qa-feedback-label">AI 피드백</span>
+                  <p>{ev.feedback}</p>
+                </div>
+              )}
+              <div className="qa-foot">
+                <span className="qa-count">
+                  {val.length}자{isSkipped ? " · 건너뜀" : ""}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+    </>
+  ) : null;
+
   return (
     <div className="lv-board">
       <header className="lv-bar">
@@ -262,6 +398,24 @@ export function StageLearn({
           <span className="lv-bar-meta">
             개념 {Math.min(stepIdx + 1, Math.max(steps.length, 1))}/{steps.length} · {LEVEL_LABELS[safeLevel]}
           </span>
+          <div className="lv-seg" role="group" aria-label="레이아웃 방향">
+            <button
+              type="button"
+              className={orient === "vertical" ? "is-active" : ""}
+              aria-pressed={orient === "vertical"}
+              onClick={() => setOrient("vertical")}
+            >
+              <IcoRows /> 세로
+            </button>
+            <button
+              type="button"
+              className={orient === "horizontal" ? "is-active" : ""}
+              aria-pressed={orient === "horizontal"}
+              onClick={() => setOrient("horizontal")}
+            >
+              <IcoCols /> 가로
+            </button>
+          </div>
         </div>
         <ol className="lv-steps">
           {steps.map((s, i) => (
@@ -283,134 +437,64 @@ export function StageLearn({
         </ol>
       </header>
 
-      {step && (
-        <div className="lv-body lv2-body">
-          <div className="lv2-left">
-            <div className="lv2-left-inner">
-              <span className="lv2-eyebrow">개념 설명</span>
-              <h3>{step.title}</h3>
-              <p className="lv2-sub">{step.desc}</p>
-              {detailLoading && (
-                <div className="lv-loading lv-loading-inline">
-                  <span className="lv-loading-dot" />
-                  <p className="stage-sub">개념 설명을 생성하고 있어요…</p>
-                </div>
+      {step &&
+        (orient === "horizontal" ? (
+          /* ── 가로형: 좌(설명) · 우(질문) 2단 ── */
+          <div className="lv-body lv2-body">
+            <div className="lv2-left">
+              <div className="lv2-left-inner">
+                <span className="lv2-eyebrow">개념 설명</span>
+                <h3>{step.title}</h3>
+                <p className="lv2-sub">{step.desc}</p>
+                {explainDetail}
+              </div>
+            </div>
+            <div className="lv2-right">
+              <div className="lv2-right-head">
+                <span className="label">확인 질문</span>
+                <span className="count">{detailReady ? `${step.questions.length}문항` : "..."}</span>
+              </div>
+              {questionsList}
+              {detailReady && (
+                <div className="lv2-right-sticky-bottom">{submitButton}</div>
               )}
-              {detailErrored && detailError && (
-                <div className="probe-result" role="alert">
-                  <p className="pr-reason">{describeErrorCode(detailError.code, detailError.message)}</p>
-                  <button
-                    className="btn-ghost"
-                    type="button"
-                    onClick={() => loadStepDetail(concept, safeLevel, stepIdx)}
-                  >
-                    다시 시도
-                  </button>
-                </div>
-              )}
-              {!detailLoading && !detailErrored && step.body && <Markdown text={step.body} />}
             </div>
           </div>
-          <div className="lv2-right">
-            <div className="lv2-right-head">
-              <span className="label">확인 질문</span>
-              <span className="count">{detailReady ? `${step.questions.length}문항` : "..."}</span>
-            </div>
-            {evalStatus === "error" && evalError && (
-              <div className="probe-result" role="alert">
-                <p className="pr-reason">{describeErrorCode(evalError.code, evalError.message)}</p>
-                <button
-                  className="btn-ghost"
-                  type="button"
-                  onClick={() => submitEvaluation(concept, safeLevel, stepIdx, answers, skips)}
-                >
-                  다시 시도
-                </button>
+        ) : (
+          /* ── 세로형: 접이식 설명 ▸ 질문 (기본) ── */
+          <div className="lv-body lvv-body">
+            <section className={"lvv-explain" + (explainOpen ? "" : " is-closed")}>
+              <button
+                className="lvv-explain-head"
+                type="button"
+                onClick={() => setExplainOpen((v) => !v)}
+              >
+                <span className="eyebrow">개념 설명</span>
+                <span className="ttl">{step.title}</span>
+                <span className="grow" />
+                <span className="toggle">{explainOpen ? "접기" : "펼쳐 보기"}</span>
+                <span className="chev">▾</span>
+              </button>
+              <div className="lvv-explain-summary">{step.desc}</div>
+              <div className="lvv-explain-body">
+                <p className="lvv-sub">{step.desc}</p>
+                {explainDetail}
               </div>
-            )}
-            {!detailReady && !detailErrored && (
-              <div className="lv-loading lv-loading-inline">
-                <span className="lv-loading-dot" />
-                <p className="stage-sub">확인 질문을 만들고 있어요…</p>
+            </section>
+
+            <section className="lvv-questions">
+              <div className="lvv-q-head">
+                <span className="label">확인 질문</span>
+                <span className="grow" />
+                <span className="count">{detailReady ? `${step.questions.length}문항` : "..."}</span>
               </div>
-            )}
-            {detailReady &&
-              step.questions.map((q, i) => {
-                const val = answers[q.id] || "";
-                const isSkipped = !!skips[q.id];
-                const ev = gradeFor(q.id);
-                const locked = isEvaluated;
-                return (
-                  <div
-                    key={q.id}
-                    className={
-                      "qa-pair" +
-                      (isSkipped ? " is-skipped" : "") +
-                      (ev ? ` is-graded grade-${ev.grade}` : "")
-                    }
-                  >
-                    <div className="qa-head">
-                      <span className="qa-num">Q{i + 1}</span>
-                      <span className="qa-question">{q.q}</span>
-                      {ev && !isSkipped && (
-                        <span className={`grade-badge grade-${ev.grade}`}>{GRADE_LABEL[ev.grade]}</span>
-                      )}
-                    </div>
-                    <textarea
-                      className="qa-answer"
-                      placeholder="자유롭게 적어주세요. 짧아도 좋아요."
-                      value={val}
-                      readOnly={locked}
-                      onChange={(e) => {
-                        if (locked) return;
-                        setAnswers({ ...answers, [q.id]: e.target.value });
-                        if (isSkipped) setSkips({ ...skips, [q.id]: false });
-                      }}
-                    />
-                    {ev && !isSkipped && (
-                      <div className="qa-feedback">
-                        <span className="qa-feedback-label">AI 피드백</span>
-                        <p>{ev.feedback}</p>
-                      </div>
-                    )}
-                    <div className="qa-foot">
-                      <span className="qa-count">
-                        {val.length}자{isSkipped ? " · 건너뜀" : ""}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            {detailReady && (
-              <div className="lv2-right-sticky-bottom">
-                {fullReady ? (
-                  <button
-                    className="lv-btn-holo lv-submit"
-                    type="button"
-                    onClick={() => setBranchVisible(true)}
-                  >
-                    <span className="lv-submit-icon" aria-hidden>{I.brand}</span>
-                    평가 보기
-                  </button>
-                ) : (
-                  <button
-                    className={
-                      "lv-btn-holo lv-submit" + (fullLoading ? " is-loading" : "")
-                    }
-                    type="button"
-                    onClick={submitAnswers}
-                    disabled={fullLoading || isEvaluated}
-                    aria-busy={fullLoading || undefined}
-                  >
-                    <span className="lv-submit-icon" aria-hidden>{I.brand}</span>
-                    {fullLoading ? "평가 중…" : "답변 제출하기"}
-                  </button>
-                )}
-              </div>
-            )}
+              <div className="lvv-qlist">{questionsList}</div>
+              {detailReady && (
+                <div className="lvv-submit-row">{submitButton}</div>
+              )}
+            </section>
           </div>
-        </div>
-      )}
+        ))}
 
       <div className="lv-foot">
         <button className="lv-btn-ghost" type="button" onClick={goPrev}>

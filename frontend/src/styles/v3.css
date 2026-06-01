@@ -1373,6 +1373,138 @@ body {
 .qa-foot { display: flex; align-items: center; }
 .qa-count { font-family: var(--font-mono); font-size: 11px; color: var(--fg-dim); }
 
+/* ── Learn 가로/세로 방향 전환 ──────────────────────────────────────── */
+/* 헤더의 가로/세로 세그먼트 토글 */
+.lv-seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: oklch(1 0 0 / 0.04);
+  box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.07);
+}
+.lv-seg button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--fg-mut);
+  background: transparent;
+  cursor: pointer;
+  transition: background .14s ease, color .14s ease;
+}
+.lv-seg button .ico { width: 13px; height: 13px; display: block; }
+.lv-seg button:hover { color: var(--fg); }
+.lv-seg button.is-active {
+  background: oklch(1 0 0 / 0.10);
+  color: var(--fg);
+}
+
+/* 세로 모드 본문 */
+.lv-body.lvv-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* 접이식 개념 설명 카드 (lv2-left 와 동일한 표면) */
+.lvv-explain {
+  border-radius: 18px;
+  background: oklch(1 0 0 / 0.025);
+  box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.06);
+  overflow: hidden;
+}
+.lvv-explain-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 16px 20px;
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+}
+.lvv-explain-head .eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+  flex-shrink: 0;
+}
+.lvv-explain-head .ttl {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.018em;
+  color: var(--fg);
+}
+.lvv-explain-head .grow { flex: 1; }
+.lvv-explain-head .toggle {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--fg-dim);
+}
+.lvv-explain-head .chev {
+  font-size: 12px;
+  color: var(--fg-mut);
+  transition: transform .18s ease;
+}
+.lvv-explain.is-closed .lvv-explain-head .chev { transform: rotate(-90deg); }
+
+/* 접혔을 때 보이는 한 줄 요약 */
+.lvv-explain-summary {
+  padding: 0 20px 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--fg-mut);
+}
+.lvv-explain:not(.is-closed) .lvv-explain-summary { display: none; }
+
+/* 펼쳤을 때 본문 */
+.lvv-explain-body {
+  padding: 4px 20px 22px;
+  border-top: 1px solid oklch(1 0 0 / 0.06);
+}
+.lvv-explain-body .lvv-sub {
+  margin: 12px 0 2px;
+  font-size: 13.5px;
+  color: var(--fg-mut);
+}
+.lvv-explain.is-closed .lvv-explain-body { display: none; }
+
+/* 가독 폭 — 세로일 때 설명 본문이 너무 넓어지지 않도록 */
+.lvv-explain-body .md-body { max-width: 760px; }
+
+/* 질문 영역 */
+.lvv-questions { display: flex; flex-direction: column; gap: 14px; }
+.lvv-q-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 2px 4px;
+}
+.lvv-q-head .label {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  color: var(--fg-dim);
+  text-transform: uppercase;
+}
+.lvv-q-head .count {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-mut);
+}
+.lvv-q-head .grow { flex: 1; }
+.lvv-qlist { display: flex; flex-direction: column; gap: 14px; }
+
+/* 세로일 때 제출 버튼은 흐름 하단에 (sticky 불필요) */
+.lvv-submit-row { display: flex; padding-top: 2px; }
+
 .lv-foot {
   display: flex;
   align-items: center;
