@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import { Sidebar } from "./components/Sidebar";
 import { ProgressBar } from "./components/ProgressBar";
 import { Hero } from "./components/Hero";
@@ -26,8 +27,10 @@ type AccentVars = CSSProperties & {
   "--aurora-c"?: string;
 };
 
-/** 현재 활성 세션 id 를 가리키는 localStorage 키. 마운트 시 어떤 세션을 load 할지 결정한다. */
+/** 마지막으로 활성화된 세션 id. 루트("/") 재접속 시 그 세션의 단계 URL 로 돌려보내는 데 쓴다. */
 const ACTIVE_SESSION_KEY = "socratic:activeSessionId";
+/** 홈("/") 입력 초안(concept). 아직 세션이 발급되지 않은 입력 중 내용을 새로고침 대비로 보관한다. */
+const DRAFT_CONCEPT_KEY = "socratic:draft:concept";
 
 let sessionSeq = 0;
 function createSessionId(): string {
@@ -35,58 +38,111 @@ function createSessionId(): string {
   return `s-${Date.now().toString(36)}-${sessionSeq.toString(36)}`;
 }
 
-/**
- * 마운트 시점의 초기 세션을 해석한다.
- * 재접속(새 탭/새로고침) 시 진행 중이던 학습 단계(probe/learn/done)로 고정되지 않도록,
- * 활성 세션이 input 단계(= 메인 화면 입력 초안)일 때만 복원한다. 그 외에는 새 세션을 발급해
- * 항상 메인 화면에서 시작한다. 직전 학습 세션은 사이드바 히스토리에서 선택해 이어갈 수 있다.
- */
-function resolveInitialSession(): {
-  id: string;
-  createdAt: number;
-  loaded: SessionState | null;
-} {
-  let id: string | null = null;
-  try {
-    id = localStorage.getItem(ACTIVE_SESSION_KEY);
-  } catch {
-    id = null;
-  }
-  if (id) {
-    const loaded = loadSession(id);
-    if (loaded && loaded.stage === "input") {
-      return { id, createdAt: loaded.createdAt ?? Date.now(), loaded };
-    }
-  }
-  return { id: createSessionId(), createdAt: Date.now(), loaded: null };
+/** stage(+stepIdx) 를 경로 문자열로 변환한다. sessionId 가 없으면 홈("/"). */
+function pathFor(sessionId: string | undefined, stage: Stage, stepIdx = 0): string {
+  if (!sessionId) return "/";
+  if (stage === "input") return `/s/${sessionId}`;
+  if (stage === "probe") return `/s/${sessionId}/probe`;
+  if (stage === "learn") return `/s/${sessionId}/learn/${stepIdx}`;
+  return `/s/${sessionId}/done`;
 }
 
-function AppInner() {
-  const initialRef = useRef<ReturnType<typeof resolveInitialSession> | null>(null);
-  if (initialRef.current === null) initialRef.current = resolveInitialSession();
-  const initial = initialRef.current;
-  const sessionIdRef = useRef(initial.id);
-  const createdAtRef = useRef(initial.createdAt);
-  const loaded = initial.loaded;
+function readDraftConcept(): string {
+  try {
+    return localStorage.getItem(DRAFT_CONCEPT_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * 루트("/") 진입 시: 마지막 활성 세션이 있으면 그 세션의 단계 URL 로 redirect 해
+ * 재접속 시 진행 중이던 단계를 그대로 복원한다(이미 나온 결과는 재로딩하지 않음).
+ * 활성 세션이 없으면 홈(개념 입력) 화면을 보여준다.
+ */
+function HomeRedirect() {
+  const target = useMemo(() => {
+    let id: string | null = null;
+    try {
+      id = localStorage.getItem(ACTIVE_SESSION_KEY);
+    } catch {
+      id = null;
+    }
+    if (!id) return null;
+    const s = loadSession(id);
+    if (!s) return null;
+    return pathFor(id, s.stage, s.stepIdx);
+  }, []);
+  if (target && target !== "/") return <Navigate to={target} replace />;
+  return <AppShell stage="input" />;
+}
+
+/** route element. URL 의 sessionId 를 key 로 삼아 세션 전환 시 워크스페이스 전체를 재마운트한다. */
+function AppShell({ stage }: { stage: Stage }) {
+  const { sessionId } = useParams();
+  return <AppSession key={sessionId ?? "__home__"} stage={stage} sessionId={sessionId} />;
+}
+
+/**
+ * 세션 1건의 작업 공간. sessionId 가 바뀌면(=세션 전환) key 로 통째 재마운트되므로,
+ * 저장된 산출물을 LearnContentProvider 의 initial 로 한 번만 주입하면 첫 렌더부터 복원된다.
+ */
+function AppSession({ stage, sessionId }: { stage: Stage; sessionId?: string }) {
+  const loaded = useMemo(() => (sessionId ? loadSession(sessionId) : null), [sessionId]);
+  return (
+    <LearnContentProvider
+      initial={
+        loaded
+          ? {
+              probeQuestions: loaded.probeQuestions,
+              probeReady: loaded.probeReady,
+              steps: loaded.steps,
+              stepEvaluations: loaded.stepEvaluations,
+            }
+          : undefined
+      }
+    >
+      <AppWorkspace stage={stage} sessionId={sessionId} loaded={loaded} />
+    </LearnContentProvider>
+  );
+}
+
+function AppWorkspace({
+  stage,
+  sessionId,
+  loaded,
+}: {
+  stage: Stage;
+  sessionId?: string;
+  loaded: SessionState | null;
+}) {
+  const navigate = useNavigate();
+  const params = useParams();
+  // learn 단계의 stepIdx 는 URL 이 진실의 출처다. 그 외 단계에서는 0.
+  const stepIdx =
+    stage === "learn" ? Math.max(0, Number.parseInt(params.stepIdx ?? "0", 10) || 0) : 0;
+
+  const createdAtRef = useRef(loaded?.createdAt ?? Date.now());
 
   const { user, loading: authLoading, login, logout } = useAuth();
   // GitHub 로그인 핸들(예: octocat). displayName(표시 이름)과 달리 User 타입에 노출되지 않아 reloadUserInfo 에서 추출한다.
   const githubId =
     (user as { reloadUserInfo?: { screenName?: string } } | null)?.reloadUserInfo
       ?.screenName ?? undefined;
-  const [stage, setStage] = useState<Stage>(() => loaded?.stage ?? "input");
+
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [depth, setDepth] = useState<string>(() => loaded?.depth ?? "0depth");
   const [accent] = useState<string[]>(ACCENT_PRESETS[0]);
   const showAurora = true;
 
-  const [concept, setConcept] = useState<string>(() => loaded?.concept ?? SAMPLE_CONCEPT);
+  const [concept, setConcept] = useState<string>(
+    () => loaded?.concept ?? (sessionId ? "" : readDraftConcept() || SAMPLE_CONCEPT),
+  );
   const [materials, setMaterials] = useState<string>(() => loaded?.materials ?? "");
   const [probes, setProbes] = useState<ProbeAnswers>(() => loaded?.probes ?? {});
   const [estimatedLevel, setEstimatedLevel] = useState<number | null>(
     () => loaded?.estimatedLevel ?? null,
   );
-  const [stepIdx, setStepIdx] = useState(() => loaded?.stepIdx ?? 0);
   const [answers, setAnswers] = useState<Record<string, string>>(() => loaded?.answers ?? {});
   const [skips, setSkips] = useState<Record<string, boolean>>(() => loaded?.skips ?? {});
   const [sessions, setSessions] = useState<SessionMeta[]>(() => listSessions());
@@ -94,18 +150,25 @@ function AppInner() {
   const {
     steps,
     probeStatus,
+    probeQuestions,
+    outlineStatus,
+    stepDetailStatus,
+    stepEvaluations,
     loadProbe,
     loadOutline,
-    reset: resetContent,
   } = useLearnContent();
 
+  // probe 단계 진입 시 아직 문항이 없으면(idle) 1회 로드한다. 복원된 세션은 "ready" 로 시작하므로 재호출되지 않는다.
   useEffect(() => {
     if (stage === "probe" && probeStatus === "idle") {
       void loadProbe(concept, materials);
     }
   }, [stage, probeStatus, concept, materials, loadProbe]);
 
-  const lastLoadedLevelRef = useRef<number | null>(null);
+  // 복원된 steps 가 있으면 그 레벨을 이미 로드한 것으로 간주해 learn 진입 시 outline 을 재생성하지 않는다.
+  const lastLoadedLevelRef = useRef<number | null>(
+    loaded?.steps?.length ? loaded.estimatedLevel ?? null : null,
+  );
   useEffect(() => {
     if (
       stage === "learn" &&
@@ -118,7 +181,7 @@ function AppInner() {
   }, [stage, estimatedLevel, concept, loadOutline]);
 
   const buildSnapshot = (): SessionState => ({
-    sessionId: sessionIdRef.current,
+    sessionId: sessionId ?? "",
     createdAt: createdAtRef.current,
     conceptSummary: concept,
     stage,
@@ -130,10 +193,15 @@ function AppInner() {
     stepIdx,
     answers,
     skips,
+    probeQuestions: probeStatus === "ready" ? probeQuestions : undefined,
+    probeReady: probeStatus === "ready",
+    steps: outlineStatus === "ready" && steps.length ? steps : undefined,
+    stepEvaluations: Object.keys(stepEvaluations).length ? stepEvaluations : undefined,
   });
 
   // answers 디바운스 hook. 즉시 effect 에서 cancelPending() 으로 보류분을 취소한다.
   const { cancelPending } = useDebouncedPersist(answers, buildSnapshot, (snap) => {
+    if (!sessionId) return;
     try {
       persistSession(snap);
     } catch {
@@ -142,13 +210,21 @@ function AppInner() {
     setSessions(listSessions());
   });
 
-  // 즉시 persist: answers 외 모든 상태 변경. pending 디바운스가 있다면 cancel
-  // 하고 현재 snapshot(= 최신 answers 포함)으로 곧장 저장한다.
+  // 즉시 persist: answers 외 모든 상태/산출물(ready 전이) 변경 시. 홈(sessionId 없음)은 draft 만 보관한다.
+  // 산출물은 deps 에 status 들만 넣어 streaming delta 마다 저장되지 않게 하고, ready 전이 시점의 최신 steps 를 담는다.
   useEffect(() => {
+    if (!sessionId) {
+      try {
+        localStorage.setItem(DRAFT_CONCEPT_KEY, concept);
+      } catch {
+        // 무시
+      }
+      return;
+    }
     cancelPending();
     const snapshot = buildSnapshot();
     try {
-      localStorage.setItem(ACTIVE_SESSION_KEY, sessionIdRef.current);
+      localStorage.setItem(ACTIVE_SESSION_KEY, sessionId);
       // input 단계(= "학습 시작" 전)는 본문 초안만 보관하고 히스토리 인덱스에는 등록하지 않는다.
       persistSession(snapshot, undefined, { index: stage !== "input" });
     } catch {
@@ -156,7 +232,21 @@ function AppInner() {
     }
     setSessions(listSessions());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stage, depth, concept, materials, probes, estimatedLevel, stepIdx, skips, loaded]);
+  }, [
+    sessionId,
+    stage,
+    depth,
+    concept,
+    materials,
+    probes,
+    estimatedLevel,
+    stepIdx,
+    skips,
+    probeStatus,
+    outlineStatus,
+    stepDetailStatus,
+    stepEvaluations,
+  ]);
 
   const accentStyle = useMemo<AccentVars>(() => {
     const colors = Array.isArray(accent) ? accent : ACCENT_PRESETS[0];
@@ -172,101 +262,94 @@ function AppInner() {
     };
   }, [accent]);
 
-  const newSession = (suggestedConcept?: string) => {
-    sessionIdRef.current = createSessionId();
-    createdAtRef.current = Date.now();
-    setStage("input");
-    setStepIdx(0);
-    setProbes({});
-    setEstimatedLevel(null);
-    setAnswers({});
-    setSkips({});
-    lastLoadedLevelRef.current = null;
-    resetContent();
-    if (typeof suggestedConcept === "string" && suggestedConcept.trim()) {
-      setConcept(suggestedConcept.trim());
-      setMaterials("");
-    }
+  /** 같은 세션 내 단계 이동. learn 은 stepIdx 도 URL 에 싣는다. */
+  const goStage = (next: Stage, idx = 0) => {
+    navigate(pathFor(sessionId, next, idx));
+  };
+  const setStepIdx = (n: number) => {
+    if (sessionId) navigate(pathFor(sessionId, "learn", n));
   };
 
-  /**
-   * 세션을 전환한다. 현재 학습 상태를 persistSession 으로 저장한 뒤
-   * sessionIdRef/createdAtRef 를 targetId 의 메타로 갱신하고,
-   * loadSession(targetId) 결과로 학습 상태 전체를 복원한다.
-   * ref 갱신 패턴은 newSession/deleteSession 과 동일하게 유지한다(structural-cohesion).
-   */
-  const switchSession = (targetId: string) => {
-    if (targetId === sessionIdRef.current) return;
-    const snapshot: SessionState = {
-      sessionId: sessionIdRef.current,
-      createdAt: createdAtRef.current,
+  /** "학습 시작": 홈이면 새 세션을 발급해 저장 후 probe 로, 기존 세션이면 그대로 probe 로 이동. */
+  const startLearning = async () => {
+    if (!user) {
+      try {
+        await login();
+      } catch {
+        return;
+      }
+    }
+    if (sessionId) {
+      goStage("probe");
+      return;
+    }
+    const newId = createSessionId();
+    const snap: SessionState = {
+      sessionId: newId,
+      createdAt: Date.now(),
       conceptSummary: concept,
-      stage,
+      stage: "probe",
       depth,
       concept,
-      materials,
-      probes,
-      estimatedLevel,
-      stepIdx,
-      answers,
-      skips,
+      materials: "",
+      probes: {},
+      estimatedLevel: null,
+      stepIdx: 0,
+      answers: {},
+      skips: {},
     };
     try {
-      // 떠나는 세션이 아직 input 초안이면 히스토리 인덱스에 등록하지 않는다.
-      persistSession(snapshot, undefined, { index: stage !== "input" });
+      localStorage.setItem(ACTIVE_SESSION_KEY, newId);
+      localStorage.removeItem(DRAFT_CONCEPT_KEY);
+      persistSession(snap, undefined, { index: true });
     } catch {
-      // 저장 실패 복구는 별도 책임이므로 여기서는 무시한다.
+      // 무시
     }
+    navigate(pathFor(newId, "probe"));
+  };
 
+  /** 새 세션 시작(사이드바). 활성 세션/초안을 비우고 홈으로 이동한다. */
+  const newSession = (suggestedConcept?: string) => {
+    try {
+      localStorage.removeItem(ACTIVE_SESSION_KEY);
+      if (suggestedConcept?.trim()) localStorage.setItem(DRAFT_CONCEPT_KEY, suggestedConcept.trim());
+      else localStorage.removeItem(DRAFT_CONCEPT_KEY);
+    } catch {
+      // 무시
+    }
+    navigate("/");
+  };
+
+  /** 사이드바에서 다른 세션 선택. 그 세션의 단계 URL 로 이동하면 key 재마운트로 산출물이 복원된다. */
+  const switchSession = (targetId: string) => {
+    if (targetId === sessionId) return;
     const target = loadSession(targetId);
-    sessionIdRef.current = targetId;
-    createdAtRef.current = target?.createdAt ?? Date.now();
-    setStage(target?.stage ?? "input");
-    setDepth(target?.depth ?? "0depth");
-    setConcept(target?.concept ?? "");
-    setMaterials(target?.materials ?? "");
-    setProbes(target?.probes ?? {});
-    setEstimatedLevel(target?.estimatedLevel ?? null);
-    setStepIdx(target?.stepIdx ?? 0);
-    setAnswers(target?.answers ?? {});
-    setSkips(target?.skips ?? {});
-    lastLoadedLevelRef.current = null;
-    resetContent();
     try {
       localStorage.setItem(ACTIVE_SESSION_KEY, targetId);
     } catch {
-      // 활성 키 기록 실패는 무시한다.
+      // 무시
     }
-    setSessions(listSessions());
+    navigate(pathFor(targetId, target?.stage ?? "input", target?.stepIdx ?? 0));
   };
 
-  /**
-   * 세션을 삭제한다. 인덱스 메타(removeSessionMeta)와 본문 키(sessionKey)를 모두 제거하고,
-   * 삭제 대상이 현재 활성 세션이면 새 sessionId 를 발급한 뒤 input 단계의 빈 세션으로 초기화한다.
-   * ref 갱신 패턴은 newSession 과 동일하게 유지한다(structural-cohesion).
-   */
+  /** 세션 삭제. 활성 세션을 지우면 홈으로 이동한다. */
   const deleteSession = (id: string) => {
     try {
       removeSessionMeta(id);
       localStorage.removeItem(sessionKey(id));
     } catch {
-      // 삭제 실패 복구는 별도 책임이므로 여기서는 무시한다.
-    }
-    if (id === sessionIdRef.current) {
-      sessionIdRef.current = createSessionId();
-      createdAtRef.current = Date.now();
-      setStage("input");
-      setStepIdx(0);
-      setProbes({});
-      setEstimatedLevel(null);
-      setAnswers({});
-      setSkips({});
-      setConcept("");
-      setMaterials("");
-      lastLoadedLevelRef.current = null;
-      resetContent();
+      // 무시
     }
     setSessions(listSessions());
+    if (id === sessionId) {
+      try {
+        localStorage.removeItem(ACTIVE_SESSION_KEY);
+        localStorage.removeItem(DRAFT_CONCEPT_KEY);
+      } catch {
+        // 무시
+      }
+      navigate("/");
+    }
   };
 
   return (
@@ -282,7 +365,7 @@ function AppInner() {
         onNewSession={newSession}
         onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
         sessions={sessions}
-        activeSessionId={sessionIdRef.current}
+        activeSessionId={sessionId ?? ""}
         onSelectSession={switchSession}
         onDeleteSession={deleteSession}
         authPending={authLoading}
@@ -309,17 +392,7 @@ function AppInner() {
               onDepth={setDepth}
               concept={concept}
               setConcept={setConcept}
-              onStart={async () => {
-                // 게이팅: 비로그인 시 GitHub 로그인 팝업 -> 성공해야 probe 진입.
-                if (!user) {
-                  try {
-                    await login();
-                  } catch {
-                    return;
-                  }
-                }
-                setStage("probe");
-              }}
+              onStart={startLearning}
             />
           )}
 
@@ -330,11 +403,8 @@ function AppInner() {
               probes={probes}
               setProbes={(updater) => setProbes((prev) => updater(prev))}
               setEstimatedLevel={setEstimatedLevel}
-              onPrev={() => setStage("input")}
-              onNext={() => {
-                setStepIdx(0);
-                setStage("learn");
-              }}
+              onPrev={() => goStage("input")}
+              onNext={() => goStage("learn", 0)}
               onRetreat={(suggestedConcept) => newSession(suggestedConcept)}
               onRetry={() => loadProbe(concept, materials)}
             />
@@ -350,8 +420,8 @@ function AppInner() {
               setAnswers={setAnswers}
               skips={skips}
               setSkips={setSkips}
-              onPrev={() => setStage("probe")}
-              onDone={() => setStage("done")}
+              onPrev={() => goStage("probe")}
+              onDone={() => goStage("done")}
               onRetry={() => {
                 if (estimatedLevel != null) {
                   lastLoadedLevelRef.current = null;
@@ -367,10 +437,7 @@ function AppInner() {
               level={estimatedLevel}
               answers={answers}
               skips={skips}
-              onPrev={() => {
-                setStepIdx(Math.max(0, steps.length - 1));
-                setStage("learn");
-              }}
+              onPrev={() => goStage("learn", Math.max(0, steps.length - 1))}
               onRestart={newSession}
             />
           )}
@@ -388,8 +455,13 @@ function AppInner() {
 
 export default function App() {
   return (
-    <LearnContentProvider>
-      <AppInner />
-    </LearnContentProvider>
+    <Routes>
+      <Route path="/" element={<HomeRedirect />} />
+      <Route path="/s/:sessionId" element={<AppShell stage="input" />} />
+      <Route path="/s/:sessionId/probe" element={<AppShell stage="probe" />} />
+      <Route path="/s/:sessionId/learn/:stepIdx" element={<AppShell stage="learn" />} />
+      <Route path="/s/:sessionId/done" element={<AppShell stage="done" />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }

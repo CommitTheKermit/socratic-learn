@@ -1,6 +1,7 @@
 import { describe, test, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 
 // 학습 단계의 콘텐츠 로딩(네트워크/Claude)을 stub 하여 렌더 테스트를 격리한다.
 vi.mock("../api/claudeContent", () => ({
@@ -23,6 +24,14 @@ import App from "../App";
 
 const ACTIVE_KEY = "socratic:activeSessionId";
 const PLACEHOLDER = "배우고 싶은 개념을 입력해서 시작해보세요";
+
+function renderApp(entries: string[] = ["/"]) {
+  return render(
+    <MemoryRouter initialEntries={entries}>
+      <App />
+    </MemoryRouter>,
+  );
+}
 
 function seededState(overrides: Partial<Record<string, unknown>> = {}) {
   return {
@@ -48,77 +57,73 @@ beforeEach(() => {
   localStorage.clear();
 });
 
-describe("Sub-AC 4: App.tsx 마운트 load 복원 / 상태 변경 persist 통합", () => {
-  test("마운트 시 활성 세션을 load 하여 초기 concept 상태를 복원한다", () => {
+describe("Sub-AC 4: 루트 재접속 시 활성 세션 복원 / 상태 변경 persist 통합", () => {
+  test("루트('/') 진입 시 활성 세션(input)을 그 세션 URL 로 복원해 concept 을 보여준다", async () => {
     localStorage.setItem(ACTIVE_KEY, "seed-1");
     localStorage.setItem(sessionKey("seed-1"), JSON.stringify(seededState()));
 
     const loadSpy = vi.spyOn(persist, "loadSession");
-    render(<App />);
+    renderApp(["/"]);
 
     expect(loadSpy).toHaveBeenCalledWith("seed-1");
-    const textarea = screen.getByPlaceholderText(PLACEHOLDER) as HTMLTextAreaElement;
-    expect(textarea.value).toBe("복원될 개념");
+    const textarea = (await screen.findByPlaceholderText(PLACEHOLDER)) as HTMLTextAreaElement;
+    await waitFor(() => expect(textarea.value).toBe("복원될 개념"));
   });
 
-  test("활성 세션이 진행 단계(learn 등)면 복원하지 않고 메인(input) 화면에서 시작한다", () => {
+  test("활성 세션이 진행 단계(learn)면 그 단계로 복원한다(재로딩 없이 이어보기)", async () => {
     localStorage.setItem(ACTIVE_KEY, "seed-1");
     localStorage.setItem(
       sessionKey("seed-1"),
-      JSON.stringify(seededState({ stage: "learn", concept: "복원될 개념" })),
+      JSON.stringify(seededState({ stage: "learn", estimatedLevel: 2, concept: "복원될 개념" })),
     );
 
-    render(<App />);
+    renderApp(["/"]);
 
-    // 직전 learn 단계로 고정되지 않고 메인(input) 화면이 보인다.
-    expect(document.querySelector(".app")?.getAttribute("data-stage")).toBe("input");
-    // 직전 세션 concept 으로 복원되지 않는다(새 세션으로 시작).
-    const textarea = screen.getByPlaceholderText(PLACEHOLDER) as HTMLTextAreaElement;
-    expect(textarea.value).not.toBe("복원될 개념");
-    // 직전 세션 자체는 보존되어 사이드바에서 이어갈 수 있다.
+    // 직전 learn 단계로 복원된다.
+    await waitFor(() =>
+      expect(document.querySelector(".app")?.getAttribute("data-stage")).toBe("learn"),
+    );
     expect(persist.loadSession("seed-1")!.stage).toBe("learn");
   });
 
-  test("저장된 세션이 없으면 새 활성 세션 id 를 만들어 초기 상태를 persist 한다", () => {
+  test("저장된 활성 세션이 없으면 홈(input) 화면을 보여주고 새 세션을 만들지 않는다", () => {
     expect(localStorage.getItem(ACTIVE_KEY)).toBeNull();
-    render(<App />);
+    renderApp(["/"]);
 
-    const activeId = localStorage.getItem(ACTIVE_KEY);
-    expect(activeId).toBeTruthy();
-    const restored = persist.loadSession(activeId!);
-    expect(restored).not.toBeNull();
-    expect(restored!.sessionId).toBe(activeId);
+    expect(document.querySelector(".app")?.getAttribute("data-stage")).toBe("input");
+    // 마운트만으로는 활성 세션이 발급되지 않는다(학습 시작 시점에 발급).
+    expect(localStorage.getItem(ACTIVE_KEY)).toBeNull();
   });
 
-  test("상태 변경 시 persistSession 이 호출되어 변경된 상태가 localStorage 에 기록된다", async () => {
+  test("'학습 시작' 시 세션이 발급되고 persistSession 으로 localStorage 에 기록된다", async () => {
     const user = userEvent.setup();
     const persistSpy = vi.spyOn(persist, "persistSession");
-    render(<App />);
+    renderApp(["/"]);
 
     const textarea = screen.getByPlaceholderText(PLACEHOLDER);
     await user.clear(textarea);
     await user.type(textarea, "새 개념 X");
+    await user.click(screen.getByRole("button", { name: "학습 시작" }));
 
     expect(persistSpy).toHaveBeenCalled();
+    await waitFor(() => expect(localStorage.getItem(ACTIVE_KEY)).toBeTruthy());
     const activeId = localStorage.getItem(ACTIVE_KEY)!;
-    expect(activeId).toBeTruthy();
     const restored = persist.loadSession(activeId);
     expect(restored!.concept).toBe("새 개념 X");
   });
 
-  test("복원된 상태가 변경되면 동일 세션 키에 갱신된 상태가 저장된다(라운드트립)", async () => {
-    localStorage.setItem(ACTIVE_KEY, "seed-1");
+  test("세션 URL 직접 진입 후 concept 을 변경하면 동일 세션 키에 갱신 저장된다(라운드트립)", async () => {
     localStorage.setItem(sessionKey("seed-1"), JSON.stringify(seededState()));
 
     const user = userEvent.setup();
-    render(<App />);
+    renderApp(["/s/seed-1"]);
 
-    const textarea = screen.getByPlaceholderText(PLACEHOLDER);
+    const textarea = (await screen.findByPlaceholderText(PLACEHOLDER)) as HTMLTextAreaElement;
+    await waitFor(() => expect(textarea.value).toBe("복원될 개념"));
     await user.clear(textarea);
     await user.type(textarea, "수정됨");
 
-    const restored = persist.loadSession("seed-1");
-    expect(restored!.concept).toBe("수정됨");
-    expect(restored!.depth).toBe("2depth"); // 복원된 다른 필드는 유지
+    await waitFor(() => expect(persist.loadSession("seed-1")!.concept).toBe("수정됨"));
+    expect(persist.loadSession("seed-1")!.depth).toBe("2depth"); // 복원된 다른 필드는 유지
   });
 });

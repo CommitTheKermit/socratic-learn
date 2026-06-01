@@ -1,6 +1,7 @@
 import { describe, test, expect, vi, beforeEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 
 // 학습 단계의 콘텐츠 로딩(네트워크/Claude)을 stub 하여 렌더 테스트를 격리한다.
 vi.mock("../api/claudeContent", () => ({
@@ -24,6 +25,14 @@ import App from "../App";
 
 const ACTIVE_KEY = "socratic:activeSessionId";
 const PLACEHOLDER = "배우고 싶은 개념을 입력해서 시작해보세요";
+
+function renderApp(entries: string[] = ["/"]) {
+  return render(
+    <MemoryRouter initialEntries={entries}>
+      <App />
+    </MemoryRouter>,
+  );
+}
 
 function seededState(overrides: Partial<Record<string, unknown>> = {}) {
   return {
@@ -51,9 +60,9 @@ beforeEach(() => {
 });
 
 describe("AC2: App.tsx deleteSession", () => {
-  test("활성 세션 삭제 시 removeSessionMeta+removeItem 호출 후 새 세션으로 input 초기화", async () => {
+  test("활성 세션 삭제 시 removeSessionMeta+removeItem 호출 후 홈(input)으로 이동한다", async () => {
     localStorage.setItem(ACTIVE_KEY, "active-1");
-    // 마운트 시 활성 세션으로 복원되려면 input 단계여야 한다(진행 단계는 메인 화면에서 시작).
+    // 루트 진입 시 활성 세션(input)으로 복원된다.
     localStorage.setItem(
       sessionKey("active-1"),
       JSON.stringify(
@@ -66,25 +75,27 @@ describe("AC2: App.tsx deleteSession", () => {
     const removeItemSpy = vi.spyOn(Storage.prototype, "removeItem");
 
     const user = userEvent.setup();
-    render(<App />);
+    renderApp(["/"]);
 
     // input 단계로 복원된 활성 세션은 concept 이 메인 화면과 사이드바 양쪽에 표시되므로
     // 사이드바 히스토리 항목으로 한정해 조회한다.
-    const item = screen
-      .getAllByText("활성개념")
-      .map((el) => el.closest(".sb-history-item"))
-      .find(Boolean) as HTMLElement;
+    const item = (await waitFor(() =>
+      screen
+        .getAllByText("활성개념")
+        .map((el) => el.closest(".sb-history-item"))
+        .find(Boolean),
+    )) as HTMLElement;
     await user.click(within(item).getByLabelText("세션 삭제"));
 
     expect(removeMetaSpy).toHaveBeenCalledWith("active-1");
     expect(removeItemSpy).toHaveBeenCalledWith(sessionKey("active-1"));
 
-    // 활성 세션이었으므로 input 단계의 빈 세션으로 초기화된다.
-    const textarea = screen.getByPlaceholderText(PLACEHOLDER) as HTMLTextAreaElement;
-    expect(textarea.value).toBe("");
-    // 새 sessionId 가 발급되어 활성 키가 갱신된다.
-    expect(localStorage.getItem(ACTIVE_KEY)).not.toBe("active-1");
-    expect(localStorage.getItem(ACTIVE_KEY)).toBeTruthy();
+    // 활성 세션이었으므로 홈(input)으로 이동해 빈 입력 화면이 된다.
+    await waitFor(() =>
+      expect(document.querySelector(".app")?.getAttribute("data-stage")).toBe("input"),
+    );
+    // 활성 키가 비워진다(홈 = 새 세션 대기 상태).
+    expect(localStorage.getItem(ACTIVE_KEY)).toBeNull();
     // 삭제된 세션의 본문 키는 제거되었다.
     expect(localStorage.getItem(sessionKey("active-1"))).toBeNull();
   });
@@ -106,9 +117,11 @@ describe("AC2: App.tsx deleteSession", () => {
     const removeItemSpy = vi.spyOn(Storage.prototype, "removeItem");
 
     const user = userEvent.setup();
-    render(<App />);
+    renderApp(["/"]);
 
-    const item = screen.getByText("다른개념").closest(".sb-history-item") as HTMLElement;
+    const item = (await waitFor(() =>
+      screen.getByText("다른개념").closest(".sb-history-item"),
+    )) as HTMLElement;
     await user.click(within(item).getByLabelText("세션 삭제"));
 
     expect(removeMetaSpy).toHaveBeenCalledWith("other-2");

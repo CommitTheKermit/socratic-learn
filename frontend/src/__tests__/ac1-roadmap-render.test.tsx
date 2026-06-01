@@ -1,6 +1,7 @@
 import { describe, test, expect, vi, beforeEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 
 vi.mock("../api/claudeContent", () => {
   return {
@@ -36,12 +37,17 @@ import App from "../App";
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
 });
 
 describe("AC1: 주제 입력 후 로드맵이 생성된다", () => {
   test("주제 input에 텍스트 입력 후 시작 버튼 클릭 시 ProgressBar에 칩이 렌더된다", async () => {
     const user = userEvent.setup();
-    render(<App />);
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <App />
+      </MemoryRouter>,
+    );
 
     const textarea = screen.getByPlaceholderText(
       "배우고 싶은 개념을 입력해서 시작해보세요",

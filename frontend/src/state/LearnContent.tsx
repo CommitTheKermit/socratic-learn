@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   PROBE_QUESTIONS as FALLBACK_PROBES,
   type ProbeQuestion,
@@ -63,14 +71,54 @@ function toErr(e: unknown): ErrInfo {
     : { code: "INTERNAL_ERROR", message: (e as Error).message };
 }
 
-export function LearnContentProvider({ children }: { children: ReactNode }) {
-  const [probeQuestions, setProbeQuestions] = useState<ProbeQuestion[]>(FALLBACK_PROBES);
-  const [probeStatus, setProbeStatus] = useState<LoadStatus>("idle");
+/**
+ * 세션에 영속화된 AI 산출물. LearnContentProvider 의 초기 상태로 주입되어
+ * 재접속/세션 전환 시 첫 렌더부터 "ready" 로 복원된다(=재로딩 안 함).
+ */
+export interface LearnContentInitial {
+  probeQuestions?: ProbeQuestion[];
+  probeReady?: boolean;
+  steps?: Step[];
+  stepEvaluations?: Record<number, StepEvaluation>;
+}
+
+/** 복원된 steps 로부터 각 단계의 상세 로딩 상태를 도출한다(본문+질문이 있으면 ready). */
+function deriveDetailStatus(steps?: Step[]): Record<number, LoadStatus> {
+  const m: Record<number, LoadStatus> = {};
+  steps?.forEach((s, i) => {
+    if (s.body && s.questions.length) m[i] = "ready";
+  });
+  return m;
+}
+
+/** 복원된 평가 맵으로부터 각 단계의 평가 상태를 도출한다(존재하면 ready). */
+function deriveEvalStatus(evals?: Record<number, StepEvaluation>): Record<number, LoadStatus> {
+  const m: Record<number, LoadStatus> = {};
+  if (evals) for (const k of Object.keys(evals)) m[Number(k)] = "ready";
+  return m;
+}
+
+export function LearnContentProvider({
+  children,
+  initial,
+}: {
+  children: ReactNode;
+  initial?: LearnContentInitial;
+}) {
+  const restoredProbe = !!(initial?.probeReady && initial.probeQuestions?.length);
+  const restoredSteps = initial?.steps && initial.steps.length ? initial.steps : null;
+
+  const [probeQuestions, setProbeQuestions] = useState<ProbeQuestion[]>(() =>
+    restoredProbe ? initial!.probeQuestions! : FALLBACK_PROBES,
+  );
+  const [probeStatus, setProbeStatus] = useState<LoadStatus>(() =>
+    restoredProbe ? "ready" : "idle",
+  );
   const [probeError, setProbeError] = useState<ErrInfo | null>(null);
   const [probeFromFallback, setProbeFromFallback] = useState(false);
 
-  const [steps, setStepsState] = useState<Step[]>([]);
-  const stepsRef = useRef<Step[]>([]);
+  const [steps, setStepsState] = useState<Step[]>(() => restoredSteps ?? []);
+  const stepsRef = useRef<Step[]>(restoredSteps ?? []);
   const setSteps = useCallback((updater: Step[] | ((cur: Step[]) => Step[])) => {
     setStepsState((cur) => {
       const next = typeof updater === "function" ? (updater as (c: Step[]) => Step[])(cur) : updater;
@@ -78,10 +126,14 @@ export function LearnContentProvider({ children }: { children: ReactNode }) {
       return next;
     });
   }, []);
-  const [outlineStatus, setOutlineStatus] = useState<LoadStatus>("idle");
+  const [outlineStatus, setOutlineStatus] = useState<LoadStatus>(() =>
+    restoredSteps ? "ready" : "idle",
+  );
   const [outlineError, setOutlineError] = useState<ErrInfo | null>(null);
 
-  const [stepDetailStatus, setStepDetailStatus] = useState<Record<number, LoadStatus>>({});
+  const [stepDetailStatus, setStepDetailStatus] = useState<Record<number, LoadStatus>>(() =>
+    deriveDetailStatus(restoredSteps ?? undefined),
+  );
   const [stepDetailErrors, setStepDetailErrors] = useState<Record<number, ErrInfo | null>>({});
   const inflightRef = useRef<Set<number>>(new Set());
   // 진행 중인 본문 스트림 핸들. 세션 전환/재학습(reset, loadOutline) 시 abort 해야
@@ -96,10 +148,17 @@ export function LearnContentProvider({ children }: { children: ReactNode }) {
     stepStreamsRef.current.clear();
   }, []);
 
-  const [stepEvaluations, setStepEvaluations] = useState<Record<number, StepEvaluation>>({});
-  const [stepEvalStatus, setStepEvalStatus] = useState<Record<number, LoadStatus>>({});
+  const [stepEvaluations, setStepEvaluations] = useState<Record<number, StepEvaluation>>(
+    () => initial?.stepEvaluations ?? {},
+  );
+  const [stepEvalStatus, setStepEvalStatus] = useState<Record<number, LoadStatus>>(() =>
+    deriveEvalStatus(initial?.stepEvaluations),
+  );
   const [stepEvalErrors, setStepEvalErrors] = useState<Record<number, ErrInfo | null>>({});
   const evalInflightRef = useRef<Set<number>>(new Set());
+
+  // 언마운트(세션 전환으로 Provider 가 key 재마운트되는 경우 포함) 시 진행 중 스트림을 정리한다.
+  useEffect(() => () => abortStepStreams(), [abortStepStreams]);
 
   const loadProbe = useCallback(async (concept: string, materials?: string) => {
     setProbeStatus("loading");

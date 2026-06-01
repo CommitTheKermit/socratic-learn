@@ -1,8 +1,13 @@
-import type { ProbeAnswers, Stage } from "../stages/data";
+import type { ProbeAnswers, ProbeQuestion, Stage, Step } from "../stages/data";
+import type { StepEvaluation } from "../api/claudeContent";
 
 /**
  * localStorage 에 영속화되는 단일 학습 세션의 전체 상태.
  * JSON 호환 필드만 포함한다(함수/undefined/순환참조 금지).
+ *
+ * 사용자 입력값(concept/probes/answers...) 외에, 재접속/세션 전환 시 재로딩을 막기 위해
+ * AI 가 이미 생성한 산출물(probeQuestions/steps/stepEvaluations)도 함께 보관한다.
+ * 산출물 필드는 아직 생성 전이면 누락(undefined)되며, 복원 측은 누락 시 새로 로드한다.
  */
 export interface SessionState {
   sessionId: string;
@@ -17,6 +22,15 @@ export interface SessionState {
   stepIdx: number;
   answers: Record<string, string>;
   skips: Record<string, boolean>;
+  // ── AI 산출물(재로딩 방지용) ──
+  /** 진단 문항. probeReady 가 true 일 때만 실제 생성된 값으로 신뢰한다. */
+  probeQuestions?: ProbeQuestion[];
+  /** 진단 문항이 실제로 생성 완료되었는지(fallback 이 아닌지). */
+  probeReady?: boolean;
+  /** 로드맵 단계들. 각 step 의 body/questions 가 채워져 있으면 해당 단계는 이미 로딩 완료. */
+  steps?: Step[];
+  /** stepIdx 별 답변 평가 결과. */
+  stepEvaluations?: Record<number, StepEvaluation>;
 }
 
 const STAGES: readonly Stage[] = ["input", "probe", "learn", "done"];
@@ -64,6 +78,79 @@ function asBoolRecord(v: unknown): Record<string, boolean> {
 }
 
 /**
+ * 진단 문항 배열을 보정한다. 최소 형태(id/kind 문자열)만 검증하고 나머지는 신뢰한다.
+ * 배열이 아니거나 항목이 0개면 undefined 를 반환해 "산출물 없음"으로 취급한다.
+ */
+function asProbeQuestions(v: unknown): ProbeQuestion[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const out = v.filter(
+    (x): x is ProbeQuestion =>
+      x != null &&
+      typeof x === "object" &&
+      typeof (x as { id?: unknown }).id === "string" &&
+      typeof (x as { kind?: unknown }).kind === "string",
+  );
+  return out.length ? out : undefined;
+}
+
+/**
+ * 로드맵 단계 배열을 보정한다. id(number)/title(string) 이 있어야 유효하며,
+ * body/desc/questions 는 누락 시 안전 기본값으로 채운다(body 가 비면 복원 측이 재로딩).
+ */
+function asSteps(v: unknown): Step[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const out: Step[] = [];
+  for (const x of v) {
+    if (x == null || typeof x !== "object") continue;
+    const o = x as Record<string, unknown>;
+    if (typeof o.id !== "number" || typeof o.title !== "string") continue;
+    const questions = Array.isArray(o.questions)
+      ? o.questions.filter(
+          (q): q is { id: string; q: string } =>
+            q != null &&
+            typeof q === "object" &&
+            typeof (q as { id?: unknown }).id === "string" &&
+            typeof (q as { q?: unknown }).q === "string",
+        )
+      : [];
+    out.push({
+      id: o.id,
+      title: o.title,
+      desc: typeof o.desc === "string" ? o.desc : "",
+      body: typeof o.body === "string" ? o.body : "",
+      questions,
+    });
+  }
+  return out.length ? out : undefined;
+}
+
+/**
+ * stepIdx 별 평가 결과 맵을 보정한다. 각 항목은 evaluations 배열을 가져야 한다.
+ */
+function asStepEvaluations(v: unknown): Record<number, StepEvaluation> | undefined {
+  if (v == null || typeof v !== "object") return undefined;
+  const out: Record<number, StepEvaluation> = {};
+  for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+    const idx = Number(k);
+    if (!Number.isInteger(idx)) continue;
+    if (val == null || typeof val !== "object") continue;
+    const evals = (val as { evaluations?: unknown }).evaluations;
+    if (!Array.isArray(evals)) continue;
+    out[idx] = {
+      evaluations: evals.filter(
+        (e): e is StepEvaluation["evaluations"][number] =>
+          e != null &&
+          typeof e === "object" &&
+          typeof (e as { id?: unknown }).id === "string" &&
+          typeof (e as { grade?: unknown }).grade === "string" &&
+          typeof (e as { feedback?: unknown }).feedback === "string",
+      ),
+    };
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+/**
  * 학습 상태를 JSON 문자열로 직렬화한다.
  * 알려진 필드만 명시적으로 직렬화하여 타입 안전성을 유지한다.
  */
@@ -82,6 +169,15 @@ export function serializeSessionState(state: SessionState): string {
     answers: state.answers,
     skips: state.skips,
   };
+  // 산출물은 존재할 때만 직렬화에 포함한다(undefined 는 JSON 에서 자동 생략되지만 명시적으로 둔다).
+  if (state.probeReady && state.probeQuestions?.length) {
+    payload.probeQuestions = state.probeQuestions;
+    payload.probeReady = true;
+  }
+  if (state.steps?.length) payload.steps = state.steps;
+  if (state.stepEvaluations && Object.keys(state.stepEvaluations).length) {
+    payload.stepEvaluations = state.stepEvaluations;
+  }
   return JSON.stringify(payload);
 }
 
@@ -97,6 +193,9 @@ export function deserializeSessionState(json: string): SessionState {
   }
   const o = raw as Record<string, unknown>;
   const estimated = o.estimatedLevel;
+  const probeQuestions = asProbeQuestions(o.probeQuestions);
+  const steps = asSteps(o.steps);
+  const stepEvaluations = asStepEvaluations(o.stepEvaluations);
   return {
     sessionId: asString(o.sessionId),
     createdAt: asNumber(o.createdAt),
@@ -111,5 +210,9 @@ export function deserializeSessionState(json: string): SessionState {
     stepIdx: asNumber(o.stepIdx),
     answers: asStringRecord(o.answers),
     skips: asBoolRecord(o.skips),
+    probeQuestions,
+    probeReady: probeQuestions ? o.probeReady === true : undefined,
+    steps,
+    stepEvaluations,
   };
 }
