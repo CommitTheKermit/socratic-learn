@@ -54,6 +54,16 @@ cd functions && npm run serve      # build + emulators:start --only functions (�
 - frontend: `VITE_API_BASE_URL` (Functions base URL. emulator 는 `http://127.0.0.1:5001/socratic-learn-web/us-central1`. Vite 빌드 시점 인라인). `.env.local` 변경 후 dev server 재시작 필요.
 - frontend: `VITE_FIREBASE_*` (GitHub 로그인용 Firebase 웹 config. `src/lib/firebase.ts` 에서 주입). `apiKey` 는 비밀이 아니라 식별자라 번들 인라인 무방. 콘솔 설정은 `docs/github-auth-setup.md`.
 
+## 배포
+
+Firebase 프로젝트 `socratic-learn-web`(`.firebaserc`), region `us-central1`. 로그인 계정 `commit3921@gmail.com`. 배포는 **사용자가 명시적으로 요청할 때만** 수행한다(자동 배포 금지).
+
+- 대상: **functions + hosting** (필요 시 firestore rules). `firebase.json` 의 hosting public 은 `frontend/dist`, SPA rewrite `** -> /index.html`.
+- 앱 버전은 **`frontend/package.json` 의 `version` 한 곳**에만 있다(functions/root 엔 버전 없음). 배포할 때마다 마이너 버전을 하나 올린다.
+- 절차: ① `cd functions && npm run build`(→`lib/`) ② `cd frontend && npm run build`(→`dist/`, `VITE_*` 빌드 시점 인라인) ③ 루트에서 `npx firebase deploy --only functions,hosting`.
+- 배포 후 그 내용을 커밋 메시지에 명시한다(무엇을/어느 대상에). Hosting URL: https://socratic-learn-web.web.app
+- `functions/.secret.local` 은 emulator 전용. 실배포 키는 Secret Manager(`ANTHROPIC_API_KEY`).
+
 ## 검증
 
 서버 자동 회귀 테스트 대신 frontend 단위 테스트(vitest) + emulator Playwright E2E 로 검증한다. `frontend/e2e/sliceN-*.cjs` 가 input→해당 단계까지 주행하며 ① 해당 엔드포인트가 `127.0.0.1:5001` 으로 200, ② api.anthropic.com 직호출 0건 을 확인한다. dev server 가 IPv6 만 바인딩하면 `http://localhost:<port>` 로 접속. 상세는 `docs/firebase-migration.md`.
@@ -65,7 +75,8 @@ cd functions && npm run serve      # build + emulators:start --only functions (�
 - 경로/DTO 변경은 `contract.ts` 와 `functions/` 를 같은 PR 에서 함께 수정한다.
 - CORS 는 `cors: true` 로 열려 있으나 로컬/MVP 한정. 배포 시 origin allow-list 로 좁힌다.
 - GitHub 로그인(Firebase Auth GitHub provider) + 사용량 기록(Firestore `usage` 컬렉션) 은 **도입됨**. 학습 시작은 로그인 필수(게이팅): 프론트는 ID 토큰을 `Authorization: Bearer` 로 싣고(`api/authHeaders.ts`), Functions 는 `requireAuth` 로 검증(무효 시 401)하며 `recordUsage(uid, endpoint)` 로 적재한다.
-- 여전히 범위 제외(별도 합의 없이 추가 금지): 학습 세션의 서버 DB 저장(현재 세션은 localStorage), 토큰 제한/BYOK, 배포(Hosting), 서버 자동 회귀 테스트, 사용량 분석 대시보드/조회 UI.
+- 배포(Hosting + Functions)는 **도입됨**. 구조/절차는 위 "배포" 섹션 참고.
+- 여전히 범위 제외(별도 합의 없이 추가 금지): 학습 세션의 서버 DB 저장(현재 세션은 localStorage), 토큰 제한/BYOK, 서버 자동 회귀 테스트, 사용량 분석 대시보드/조회 UI.
 
 <!-- ooo:START -->
 <!-- ooo:VERSION:0.39.2 -->
