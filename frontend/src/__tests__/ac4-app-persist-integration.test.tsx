@@ -61,6 +61,24 @@ describe("Sub-AC 4: App.tsx 마운트 load 복원 / 상태 변경 persist 통합
     expect(textarea.value).toBe("복원될 개념");
   });
 
+  test("활성 세션이 진행 단계(learn 등)면 복원하지 않고 메인(input) 화면에서 시작한다", () => {
+    localStorage.setItem(ACTIVE_KEY, "seed-1");
+    localStorage.setItem(
+      sessionKey("seed-1"),
+      JSON.stringify(seededState({ stage: "learn", concept: "복원될 개념" })),
+    );
+
+    render(<App />);
+
+    // 직전 learn 단계로 고정되지 않고 메인(input) 화면이 보인다.
+    expect(document.querySelector(".app")?.getAttribute("data-stage")).toBe("input");
+    // 직전 세션 concept 으로 복원되지 않는다(새 세션으로 시작).
+    const textarea = screen.getByPlaceholderText(PLACEHOLDER) as HTMLTextAreaElement;
+    expect(textarea.value).not.toBe("복원될 개념");
+    // 직전 세션 자체는 보존되어 사이드바에서 이어갈 수 있다.
+    expect(persist.loadSession("seed-1")!.stage).toBe("learn");
+  });
+
   test("저장된 세션이 없으면 새 활성 세션 id 를 만들어 초기 상태를 persist 한다", () => {
     expect(localStorage.getItem(ACTIVE_KEY)).toBeNull();
     render(<App />);

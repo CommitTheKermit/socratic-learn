@@ -53,13 +53,14 @@ beforeEach(() => {
 describe("AC2: App.tsx deleteSession", () => {
   test("활성 세션 삭제 시 removeSessionMeta+removeItem 호출 후 새 세션으로 input 초기화", async () => {
     localStorage.setItem(ACTIVE_KEY, "active-1");
+    // 마운트 시 활성 세션으로 복원되려면 input 단계여야 한다(진행 단계는 메인 화면에서 시작).
     localStorage.setItem(
       sessionKey("active-1"),
       JSON.stringify(
-        seededState({ sessionId: "active-1", stage: "probe", concept: "활성개념", conceptSummary: "활성개념" }),
+        seededState({ sessionId: "active-1", stage: "input", concept: "활성개념", conceptSummary: "활성개념" }),
       ),
     );
-    upsertSessionMeta({ sessionId: "active-1", createdAt: 5, conceptSummary: "활성개념", stage: "probe" });
+    upsertSessionMeta({ sessionId: "active-1", createdAt: 5, conceptSummary: "활성개념", stage: "input" });
 
     const removeMetaSpy = vi.spyOn(sessionIndex, "removeSessionMeta");
     const removeItemSpy = vi.spyOn(Storage.prototype, "removeItem");
@@ -67,7 +68,12 @@ describe("AC2: App.tsx deleteSession", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    const item = screen.getByText("활성개념").closest(".sb-history-item") as HTMLElement;
+    // input 단계로 복원된 활성 세션은 concept 이 메인 화면과 사이드바 양쪽에 표시되므로
+    // 사이드바 히스토리 항목으로 한정해 조회한다.
+    const item = screen
+      .getAllByText("활성개념")
+      .map((el) => el.closest(".sb-history-item"))
+      .find(Boolean) as HTMLElement;
     await user.click(within(item).getByLabelText("세션 삭제"));
 
     expect(removeMetaSpy).toHaveBeenCalledWith("active-1");

@@ -37,7 +37,9 @@ function createSessionId(): string {
 
 /**
  * 마운트 시점의 초기 세션을 해석한다.
- * 활성 세션 id 가 있으면 load 하여 복원하고, 없으면 새 세션 id 를 만든다.
+ * 재접속(새 탭/새로고침) 시 진행 중이던 학습 단계(probe/learn/done)로 고정되지 않도록,
+ * 활성 세션이 input 단계(= 메인 화면 입력 초안)일 때만 복원한다. 그 외에는 새 세션을 발급해
+ * 항상 메인 화면에서 시작한다. 직전 학습 세션은 사이드바 히스토리에서 선택해 이어갈 수 있다.
  */
 function resolveInitialSession(): {
   id: string;
@@ -52,7 +54,9 @@ function resolveInitialSession(): {
   }
   if (id) {
     const loaded = loadSession(id);
-    return { id, createdAt: loaded?.createdAt ?? Date.now(), loaded };
+    if (loaded && loaded.stage === "input") {
+      return { id, createdAt: loaded.createdAt ?? Date.now(), loaded };
+    }
   }
   return { id: createSessionId(), createdAt: Date.now(), loaded: null };
 }
