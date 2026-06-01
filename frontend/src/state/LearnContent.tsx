@@ -11,7 +11,7 @@ import {
   generateRoadmapOutline,
   type StepEvaluation,
 } from "../api/claudeContent";
-import { streamStepDetail } from "../api/stepDetailStream";
+import { streamStepDetail, type StreamHandle } from "../api/stepDetailStream";
 import { buildRoadmapStages } from "./roadmap";
 
 // "streaming": body 토큰이 점진적으로 들어오는 중(questions 는 아직 없음). complete 시 "ready".
@@ -84,6 +84,17 @@ export function LearnContentProvider({ children }: { children: ReactNode }) {
   const [stepDetailStatus, setStepDetailStatus] = useState<Record<number, LoadStatus>>({});
   const [stepDetailErrors, setStepDetailErrors] = useState<Record<number, ErrInfo | null>>({});
   const inflightRef = useRef<Set<number>>(new Set());
+  // 진행 중인 본문 스트림 핸들. 세션 전환/재학습(reset, loadOutline) 시 abort 해야
+  // 죽은 스트림의 onDelta/onComplete 가 새 세션 steps 에 본문을 덮어쓰는 레이스를 막는다.
+  const stepStreamsRef = useRef<Map<number, StreamHandle>>(new Map());
+  // 세대(epoch) 가드. reset/loadOutline 마다 증가시키고, 스트림 시작 시점의 epoch 를
+  // 캡처해 콜백에서 비교한다. 다른 세대(이전 세션)의 콜백은 상태를 건드리지 않는다.
+  const epochRef = useRef(0);
+  const abortStepStreams = useCallback(() => {
+    epochRef.current += 1;
+    stepStreamsRef.current.forEach((h) => h.abort());
+    stepStreamsRef.current.clear();
+  }, []);
 
   const [stepEvaluations, setStepEvaluations] = useState<Record<number, StepEvaluation>>({});
   const [stepEvalStatus, setStepEvalStatus] = useState<Record<number, LoadStatus>>({});
@@ -113,6 +124,7 @@ export function LearnContentProvider({ children }: { children: ReactNode }) {
     setStepDetailStatus({});
     setStepDetailErrors({});
     inflightRef.current.clear();
+    abortStepStreams();
     try {
       const outline = await generateRoadmapOutline(concept, level);
       const placeholders: Step[] = buildRoadmapStages(outline);
@@ -122,12 +134,16 @@ export function LearnContentProvider({ children }: { children: ReactNode }) {
       setOutlineError(toErr(e));
       setOutlineStatus("error");
     }
-  }, []);
+  }, [abortStepStreams, setSteps]);
 
   const loadStepDetail = useCallback(
     async (concept: string, level: number, stepIdx: number) => {
       if (inflightRef.current.has(stepIdx)) return;
       inflightRef.current.add(stepIdx);
+      // 이 스트림이 속한 세대. 이후 reset/loadOutline 으로 epoch 가 바뀌면(= 세션 전환)
+      // 이 스트림의 콜백은 더 이상 상태를 건드리지 않는다(stale write 방지).
+      const myEpoch = epochRef.current;
+      const isStale = () => myEpoch !== epochRef.current;
       setStepDetailStatus((m) => ({ ...m, [stepIdx]: "loading" }));
       setStepDetailErrors((m) => ({ ...m, [stepIdx]: null }));
       // 재시도 시 잔여 본문 제거.
@@ -140,6 +156,7 @@ export function LearnContentProvider({ children }: { children: ReactNode }) {
         { concept, level, outline, stepIdx },
         {
           onDelta: (text) => {
+            if (isStale()) return;
             acc += text;
             setStepDetailStatus((m) =>
               m[stepIdx] === "streaming" ? m : { ...m, [stepIdx]: "streaming" },
@@ -148,6 +165,7 @@ export function LearnContentProvider({ children }: { children: ReactNode }) {
           },
           onComplete: ({ body, questions }) => {
             settled = true;
+            if (isStale()) return;
             setSteps((cur) =>
               cur.map((s, i) => (i === stepIdx ? { ...s, body: body || acc, questions } : s)),
             );
@@ -155,15 +173,17 @@ export function LearnContentProvider({ children }: { children: ReactNode }) {
           },
           onError: (err) => {
             settled = true;
+            if (isStale()) return;
             setStepDetailErrors((m) => ({ ...m, [stepIdx]: err }));
             setStepDetailStatus((m) => ({ ...m, [stepIdx]: "error" }));
           },
         },
       );
+      stepStreamsRef.current.set(stepIdx, handle);
       try {
         await handle.done;
-        // 스트림이 complete/error 없이 끊긴 경우 방어.
-        if (!settled) {
+        // 스트림이 complete/error 없이 끊긴 경우 방어. 단, 세션이 바뀌었으면(stale) 무시.
+        if (!settled && !isStale()) {
           setStepDetailErrors((m) => ({
             ...m,
             [stepIdx]: { code: "STREAM_ERROR", message: "본문 스트림이 완료되지 않았습니다." },
@@ -172,6 +192,9 @@ export function LearnContentProvider({ children }: { children: ReactNode }) {
         }
       } finally {
         inflightRef.current.delete(stepIdx);
+        if (stepStreamsRef.current.get(stepIdx) === handle) {
+          stepStreamsRef.current.delete(stepIdx);
+        }
       }
     },
     [setSteps],
@@ -239,11 +262,12 @@ export function LearnContentProvider({ children }: { children: ReactNode }) {
     setStepDetailStatus({});
     setStepDetailErrors({});
     inflightRef.current.clear();
+    abortStepStreams();
     setStepEvaluations({});
     setStepEvalStatus({});
     setStepEvalErrors({});
     evalInflightRef.current.clear();
-  }, []);
+  }, [abortStepStreams]);
 
   return (
     <Ctx.Provider
