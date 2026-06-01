@@ -59,7 +59,7 @@ cd functions && npm run serve      # build + emulators:start --only functions (�
 Firebase 프로젝트 `socratic-learn-web`(`.firebaserc`), region `us-central1`. 로그인 계정 `commit3921@gmail.com`. 배포는 **사용자가 명시적으로 요청할 때만** 수행한다(자동 배포 금지).
 
 - 대상: **functions + hosting** (필요 시 firestore rules). `firebase.json` 의 hosting public 은 `frontend/dist`, SPA rewrite `** -> /index.html`.
-- 앱 버전은 **`frontend/package.json` 의 `version` 한 곳**에만 있다(functions/root 엔 버전 없음). 배포할 때마다 마이너 버전을 하나 올린다.
+- 앱 버전은 **`frontend/package.json` 의 `version` 한 곳**에만 있다(functions/root 엔 버전 없음). 배포할 때마다 버전을 올리되, 증가 단위는 SemVer(`MAJOR.MINOR.PATCH`) 기준으로 변경 성격에 따라 모델이 판단한다: 호환 깨짐 = major, 호환되는 기능 추가 = minor, 호환되는 버그 수정 = patch.
 - 절차: ① `cd functions && npm run build`(→`lib/`) ② `cd frontend && npm run build`(→`dist/`, `VITE_*` 빌드 시점 인라인) ③ 루트에서 `npx firebase deploy --only functions,hosting`.
 - 배포 후 그 내용을 커밋 메시지에 명시한다(무엇을/어느 대상에). Hosting URL: https://socratic-learn-web.web.app
 - `functions/.secret.local` 은 emulator 전용. 실배포 키는 Secret Manager(`ANTHROPIC_API_KEY`).
