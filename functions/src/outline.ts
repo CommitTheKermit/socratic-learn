@@ -20,7 +20,7 @@ const outlineSchema = {
     steps: {
       type: "array",
       minItems: 4,
-      maxItems: 7,
+      maxItems: 5,
       items: {
         type: "object",
         additionalProperties: false,
