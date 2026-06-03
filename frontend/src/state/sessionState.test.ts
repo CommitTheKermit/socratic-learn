@@ -78,4 +78,17 @@ describe("sessionState 직렬화/역직렬화", () => {
     const json = JSON.stringify({ ...fullState(), stage: "bogus" });
     expect(deserializeSessionState(json).stage).toBe("input");
   });
+
+  test("정상 fieldUpdatedAt(Record<string,string>) 가 round-trip 보존된다", () => {
+    const fieldUpdatedAt = {
+      stepIdx: "2024-01-01T00:00:00.000Z",
+      answers: "2024-01-02T03:04:05.678Z",
+      skips: "2024-01-03T12:30:00.000Z",
+      stage: "2024-01-04T09:15:30.000Z",
+    };
+    const state: SessionState = { ...fullState(), fieldUpdatedAt };
+    const restored = deserializeSessionState(serializeSessionState(state));
+    expect(restored.fieldUpdatedAt).toEqual(fieldUpdatedAt);
+    expect(restored).toEqual(state);
+  });
 });
