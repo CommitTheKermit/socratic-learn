@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { MERGEABLE_FIELDS, stampFieldUpdatedAt } from "./sessionMerge";
+import { MERGEABLE_FIELDS, mergeSessions, stampFieldUpdatedAt } from "./sessionMerge";
 import type { SessionState } from "./sessionState";
 
 function baseState(over: Partial<SessionState> = {}): SessionState {
@@ -105,5 +105,95 @@ describe("stampFieldUpdatedAt", () => {
     const next = baseState({ sessionId: "other", createdAt: 99 });
     const stamped = stampFieldUpdatedAt(prev, next, NOW);
     expect(stamped).toEqual({});
+  });
+});
+
+const EARLIER = "2026-06-03T06:00:00.000Z";
+const LATER = "2026-06-03T18:00:00.000Z";
+
+describe("mergeSessions", () => {
+  test("필드별로 더 최신 타임스탬프 쪽 값을 채택한다", () => {
+    const a = baseState({
+      stepIdx: 1,
+      concept: "A개념",
+      fieldUpdatedAt: { stepIdx: LATER, concept: EARLIER },
+    });
+    const b = baseState({
+      stepIdx: 9,
+      concept: "B개념",
+      fieldUpdatedAt: { stepIdx: EARLIER, concept: LATER },
+    });
+    const merged = mergeSessions(a, b);
+    expect(merged.stepIdx).toBe(1); // a 가 더 최신
+    expect(merged.concept).toBe("B개념"); // b 가 더 최신
+  });
+
+  test("동률이면 a 를 채택한다(결정적 tiebreaker)", () => {
+    const a = baseState({ stage: "learn", fieldUpdatedAt: { stage: NOW } });
+    const b = baseState({ stage: "done", fieldUpdatedAt: { stage: NOW } });
+    const merged = mergeSessions(a, b);
+    expect(merged.stage).toBe("learn");
+  });
+
+  test("한쪽만 스탬프를 가지면 그쪽 값을 채택한다(단측 스탬프 보존)", () => {
+    const a = baseState({ stepIdx: 1 });
+    const b = baseState({ stepIdx: 7, fieldUpdatedAt: { stepIdx: NOW } });
+    const merged = mergeSessions(a, b);
+    expect(merged.stepIdx).toBe(7);
+  });
+
+  test("양측 스탬프 없으면 값이 정의된 쪽을 보존한다(단측 필드 보존)", () => {
+    const a = baseState({ steps: undefined });
+    const b = baseState({ steps: [{ id: 1, title: "t", desc: "", body: "x", questions: [] }] });
+    const merged = mergeSessions(a, b);
+    expect(merged.steps).toEqual([
+      { id: 1, title: "t", desc: "", body: "x", questions: [] },
+    ]);
+  });
+
+  test("결과 fieldUpdatedAt 는 필드별 최신 타임스탬프 합집합이다", () => {
+    const a = baseState({ fieldUpdatedAt: { stepIdx: LATER, concept: EARLIER } });
+    const b = baseState({ fieldUpdatedAt: { concept: LATER, stage: NOW } });
+    const merged = mergeSessions(a, b);
+    expect(merged.fieldUpdatedAt).toEqual({
+      stepIdx: LATER,
+      concept: LATER,
+      stage: NOW,
+    });
+  });
+
+  test("식별자 필드는 a 를 채택하되 누락 시 b 로 보정한다", () => {
+    const a = baseState({ sessionId: "a-id", createdAt: 100 });
+    const b = baseState({ sessionId: "b-id", createdAt: 200 });
+    expect(mergeSessions(a, b).sessionId).toBe("a-id");
+    expect(mergeSessions(a, b).createdAt).toBe(100);
+
+    const aEmpty = baseState({ sessionId: "", createdAt: 0 });
+    const merged = mergeSessions(aEmpty, b);
+    expect(merged.sessionId).toBe("b-id");
+    expect(merged.createdAt).toBe(200);
+  });
+
+  test("입력 상태를 변형하지 않는다(순수 함수)", () => {
+    const a = baseState({ stepIdx: 1, fieldUpdatedAt: { stepIdx: LATER } });
+    const b = baseState({ stepIdx: 2, fieldUpdatedAt: { stepIdx: EARLIER } });
+    const snapA = JSON.stringify(a);
+    const snapB = JSON.stringify(b);
+    mergeSessions(a, b);
+    expect(JSON.stringify(a)).toBe(snapA);
+    expect(JSON.stringify(b)).toBe(snapB);
+  });
+
+  test("모든 mergeable 필드를 한쪽에서 채택해도 단일 SessionState 를 반환한다", () => {
+    const a = baseState();
+    const b = baseState({
+      stepIdx: 42,
+      stage: "done",
+      fieldUpdatedAt: Object.fromEntries(MERGEABLE_FIELDS.map((f) => [f, LATER])),
+    });
+    const merged = mergeSessions(a, b);
+    expect(merged.stepIdx).toBe(42);
+    expect(merged.stage).toBe("done");
+    expect(merged.sessionId).toBe("s-1");
   });
 });
