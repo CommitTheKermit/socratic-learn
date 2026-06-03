@@ -2,6 +2,12 @@ import type { ProbeAnswers, ProbeQuestion, Stage, Step } from "../stages/data";
 import type { StepEvaluation } from "../api/claudeContent";
 
 /**
+ * SessionState 최상위 필드명을 키로, 마지막으로 변경된 시각(ISO8601)을 값으로 갖는 맵.
+ * Firestore 동기화 시 필드별 최신 updatedAt 승자 병합의 기준이 된다.
+ */
+export type FieldUpdatedAt = Record<string, string>;
+
+/**
  * localStorage 에 영속화되는 단일 학습 세션의 전체 상태.
  * JSON 호환 필드만 포함한다(함수/undefined/순환참조 금지).
  *
@@ -31,6 +37,8 @@ export interface SessionState {
   steps?: Step[];
   /** stepIdx 별 답변 평가 결과. */
   stepEvaluations?: Record<number, StepEvaluation>;
+  /** 최상위 필드별 마지막 변경 시각(ISO8601). 누락 시 빈 객체로 취급한다. */
+  fieldUpdatedAt?: FieldUpdatedAt;
 }
 
 const STAGES: readonly Stage[] = ["input", "probe", "learn", "done"];
@@ -151,6 +159,19 @@ function asStepEvaluations(v: unknown): Record<number, StepEvaluation> | undefin
 }
 
 /**
+ * 필드별 변경 시각 맵을 보정한다. 값이 문자열인 항목만 신뢰한다.
+ * 누락/타입 불일치 또는 빈 맵이면 undefined 를 반환해 "스탬프 없음"으로 취급한다.
+ */
+function asFieldUpdatedAt(v: unknown): FieldUpdatedAt | undefined {
+  if (v == null || typeof v !== "object") return undefined;
+  const out: FieldUpdatedAt = {};
+  for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+    if (typeof val === "string") out[k] = val;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+/**
  * 학습 상태를 JSON 문자열로 직렬화한다.
  * 알려진 필드만 명시적으로 직렬화하여 타입 안전성을 유지한다.
  */
@@ -178,6 +199,9 @@ export function serializeSessionState(state: SessionState): string {
   if (state.stepEvaluations && Object.keys(state.stepEvaluations).length) {
     payload.stepEvaluations = state.stepEvaluations;
   }
+  if (state.fieldUpdatedAt && Object.keys(state.fieldUpdatedAt).length) {
+    payload.fieldUpdatedAt = state.fieldUpdatedAt;
+  }
   return JSON.stringify(payload);
 }
 
@@ -196,6 +220,7 @@ export function deserializeSessionState(json: string): SessionState {
   const probeQuestions = asProbeQuestions(o.probeQuestions);
   const steps = asSteps(o.steps);
   const stepEvaluations = asStepEvaluations(o.stepEvaluations);
+  const fieldUpdatedAt = asFieldUpdatedAt(o.fieldUpdatedAt);
   return {
     sessionId: asString(o.sessionId),
     createdAt: asNumber(o.createdAt),
@@ -214,5 +239,6 @@ export function deserializeSessionState(json: string): SessionState {
     probeReady: probeQuestions ? o.probeReady === true : undefined,
     steps,
     stepEvaluations,
+    fieldUpdatedAt,
   };
 }
