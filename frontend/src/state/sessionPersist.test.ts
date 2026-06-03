@@ -78,7 +78,8 @@ describe("persistSession", () => {
     persistSession(state, storage);
     const raw = storage.getItem(sessionKey("s-123"));
     expect(raw).not.toBeNull();
-    expect(deserializeSessionState(raw!)).toEqual(state);
+    // fieldUpdatedAt 누락 입력은 빈 객체로 정규화된다.
+    expect(deserializeSessionState(raw!)).toEqual({ ...state, fieldUpdatedAt: {} });
   });
 
   test("같은 세션 재저장 시 값이 덮어써지고 세션 키 수는 유지된다", () => {

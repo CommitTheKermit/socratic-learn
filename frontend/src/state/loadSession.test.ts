@@ -55,7 +55,8 @@ describe("loadSession - 정상 값 복원", () => {
   test("persist 후 load 하면 동일 상태로 복원된다(round-trip)", () => {
     const state = fullState();
     persistSession(state, storage);
-    expect(loadSession("s-load", storage)).toEqual(state);
+    // fieldUpdatedAt 누락 입력은 빈 객체로 정규화된다.
+    expect(loadSession("s-load", storage)).toEqual({ ...state, fieldUpdatedAt: {} });
   });
 
   test("저장된 모든 필드 값이 그대로 보존된다", () => {
@@ -155,6 +156,6 @@ describe("loadSession - 손상 값 폴백", () => {
     persistSession(fullState(), storage); // 정상 세션 s-load
     storage.setItem(sessionKey("corrupt"), "<<broken>>");
     expect(loadSession("corrupt", storage)).toBeNull();
-    expect(loadSession("s-load", storage)).toEqual(fullState());
+    expect(loadSession("s-load", storage)).toEqual({ ...fullState(), fieldUpdatedAt: {} });
   });
 });

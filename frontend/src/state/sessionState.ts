@@ -160,15 +160,19 @@ function asStepEvaluations(v: unknown): Record<number, StepEvaluation> | undefin
 
 /**
  * 필드별 변경 시각 맵을 보정한다. 값이 문자열인 항목만 신뢰한다.
- * 누락/타입 불일치 또는 빈 맵이면 undefined 를 반환해 "스탬프 없음"으로 취급한다.
+ *
+ * 누락(undefined/null)되었거나 손상된(비객체/배열 등 잘못된 타입) 입력은
+ * 빈 객체({})로 안전 보정한다. 이로써 deserialize 결과의 fieldUpdatedAt 는
+ * 항상 존재하는 Record<string,string> 맵이 되어 병합/스탬핑 코어가 안전하게 읽는다.
+ * (빈 맵은 직렬화에서 생략되므로 기존 직렬화 포맷 호환은 유지된다.)
  */
-function asFieldUpdatedAt(v: unknown): FieldUpdatedAt | undefined {
-  if (v == null || typeof v !== "object") return undefined;
+function asFieldUpdatedAt(v: unknown): FieldUpdatedAt {
+  if (v == null || typeof v !== "object" || Array.isArray(v)) return {};
   const out: FieldUpdatedAt = {};
   for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
     if (typeof val === "string") out[k] = val;
   }
-  return Object.keys(out).length ? out : undefined;
+  return out;
 }
 
 /**

@@ -26,7 +26,8 @@ describe("sessionState 직렬화/역직렬화", () => {
   test("전체 상태 round-trip 시 동일 객체로 복원된다", () => {
     const state = fullState();
     const restored = deserializeSessionState(serializeSessionState(state));
-    expect(restored).toEqual(state);
+    // fieldUpdatedAt 누락 입력은 빈 객체로 정규화된다(나머지 필드는 동일하게 보존).
+    expect(restored).toEqual({ ...state, fieldUpdatedAt: {} });
   });
 
   test("직렬화 결과는 유효한 JSON 문자열이다", () => {
@@ -50,7 +51,10 @@ describe("sessionState 직렬화/역직렬화", () => {
       answers: {},
       skips: {},
     };
-    expect(deserializeSessionState(serializeSessionState(initial))).toEqual(initial);
+    expect(deserializeSessionState(serializeSessionState(initial))).toEqual({
+      ...initial,
+      fieldUpdatedAt: {},
+    });
   });
 
   test("estimatedLevel null 값이 보존된다", () => {
@@ -90,5 +94,71 @@ describe("sessionState 직렬화/역직렬화", () => {
     const restored = deserializeSessionState(serializeSessionState(state));
     expect(restored.fieldUpdatedAt).toEqual(fieldUpdatedAt);
     expect(restored).toEqual(state);
+  });
+});
+
+describe("deserializeSessionState - fieldUpdatedAt 누락/손상 보정", () => {
+  test("fieldUpdatedAt 키가 아예 없으면 빈 객체로 보정한다", () => {
+    const json = JSON.stringify({ ...fullState() }); // fieldUpdatedAt 미포함
+    const restored = deserializeSessionState(json);
+    expect(restored.fieldUpdatedAt).toEqual({});
+  });
+
+  test("fieldUpdatedAt 가 undefined(직렬화 시 생략)여도 빈 객체로 보정한다", () => {
+    const state: SessionState = { ...fullState(), fieldUpdatedAt: undefined };
+    const restored = deserializeSessionState(serializeSessionState(state));
+    expect(restored.fieldUpdatedAt).toEqual({});
+  });
+
+  test("fieldUpdatedAt 가 null 이면 빈 객체로 보정한다", () => {
+    const json = JSON.stringify({ ...fullState(), fieldUpdatedAt: null });
+    const restored = deserializeSessionState(json);
+    expect(restored.fieldUpdatedAt).toEqual({});
+  });
+
+  test("fieldUpdatedAt 가 빈 객체로 직렬화된 입력은 빈 객체로 복원된다", () => {
+    const json = JSON.stringify({ ...fullState(), fieldUpdatedAt: {} });
+    const restored = deserializeSessionState(json);
+    expect(restored.fieldUpdatedAt).toEqual({});
+  });
+
+  test("fieldUpdatedAt 가 비객체(문자열/숫자/불리언) 손상 입력이면 빈 객체로 보정한다", () => {
+    for (const corrupt of ["not-an-object", 42, true]) {
+      const json = JSON.stringify({ ...fullState(), fieldUpdatedAt: corrupt });
+      const restored = deserializeSessionState(json);
+      expect(restored.fieldUpdatedAt).toEqual({});
+    }
+  });
+
+  test("fieldUpdatedAt 가 배열(잘못된 타입)이면 빈 객체로 보정한다", () => {
+    const json = JSON.stringify({
+      ...fullState(),
+      fieldUpdatedAt: ["2024-01-01T00:00:00.000Z"],
+    });
+    const restored = deserializeSessionState(json);
+    expect(restored.fieldUpdatedAt).toEqual({});
+  });
+
+  test("fieldUpdatedAt 의 값 중 문자열이 아닌 항목은 버리고 문자열만 보존한다", () => {
+    const json = JSON.stringify({
+      ...fullState(),
+      fieldUpdatedAt: {
+        stage: "2024-01-04T09:15:30.000Z", // 유효
+        stepIdx: 12345, // 비문자열 → 버림
+        answers: null, // 비문자열 → 버림
+        concept: { nested: true }, // 비문자열 → 버림
+      },
+    });
+    const restored = deserializeSessionState(json);
+    expect(restored.fieldUpdatedAt).toEqual({ stage: "2024-01-04T09:15:30.000Z" });
+  });
+
+  test("모든 값이 손상되면 빈 객체가 되며 deserialize 는 throw 하지 않는다", () => {
+    const json = JSON.stringify({
+      ...fullState(),
+      fieldUpdatedAt: { a: 1, b: false, c: null },
+    });
+    expect(() => deserializeSessionState(json)).not.toThrow();
+    expect(deserializeSessionState(json).fieldUpdatedAt).toEqual({});
   });
 });
