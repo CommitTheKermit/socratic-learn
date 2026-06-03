@@ -248,4 +248,56 @@ describe("mergeSessions", () => {
       expect(merged.fieldUpdatedAt).toEqual({ stepEvaluations: NOW });
     });
   });
+
+  describe("serverWins 동률 tiebreaker", () => {
+    test("동률 필드는 serverWins='b' 면 b 를 결정적으로 채택한다", () => {
+      const a = baseState({ stage: "learn", fieldUpdatedAt: { stage: NOW } });
+      const b = baseState({ stage: "done", fieldUpdatedAt: { stage: NOW } });
+      expect(mergeSessions(a, b, "b").stage).toBe("done");
+      expect(mergeSessions(a, b, "a").stage).toBe("learn");
+    });
+
+    test("serverWins 미지정 시 기본값 'a' 로 동작한다(하위 호환)", () => {
+      const a = baseState({ stage: "learn", fieldUpdatedAt: { stage: NOW } });
+      const b = baseState({ stage: "done", fieldUpdatedAt: { stage: NOW } });
+      expect(mergeSessions(a, b).stage).toBe("learn");
+    });
+
+    test("serverWins 는 여러 동률 필드에 일관되게 적용된다", () => {
+      const a = baseState({
+        stepIdx: 1,
+        stage: "learn",
+        fieldUpdatedAt: { stepIdx: NOW, stage: NOW },
+      });
+      const b = baseState({
+        stepIdx: 9,
+        stage: "done",
+        fieldUpdatedAt: { stepIdx: NOW, stage: NOW },
+      });
+      const merged = mergeSessions(a, b, "b");
+      expect(merged.stepIdx).toBe(9);
+      expect(merged.stage).toBe("done");
+    });
+
+    test("serverWins='b' 라도 비동률 필드는 더 최신 쪽이 이긴다", () => {
+      const a = baseState({ stepIdx: 1, fieldUpdatedAt: { stepIdx: LATER } });
+      const b = baseState({ stepIdx: 9, fieldUpdatedAt: { stepIdx: EARLIER } });
+      // a 가 더 최신이므로 serverWins 와 무관하게 a 채택
+      expect(mergeSessions(a, b, "b").stepIdx).toBe(1);
+    });
+
+    test("양측 스탬프 없고 둘 다 정의된 필드는 serverWins 로 결정한다", () => {
+      const a = baseState({ stage: "learn" });
+      const b = baseState({ stage: "done" });
+      expect(mergeSessions(a, b, "b").stage).toBe("done");
+      expect(mergeSessions(a, b, "a").stage).toBe("learn");
+    });
+
+    test("serverWins='b' 라도 단측 스탬프 보존이 우선한다", () => {
+      // a 에만 스탬프가 있으면 동률이 아니므로 serverWins 와 무관하게 a 채택
+      const a = baseState({ stepIdx: 1, fieldUpdatedAt: { stepIdx: NOW } });
+      const b = baseState({ stepIdx: 9 });
+      expect(mergeSessions(a, b, "b").stepIdx).toBe(1);
+    });
+  });
 });

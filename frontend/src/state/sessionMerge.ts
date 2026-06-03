@@ -90,34 +90,53 @@ export function stampFieldUpdatedAt(
 }
 
 /**
+ * 동률 시 승자를 결정하는 인자. 'a' 또는 'b' 중 하나로 결정적으로 고른다.
+ */
+export type ServerWins = "a" | "b";
+
+/**
  * 한 최상위 필드에 대한 승자를 결정한다.
  *
  * - 양측 모두 타임스탬프 보유: 더 최신(ISO8601 사전식 = 시간순)인 쪽이 승자.
- *   동률이면 a 를 채택한다(결정적 tiebreaker).
+ *   동률이면 serverWins 인자로 결정적으로 고른다.
  * - 한쪽만 타임스탬프 보유: 그쪽이 승자(단측 스탬프 보존).
- * - 양측 모두 타임스탬프 없음: 값이 정의된 쪽을 우선하며, 둘 다 정의되면 a 를 채택한다.
+ * - 양측 모두 타임스탬프 없음: 값이 정의된 쪽을 우선하며, 둘 다 정의되면 serverWins 를 채택한다.
  */
-function pickFieldWinner(tsA: string | undefined, tsB: string | undefined): "a" | "b" {
-  if (tsA != null && tsB != null) return tsB > tsA ? "b" : "a";
+function pickFieldWinner(
+  tsA: string | undefined,
+  tsB: string | undefined,
+  serverWins: ServerWins,
+): "a" | "b" {
+  if (tsA != null && tsB != null) {
+    if (tsB > tsA) return "b";
+    if (tsA > tsB) return "a";
+    return serverWins; // 동률 → 결정적 tiebreaker
+  }
   if (tsA != null) return "a";
   if (tsB != null) return "b";
-  return "a";
+  return serverWins;
 }
 
 /**
  * 두 SessionState 를 필드별 최신 updatedAt 승자 병합으로 합친다.
  *
  * 각 최상위 mergeable 필드에 대해 fieldUpdatedAt 타임스탬프가 더 최신인 쪽의 값을 채택한다.
- * - 동률: a 를 채택(결정적 tiebreaker)
+ * - 동률: serverWins 인자로 결정적으로 채택(기본 'a')
  * - 한쪽만 스탬프 보유: 그쪽 값 채택(단측 보존)
- * - 양측 스탬프 없음: 값이 정의된 쪽 우선, 둘 다면 a
+ * - 양측 스탬프 없음: 값이 정의된 쪽 우선, 둘 다면 serverWins
  *
  * 식별자 필드(sessionId/createdAt)는 동일 세션 전제로 a 를 채택하되 누락 시 b 로 보정한다.
  * 결과 fieldUpdatedAt 는 양측 맵의 필드별 최신 타임스탬프를 합쳐서 만든다.
  *
  * 부수효과 없는 순수 함수다(입력을 변형하지 않고 새 객체를 반환).
+ *
+ * @param serverWins 동률(타임스탬프 동일/양측 무스탬프) 시 승자를 결정하는 인자. 기본 'a'.
  */
-export function mergeSessions(a: SessionState, b: SessionState): SessionState {
+export function mergeSessions(
+  a: SessionState,
+  b: SessionState,
+  serverWins: ServerWins = "a",
+): SessionState {
   const merged: SessionState = {
     sessionId: a.sessionId || b.sessionId,
     createdAt: a.createdAt || b.createdAt,
@@ -140,12 +159,13 @@ export function mergeSessions(a: SessionState, b: SessionState): SessionState {
   for (const field of MERGEABLE_FIELDS) {
     const tsA = stampA[field];
     const tsB = stampB[field];
-    let winner = pickFieldWinner(tsA, tsB);
+    let winner = pickFieldWinner(tsA, tsB, serverWins);
     // 타임스탬프가 양측 모두 없을 때만 값 정의 여부로 단측 보존을 적용한다.
     if (tsA == null && tsB == null) {
       const aDefined = a[field] !== undefined;
       const bDefined = b[field] !== undefined;
-      if (!aDefined && bDefined) winner = "b";
+      if (aDefined && !bDefined) winner = "a";
+      else if (!aDefined && bDefined) winner = "b";
     }
     const src = winner === "a" ? a : b;
     // 선택된 소스의 값을 그대로 채택한다(undefined 면 해당 키는 결과에서 생략됨).
