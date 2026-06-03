@@ -1,0 +1,122 @@
+# Ouroboros Seed - 학습 세션 Firestore 영속화
+# seed_id: seed_1124e14513d1 / interview_20260603_140014
+# QA: PASS 0.92 (iteration 4/5, threshold 0.90)
+goal: 학습 세션의 진실의 출처(source of truth)를 Firestore로 두되 localStorage는 캐시로 유지하여, GitHub 로그인한 사용자가 기기를 바꿔도 학습 기록을 이어서 진행할 수 있게 한다. 읽기/쓰기는 캐시를 먼저 사용해 화면을 즉시 반영하고 Firestore 동기화는 백그라운드 논블로킹(Promise 기반 비동기)으로 수행한다.
+task_type: code
+brownfield_context:
+  project_type: brownfield
+  context_references:
+  - path: frontend/src/api/contract.ts
+    role: primary
+    summary: API 경로/DTO 단일 진실 출처 - 세션 저장/조회 ApiPaths 항목과 DTO 추가
+  - path: frontend/src/api/claudeContent.ts
+    role: reference
+    summary: 기존 Functions 호출 패턴(fetch + Authorization Bearer) 참조
+  - path: frontend/src/api/authHeaders.ts
+    role: reference
+    summary: ID 토큰을 Authorization Bearer 로 싣는 헤더 빌더 재사용
+  - path: functions/src/auth.ts
+    role: primary
+    summary: requireAuth 미들웨어 + recordUsage - 새 세션 Function에도 동일 적용
+  - path: functions/src/index.ts
+    role: primary
+    summary: Functions export 진입점 - 새 세션 저장/조회 Function export
+  - path: frontend/src/state/sessionState.ts
+    role: primary
+    summary: SessionState 인터페이스 - Firestore 도메인 모델과 필드별 updatedAt 메타의 기준
+  - path: frontend/src/state/sessionPersist.ts
+    role: primary
+    summary: persistSession/loadSession(동기 Storage 기반) - 비동기 Firestore 동기화 계층으로 확장
+  - path: frontend/src/state/sessionIndex.ts
+    role: primary
+    summary: 세션 메타 인덱스(사이드바 히스토리) - Firestore 세션 목록 조회와 정합, SessionIndex 스키마 기준
+  - path: frontend/src/App.tsx
+    role: primary
+    summary: 단일 상태 머신(input/probe/learn/done) - 저장 트리거 지점(단계 전환/ API 완료)
+  existing_patterns:
+  - onRequest({ secrets, cors:true, region:'us-central1' }) 패턴 (functions/src/*.ts)
+  - requireAuth 로 인증 검증 후 recordUsage(uid, endpoint) 적재
+  - contract.ts 에 ApiPaths 항목 + DTO 추가 후 functions 와 프론트 동시 수정
+  - 에러 응답 { code, message } + HTTP 상태코드, 프론트는 ClaudeContentError 로 변환
+  - Authorization Bearer 헤더로 ID 토큰 전달 (api/authHeaders.ts)
+  existing_dependencies:
+  - firebase-functions
+  - firebase-admin (firestore)
+  - firebase/auth (프론트)
+  - vite + react 18 + typescript
+constraints:
+- 세션 저장/조회는 반드시 Firebase Functions 경유 - 프론트 Firestore Client SDK 직접 쓰기 금지
+- Firestore 가 진실의 출처, localStorage 는 캐시로 유지(제거하지 않음)
+- 읽기/쓰기는 캐시 우선(optimistic) - 캐시로 화면 즉시 반영, Firestore 동기화는 백그라운드 논블로킹 Promise 로 UI 를 막지 않고 수행
+- 백그라운드 Firestore 동기화 실패 시 캐시값을 유지하고 사용자에게 알리지 않으며, 다음 저장 트리거(단계 전환/AI 산출물 API 완료)에서 조용히 재시도한다
+- 기존 localStorage 에 저장된 세션은 Firestore 로 마이그레이션하지 않는다(신규 세션부터 적용)
+- 다기기 충돌 병합 기준: 병합 대상 필드마다 fieldUpdatedAt(Record<string,string>, ISO8601) 타임스탬프를 두고 필드별로 최신 값이 승자가 되며, 동률이면 Functions 가 쓰기 시 기록한 서버 수신 타임스탬프를 tiebreaker 로 사용한다
+- 세션은 인증된 사용자(uid) 기준으로 격리 - 타인 세션 접근 불가
+- Firebase Auth(GitHub) 로그인 필수
+- API 계약 변경은 contract.ts 와 functions 를 같은 PR 에서 함께 수정
+- 프론트엔드에 API 키 노출 금지
+- 오프라인 캐시(네트워크 단절 시 큐잉/장기 재시도)는 범위 밖
+- 학습 흐름/UX 개선은 범위 밖
+api_endpoints:
+- {method: POST, path: /sessions, summary: 세션 저장(upsert), request: 'SaveSessionRequest{ session: LearningSession }', response: '{ sessionId, updatedAt }', auth: required}
+- {method: GET, path: /sessions, summary: 인증 사용자의 세션 목록(메타), response: 'SessionIndex[]', auth: required}
+- {method: GET, path: /sessions/:id, summary: 단일 세션 상세, response: LearningSession, auth: required}
+acceptance_criteria:
+- POST /sessions Function이 인증된(uid) 요청으로 Firestore 에 학습 세션 문서를 upsert 하고, 토큰 없는 요청은 401 로 거부한다
+- GET /sessions Function이 인증된 사용자의 SessionIndex 목록을 반환하고, 토큰 없는 요청은 401 로 거부한다
+- GET /sessions/:id Function이 인증된 소유자의 단일 LearningSession 상세를 반환하며 타인 uid 의 세션 요청은 거부한다
+- 프론트엔드는 읽기 시 localStorage 캐시값을 먼저 사용해 화면을 렌더하고(캐시 read 부터 DOM 반영까지 50ms 이내), Firestore 조회는 백그라운드 Promise 로 수행해 캐시를 갱신한다
+- 프론트엔드는 쓰기 시 localStorage 캐시를 먼저 갱신하고 Firestore 저장은 백그라운드 논블로킹 Promise 로 수행하며 UI 상호작용을 막지 않는다
+- 세션 저장은 단계 전환 시점과 AI 산출물(probeQuestions/steps/stepEvaluations) 생성 API 콜 완료 시점에 각각 트리거된다
+- 다른 기기에서 같은 GitHub 계정 로그인 시 Firestore 의 SessionIndex 목록이 표시되고 선택하면 해당 단계부터 재개된다
+- 같은 세션이 두 기기에서 갱신되면 필드별 최신 fieldUpdatedAt 값이 승자가 되어 자동 병합되고, 동률이면 서버 수신 타임스탬프로 결정된다(전체 덮어쓰기 아님)
+- 기존 localStorage 전용 세션은 Firestore 로 업로드되지 않는다
+ontology_schema:
+  name: LearningSession
+  description: 소크라테스식 점진 학습 세션의 영속 상태. Firestore 문서이자 localStorage 캐시 값의 도메인 모델
+  fields:
+  - {name: sessionId, type: string, description: Firestore 문서 ID, required: true}
+  - {name: uid, type: string, description: Firebase Auth 사용자 UID(소유자), required: true}
+  - {name: conceptSummary, type: string, description: 학습 주제 요약(사이드바 표시), required: true}
+  - {name: stage, type: string, description: 학습 단계 input/probe/learn/done, required: true}
+  - {name: depth, type: string, description: 학습 깊이 설정, required: true}
+  - {name: concept, type: string, description: 사용자 입력 학습 개념, required: true}
+  - {name: materials, type: string, description: 사용자 제공 학습 자료, required: false}
+  - {name: probes, type: object, description: 진단 답변(p1/p2/p3), required: false}
+  - {name: estimatedLevel, type: number, description: 추정 레벨(null 가능), required: false}
+  - {name: stepIdx, type: number, description: 현재 단계 인덱스, required: true}
+  - {name: answers, type: object, description: 단계별 답변 맵, required: true}
+  - {name: skips, type: object, description: 단계별 스킵 여부 맵, required: false}
+  - {name: probeQuestions, type: array, description: 진단 문항(생성 완료 시), required: false}
+  - {name: probeReady, type: boolean, description: 진단 문항 실제 생성 완료 여부, required: false}
+  - {name: steps, type: array, description: 로드맵 단계(body/questions 포함), required: false}
+  - {name: stepEvaluations, type: object, description: stepIdx 별 답변 평가 결과, required: false}
+  - {name: createdAt, type: string, description: 생성 시각 ISO8601, required: true}
+  - {name: updatedAt, type: string, description: 문서 마지막 갱신 시각 ISO8601, required: true}
+  - {name: fieldUpdatedAt, type: object, description: 'Record<string,string> - 병합 대상 필드명을 키로, ISO8601 타임스탬프를 값으로 갖는 맵. 필드별 최신 updatedAt 승자 자동 병합의 기준', required: true}
+related_schemas:
+- name: SessionIndex
+  description: 사이드바 히스토리/목록 렌더용 경량 세션 메타. GET /sessions 응답 항목
+  fields:
+  - {name: sessionId, type: string, description: 세션 ID, required: true}
+  - {name: conceptSummary, type: string, description: 학습 주제 요약, required: true}
+  - {name: stage, type: string, description: 학습 단계, required: true}
+  - {name: updatedAt, type: string, description: 마지막 갱신 시각 ISO8601(정렬 기준), required: true}
+evaluation_principles:
+- {name: data_integrity, description: 세션 데이터가 캐시-Firestore 간 손실/변형 없이 일관성을 유지하는가, weight: 0.25}
+- {name: cache_first_responsiveness, description: 캐시 우선 읽기/쓰기로 50ms 내 화면 반영 + 백그라운드 Promise 동기화(실패 시 다음 트리거 재시도)가 동작하는가, weight: 0.2}
+- {name: conflict_merge_correctness, description: 다기기 충돌이 필드별 최신 fieldUpdatedAt 승자(동률 시 서버 타임스탬프)로 정확히 병합되는가, weight: 0.2}
+- {name: architecture_consistency, description: Functions 경유/contract.ts 단일 출처/기존 패턴을 준수하는가, weight: 0.2}
+- {name: auth_security, description: 비인증 차단 및 타인 세션 접근 불가(uid 격리)가 보장되는가, weight: 0.15}
+exit_conditions:
+- {name: session_persistence, description: Firestore 저장/조회 동작, criteria: POST/GET /sessions API 가 동작하고 프론트가 캐시 우선+백그라운드 Promise 동기화로 세션을 영속화함}
+- {name: cross_device_resume, description: 기기 간 이어하기, criteria: 다른 브라우저에서 같은 계정 로그인 후 SessionIndex 목록 표시 및 해당 단계부터 재개}
+- {name: field_level_merge, description: 충돌 자동 병합, criteria: 두 기기 갱신 시 필드별 최신 fieldUpdatedAt 승자(동률 시 서버 타임스탬프)로 병합되어 한쪽 갱신이 통째로 유실되지 않음}
+- {name: auth_guard, description: 비인증 거부, criteria: 토큰 없는 세션 저장/조회 요청에 401 응답}
+metadata:
+  seed_id: seed_1124e14513d1
+  version: 1.3.0
+  ambiguity_score: 0.08
+  interview_id: interview_20260603_140014
+  qa_score: 0.92
+  qa_iteration: 4
