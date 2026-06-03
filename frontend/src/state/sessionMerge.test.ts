@@ -196,4 +196,56 @@ describe("mergeSessions", () => {
     expect(merged.stage).toBe("done");
     expect(merged.sessionId).toBe("s-1");
   });
+
+  describe("한쪽 fieldUpdatedAt 에만 존재하는 필드 값 보존(유실 없음)", () => {
+    test("a 에만 스탬프가 있는 필드는 a 값을 보존한다", () => {
+      const a = baseState({ concept: "A개념", fieldUpdatedAt: { concept: NOW } });
+      const b = baseState({ concept: "B개념" });
+      const merged = mergeSessions(a, b);
+      expect(merged.concept).toBe("A개념");
+      // 결과 스탬프에도 단측 타임스탬프가 보존된다.
+      expect(merged.fieldUpdatedAt).toEqual({ concept: NOW });
+    });
+
+    test("b 에만 스탬프가 있는 필드는 b 값을 보존한다", () => {
+      const a = baseState({ concept: "A개념" });
+      const b = baseState({ concept: "B개념", fieldUpdatedAt: { concept: NOW } });
+      const merged = mergeSessions(a, b);
+      expect(merged.concept).toBe("B개념");
+      expect(merged.fieldUpdatedAt).toEqual({ concept: NOW });
+    });
+
+    test("서로 다른 필드가 각각 한쪽에만 스탬프되어도 양쪽 값을 모두 보존한다", () => {
+      const a = baseState({
+        stepIdx: 3,
+        concept: "A전용",
+        fieldUpdatedAt: { stepIdx: NOW },
+      });
+      const b = baseState({
+        steps: [{ id: 1, title: "t", desc: "", body: "x", questions: [] }],
+        fieldUpdatedAt: { steps: LATER },
+      });
+      const merged = mergeSessions(a, b);
+      // a 에만 스탬프된 stepIdx 는 a 값 보존
+      expect(merged.stepIdx).toBe(3);
+      // b 에만 스탬프된 steps 는 b 값 보존(유실 없음)
+      expect(merged.steps).toEqual([
+        { id: 1, title: "t", desc: "", body: "x", questions: [] },
+      ]);
+      // 양측의 단측 스탬프가 합집합으로 모두 보존된다.
+      expect(merged.fieldUpdatedAt).toEqual({ stepIdx: NOW, steps: LATER });
+    });
+
+    test("단측 스탬프가 산출물 필드(stepEvaluations)를 가리키면 그 산출물도 유실 없이 보존된다", () => {
+      const evals = { 0: { evaluations: [{ id: "q1", grade: "good", feedback: "ok" }] } };
+      const a = baseState();
+      const b = baseState({
+        stepEvaluations: evals,
+        fieldUpdatedAt: { stepEvaluations: NOW },
+      });
+      const merged = mergeSessions(a, b);
+      expect(merged.stepEvaluations).toEqual(evals);
+      expect(merged.fieldUpdatedAt).toEqual({ stepEvaluations: NOW });
+    });
+  });
 });
