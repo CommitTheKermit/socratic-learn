@@ -1,0 +1,53 @@
+# Ouroboros 서브시드 - frontend 세션 병합/직렬화 순수 함수 코어
+# 부모 시드: docs/seed-session-firestore.yaml (seed_1124e14513d1)
+# cwd = frontend/ , 검증 = npm test (vitest run)
+# 범위: 순수 함수 코어만. Functions 엔드포인트/네트워크/React 배선은 별도(수동).
+goal: "frontend 학습 세션 영속 계층에 Firestore 동기화를 위한 순수 함수 코어를 추가한다. 필드별 updatedAt 스탬핑, fieldUpdatedAt 직렬화, 필드별 최신 updatedAt 승자 병합을 구현하고 vitest 단위 테스트로 검증한다."
+task_type: code
+brownfield_context:
+  project_type: brownfield
+  context_references:
+  - path: src/state/sessionState.ts
+    role: primary
+    summary: "SessionState 인터페이스와 serialize/deserialize. fieldUpdatedAt 필드를 추가하고 병합 대상 도메인 모델의 기준"
+  - path: src/state/sessionPersist.test.ts
+    role: reference
+    summary: "기존 직렬화/영속 테스트 패턴(vitest) 참조"
+  - path: src/state/loadSession.test.ts
+    role: reference
+    summary: "기존 로드/복원 테스트 패턴 참조"
+  existing_patterns:
+  - "vitest run (npm test) 로 단위 테스트 실행"
+  - "deserialize 는 누락/손상 필드를 안전 기본값으로 보정하고 throw 하지 않는 방향(손상 격리)"
+  - "직렬화는 알려진 필드만 명시적으로 포함"
+  existing_dependencies:
+  - "typescript"
+  - "vitest"
+constraints:
+- "순수 TypeScript 함수만 추가한다 - 네트워크/Firestore/React 의존을 들이지 않는다"
+- "검증은 frontend 패키지 루트에서 npm test(vitest run) 로 수행한다"
+- "기존 SessionState 필드와 직렬화 호환을 유지한다 - fieldUpdatedAt 누락 시 빈 객체로 안전 보정"
+- "병합 granularity 는 SessionState 최상위 필드 단위다 - answers/skips/stepEvaluations 맵은 각각 통째로 1개 필드로 취급한다(맵 내부 키 단위 병합은 범위 밖)"
+- "frontend 패키지 외 다른 패키지(functions 등)는 변경하지 않는다"
+- "기존 통과 테스트를 깨지 않는다"
+acceptance_criteria:
+- "stampFieldUpdatedAt(prev, next, nowIso) 는 prev 대비 값이 변경된 최상위 필드에 대해서만 fieldUpdatedAt 항목을 nowIso 로 갱신하고, 변경되지 않은 필드의 기존 타임스탬프는 보존한다"
+- "serializeSessionState 와 deserializeSessionState 가 fieldUpdatedAt(Record<string,string>) 를 라운드트립하며, fieldUpdatedAt 가 누락되거나 손상된 입력에서는 빈 객체로 보정한다"
+- "mergeSessions(a, b) 는 각 최상위 필드에 대해 fieldUpdatedAt 타임스탬프가 더 최신인 쪽의 값을 채택한 단일 SessionState 를 반환한다"
+- "mergeSessions 는 두 쪽 fieldUpdatedAt 가 동률인 필드에 대해 serverWins 인자(예: 'a' 또는 'b')로 결정적으로 승자를 고른다"
+- "mergeSessions 는 한쪽 fieldUpdatedAt 에만 존재하는 필드 값을 유실 없이 결과에 보존한다"
+ontology_schema:
+  name: SessionMergeCore
+  description: "세션 병합/스탬핑/직렬화 순수 함수가 다루는 도메인 모델"
+  fields:
+  - {name: fieldUpdatedAt, type: object, description: "Record<string,string> - SessionState 최상위 필드명을 키로, ISO8601 타임스탬프를 값으로 갖는 맵", required: true}
+  - {name: mergeableFields, type: array, description: "병합 대상 최상위 필드 목록(stepIdx/answers/skips/stepEvaluations/steps/probes/stage 등)", required: true}
+evaluation_principles:
+- {name: purity, description: "추가 코드가 부수효과/외부 의존 없는 순수 함수인가", weight: 0.3}
+- {name: merge_correctness, description: "필드별 최신 승자 + 동률 tiebreaker + 단측 필드 보존이 정확한가", weight: 0.4}
+- {name: compat, description: "기존 직렬화/테스트 호환을 유지하는가", weight: 0.3}
+exit_conditions:
+- {name: tests_green, description: "단위 테스트 통과", criteria: "npm test 가 신규 및 기존 테스트 모두 통과"}
+metadata:
+  parent_seed_id: seed_1124e14513d1
+  interview_id: interview_20260603_140014
