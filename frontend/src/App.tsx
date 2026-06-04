@@ -14,9 +14,15 @@ import { StageProbe } from "./stages/Probe";
 import { StageLearn } from "./stages/Learn";
 import { StageDone } from "./stages/Done";
 import { LearnContentProvider, useLearnContent } from "./state/LearnContent";
-import { loadSession, persistSession, sessionKey } from "./state/sessionPersist";
+import { loadSession, sessionKey } from "./state/sessionPersist";
 import { listSessions, removeSessionMeta, type SessionMeta } from "./state/sessionIndex";
 import type { SessionState } from "./state/sessionState";
+import {
+  fetchAndMerge,
+  fetchRemoteSessionList,
+  mergeSessionLists,
+  persistWithSync,
+} from "./state/sessionSync";
 import { useDebouncedPersist } from "./state/useDebouncedPersist";
 import { useAuth } from "./state/useAuth";
 
@@ -88,9 +94,28 @@ function AppShell({ stage }: { stage: Stage }) {
  * 저장된 산출물을 LearnContentProvider 의 initial 로 한 번만 주입하면 첫 렌더부터 복원된다.
  */
 function AppSession({ stage, sessionId }: { stage: Stage; sessionId?: string }) {
-  const loaded = useMemo(() => (sessionId ? loadSession(sessionId) : null), [sessionId]);
+  // 캐시 우선 렌더. 백그라운드 Firestore 병합이 캐시를 바꾸면 reloadToken 을 올려 본문을 재시드한다.
+  const [reloadToken, setReloadToken] = useState(0);
+  const loaded = useMemo(
+    () => (sessionId ? loadSession(sessionId) : null),
+    [sessionId, reloadToken],
+  );
+  const syncedRef = useRef(false);
+  useEffect(() => {
+    if (!sessionId || syncedRef.current) return;
+    syncedRef.current = true;
+    void fetchAndMerge(sessionId)
+      .then((merged) => {
+        // 병합 결과가 캐시와 달랐을 때만(merged != null) 재마운트해 모든 상태를 다시 시드한다.
+        if (merged) setReloadToken((t) => t + 1);
+      })
+      .catch(() => {
+        // 원격 조회 실패: 캐시 렌더 유지. 다음 진입/저장 트리거에서 재시도.
+      });
+  }, [sessionId]);
   return (
     <LearnContentProvider
+      key={reloadToken}
       initial={
         loaded
           ? {
@@ -146,6 +171,18 @@ function AppWorkspace({
   const [answers, setAnswers] = useState<Record<string, string>>(() => loaded?.answers ?? {});
   const [skips, setSkips] = useState<Record<string, boolean>>(() => loaded?.skips ?? {});
   const [sessions, setSessions] = useState<SessionMeta[]>(() => listSessions());
+
+  // 사이드바 목록을 원격과 1회 병합한다. 로컬(작업 중) 메타는 유지하고 원격 전용 세션만 추가한다.
+  useEffect(() => {
+    let alive = true;
+    void fetchRemoteSessionList().then((remote) => {
+      if (!alive || !remote.length) return;
+      setSessions((local) => mergeSessionLists(local, remote));
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const {
     steps,
@@ -203,7 +240,7 @@ function AppWorkspace({
   const { cancelPending } = useDebouncedPersist(answers, buildSnapshot, (snap) => {
     if (!sessionId) return;
     try {
-      persistSession(snap);
+      persistWithSync(snap);
     } catch {
       // 무시
     }
@@ -225,8 +262,8 @@ function AppWorkspace({
     const snapshot = buildSnapshot();
     try {
       localStorage.setItem(ACTIVE_SESSION_KEY, sessionId);
-      // input 단계(= "학습 시작" 전)는 본문 초안만 보관하고 히스토리 인덱스에는 등록하지 않는다.
-      persistSession(snapshot, undefined, { index: stage !== "input" });
+      // input 단계(= "학습 시작" 전)는 본문 초안만 보관하고 히스토리 인덱스/원격에는 올리지 않는다.
+      persistWithSync(snapshot, undefined, { index: stage !== "input" });
     } catch {
       // 저장 실패(용량 초과 등) 복구는 별도 책임이므로 여기서는 무시한다.
     }
@@ -301,7 +338,7 @@ function AppWorkspace({
     try {
       localStorage.setItem(ACTIVE_SESSION_KEY, newId);
       localStorage.removeItem(DRAFT_CONCEPT_KEY);
-      persistSession(snap, undefined, { index: true });
+      persistWithSync(snap, undefined, { index: true });
     } catch {
       // 무시
     }
@@ -320,10 +357,21 @@ function AppWorkspace({
     navigate("/");
   };
 
-  /** 사이드바에서 다른 세션 선택. 그 세션의 단계 URL 로 이동하면 key 재마운트로 산출물이 복원된다. */
-  const switchSession = (targetId: string) => {
+  /**
+   * 사이드바에서 다른 세션 선택. 그 세션의 단계 URL 로 이동하면 key 재마운트로 산출물이 복원된다.
+   * 캐시에 없는 원격 전용 세션(다기기 유입)은 먼저 Firestore 에서 받아 캐시에 채운 뒤 올바른 단계로 이동한다.
+   */
+  const switchSession = async (targetId: string) => {
     if (targetId === sessionId) return;
-    const target = loadSession(targetId);
+    let target = loadSession(targetId);
+    if (!target) {
+      try {
+        await fetchAndMerge(targetId);
+        target = loadSession(targetId);
+      } catch {
+        // 원격 조회 실패: input 으로 이동(이후 진입 시 재시도).
+      }
+    }
     try {
       localStorage.setItem(ACTIVE_SESSION_KEY, targetId);
     } catch {

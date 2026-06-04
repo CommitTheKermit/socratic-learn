@@ -11,6 +11,10 @@ export const ApiPaths = {
   ANSWER_EVAL: "/answerEval",
   BRANCH_EVAL: "/branchEval",
   STEP_DETAIL_STREAM: "/stepDetailStream",
+  // 학습 세션 Firestore 영속화 (Anthropic 미사용. 함수명=경로, :id 대신 query param).
+  SESSION_SAVE: "/sessionSave",
+  SESSION_LIST: "/sessionList",
+  SESSION_GET: "/sessionGet",
 } as const;
 
 // stepDetailStream SSE 이벤트. body 는 delta 로 흘리고 questions 는 complete 에 담긴다.
@@ -85,7 +89,8 @@ export interface BranchEvalRequest {
   roadmapOutlineText: string;
 }
 
-import type { Step } from "../stages/data";
+import type { Stage, Step } from "../stages/data";
+import type { SessionState } from "../state/sessionState";
 
 export type BranchOptionType =
   | "roadmap_next"
@@ -122,6 +127,32 @@ export interface BranchPhaseState {
   parseError: boolean;
   retryCount: number;
   lastErrorMessage: string | null;
+}
+
+// ── 학습 세션 Firestore 영속화 DTO ──
+// 서버는 state 본문을 불투명 JSON 으로 저장하고 serverUpdatedAt 만 덧붙인다(병합은 클라이언트 코어가 수행).
+
+/** POST /sessionSave 요청. state.sessionId 로 uid 격리 컬렉션에 upsert 한다. */
+export interface SessionSaveRequest {
+  state: SessionState;
+}
+
+/** 세션 목록 1건. 사이드바 렌더링용 경량 메타(본문 미포함). updatedAt 은 서버 수신 millis. */
+export interface SessionIndexEntry {
+  sessionId: string;
+  conceptSummary: string;
+  stage: Stage;
+  updatedAt: number;
+}
+
+/** GET /sessionList 응답. updatedAt 내림차순 정렬된 메타 목록. */
+export interface SessionListResponse {
+  sessions: SessionIndexEntry[];
+}
+
+/** GET /sessionGet?id= 응답. 없으면 state=null. */
+export interface SessionGetResponse {
+  state: SessionState | null;
 }
 
 export const API_BASE_URL: string =
