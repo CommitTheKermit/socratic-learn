@@ -129,4 +129,66 @@ describe("useDebouncedPersist", () => {
     unmount();
     expect(persist).not.toHaveBeenCalled();
   });
+
+  test("flush 는 보류분을 즉시 1회 저장하고, 이후 타이머가 경과해도 중복 저장하지 않는다", () => {
+    const persist = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ t }) => useDebouncedPersist(t, () => snap({ answers: { q1: String(t) } }), persist, 3000),
+      { initialProps: { t: 0 } },
+    );
+
+    rerender({ t: 5 });
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+    expect(persist).not.toHaveBeenCalled();
+
+    act(() => {
+      result.current.flush();
+    });
+    expect(persist).toHaveBeenCalledTimes(1);
+    expect(persist.mock.calls[0][0].answers).toEqual({ q1: "5" });
+
+    // flush 로 타이머가 정리되었으므로 기존 디바운스는 더 발화하지 않는다.
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+    expect(persist).toHaveBeenCalledTimes(1);
+  });
+
+  test("보류분이 없으면 flush 는 no-op 이다", () => {
+    const persist = vi.fn();
+    const { result } = renderHook(() => useDebouncedPersist("a", () => snap(), persist, 500));
+
+    // 마운트 디바운스를 먼저 소진
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    expect(persist).toHaveBeenCalledTimes(1);
+
+    // 보류분 없음 → flush 는 추가 저장하지 않는다.
+    act(() => {
+      result.current.flush();
+    });
+    expect(persist).toHaveBeenCalledTimes(1);
+  });
+
+  test("beforeunload 시 보류분이 flush 된다", () => {
+    const persist = vi.fn();
+    renderHook(
+      ({ t }) => useDebouncedPersist(t, () => snap({ answers: { q1: String(t) } }), persist, 3000),
+      { initialProps: { t: 9 } },
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+    expect(persist).not.toHaveBeenCalled();
+
+    act(() => {
+      window.dispatchEvent(new Event("beforeunload"));
+    });
+    expect(persist).toHaveBeenCalledTimes(1);
+    expect(persist.mock.calls[0][0].answers).toEqual({ q1: "9" });
+  });
 });

@@ -245,16 +245,22 @@ function AppWorkspace({
     stepEvaluations: Object.keys(stepEvaluations).length ? stepEvaluations : undefined,
   });
 
-  // answers 디바운스 hook. 즉시 effect 에서 cancelPending() 으로 보류분을 취소한다.
-  const { cancelPending } = useDebouncedPersist(answers, buildSnapshot, (snap) => {
-    if (!sessionId) return;
-    try {
-      persistWithSync(snap);
-    } catch {
-      // 무시
-    }
-    setSessions(listSessions());
-  });
+  // answers 디바운스 hook. 입력 완료 신호(textarea onBlur)에 flush 를 연결하고,
+  // 그 사이 백업으로 3초 비활성 디바운스 저장한다. 즉시 effect 에서 cancelPending() 으로 보류분을 취소한다.
+  const { cancelPending, flush } = useDebouncedPersist(
+    answers,
+    buildSnapshot,
+    (snap) => {
+      if (!sessionId) return;
+      try {
+        persistWithSync(snap);
+      } catch {
+        // 무시
+      }
+      setSessions(listSessions());
+    },
+    3000,
+  );
 
   // 즉시 persist: answers 외 모든 상태/산출물(ready 전이) 변경 시. 홈(sessionId 없음)은 draft 만 보관한다.
   // 산출물은 deps 에 status 들만 넣어 streaming delta 마다 저장되지 않게 하고, ready 전이 시점의 최신 steps 를 담는다.
@@ -475,6 +481,7 @@ function AppWorkspace({
               setStepIdx={setStepIdx}
               answers={answers}
               setAnswers={setAnswers}
+              onAnswerCommit={flush}
               skips={skips}
               setSkips={setSkips}
               onPrev={() => goStage("probe")}

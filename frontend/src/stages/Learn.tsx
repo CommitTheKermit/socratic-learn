@@ -25,6 +25,8 @@ interface Props {
   setStepIdx: (n: number) => void;
   answers: Record<string, string>;
   setAnswers: (next: Record<string, string>) => void;
+  /** 입력 완료 신호. textarea 포커스 이탈 시 보류 중인 답변을 즉시 저장한다. */
+  onAnswerCommit?: () => void;
   skips: Record<string, boolean>;
   setSkips: (next: Record<string, boolean>) => void;
   onPrev: () => void;
@@ -61,6 +63,7 @@ export function StageLearn({
   setStepIdx,
   answers,
   setAnswers,
+  onAnswerCommit,
   skips,
   setSkips,
   onPrev,
@@ -370,6 +373,7 @@ export function StageLearn({
                   setAnswers({ ...answers, [q.id]: e.target.value });
                   if (isSkipped) setSkips({ ...skips, [q.id]: false });
                 }}
+                onBlur={() => onAnswerCommit?.()}
               />
               {ev && !isSkipped && (
                 <div className="qa-feedback">
