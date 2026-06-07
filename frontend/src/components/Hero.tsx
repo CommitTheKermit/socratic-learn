@@ -35,17 +35,6 @@ export function Hero({ depth, onDepth, concept, setConcept, onStart }: Props) {
         <span className="in-lead plain" aria-hidden>
           {I.sparkle}
         </span>
-        <label className="depth-select">
-          {DEPTHS.find((d) => d.value === depth)?.label || "0depth"}
-          <span className="chev">{I.chevSmall}</span>
-          <select value={depth} onChange={(e) => onDepth(e.target.value)}>
-            {DEPTHS.map((d) => (
-              <option key={d.value} value={d.value}>
-                {d.label} · {d.hint}
-              </option>
-            ))}
-          </select>
-        </label>
         <textarea
           ref={ref}
           rows={1}

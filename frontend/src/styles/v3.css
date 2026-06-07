@@ -298,6 +298,12 @@ body {
   margin: 6px -8px 0;
   padding: 12px 12px 4px;
 }
+/* 인증 영역 높이 고정: 가장 큰 상태(로그아웃: 안내 행 + 로그인 버튼 ≈ 70px)에 맞춰
+   슬롯 높이를 예약하고, 더 짧은 상태(펜딩/로그인)는 세로 중앙 정렬해 전환 시 흔들림을 막는다. */
+.sb-auth-slot {
+  display: flex; flex-direction: column; justify-content: center;
+  min-height: 72px;
+}
 .sb-user {
   display: flex; align-items: center; gap: 10px;
 }
@@ -524,8 +530,8 @@ body {
   border-radius: var(--radius-xl);
   box-shadow: 0 1px 0 oklch(1 0 0 / 0.04) inset, 0 24px 60px -30px oklch(0 0 0 / 0.6);
 }
-/* 리딩 요소(스파클)가 있는 입력바: lead · depth · textarea · button 4-칸 그리드 */
-.input-bar.has-lead { grid-template-columns: auto auto 1fr auto; }
+/* 리딩 요소(스파클)가 있는 입력바: lead · textarea · button 3-칸 그리드 */
+.input-bar.has-lead { grid-template-columns: auto 1fr auto; }
 .in-lead {
   align-self: center;
   display: inline-flex; align-items: center; justify-content: center;

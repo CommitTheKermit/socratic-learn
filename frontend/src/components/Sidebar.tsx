@@ -227,46 +227,50 @@ export function Sidebar({
             <span className="sb-feedback-mail">commit3921@gmail.com</span>
           </span>
         </a>
-        {authPending ? (
-          <div className="sb-user sb-user-pending" aria-hidden>
-            <div className="sb-avatar" />
-            <div className="sb-user-name sb-skeleton-line" />
-          </div>
-        ) : loggedIn ? (
-          <div className="sb-user">
-            <div className="sb-avatar">
-              {photoURL ? (
-                <img
-                  className="sb-avatar-img"
-                  src={photoURL}
-                  alt=""
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                (userName?.[0] ?? "유").toUpperCase()
-              )}
+        {/* 인증 영역: 상태(펜딩/로그인/로그아웃)마다 콘텐츠 높이가 달라 UI 가 흔들리므로
+            가장 큰 상태(로그아웃) 높이로 슬롯을 예약하고 세로 중앙 정렬해 고정한다. */}
+        <div className="sb-auth-slot">
+          {authPending ? (
+            <div className="sb-user sb-user-pending" aria-hidden>
+              <div className="sb-avatar" />
+              <div className="sb-user-name sb-skeleton-line" />
             </div>
-            <div className="sb-user-name">{userName ?? "사용자"}</div>
-            <button
-              className="sb-signout"
-              type="button"
-              aria-label="로그아웃"
-              onClick={onLogout}
-            >
-              {I.signout}
-            </button>
-          </div>
-        ) : (
-          <div className="sb-auth">
-            <div className="sb-auth-row">
-              <div className="sb-auth-avatar">{I.userOutline}</div>
-              <div className="sb-auth-title">학습 시작을 위해 로그인이 필요해요</div>
+          ) : loggedIn ? (
+            <div className="sb-user">
+              <div className="sb-avatar">
+                {photoURL ? (
+                  <img
+                    className="sb-avatar-img"
+                    src={photoURL}
+                    alt=""
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  (userName?.[0] ?? "유").toUpperCase()
+                )}
+              </div>
+              <div className="sb-user-name">{userName ?? "사용자"}</div>
+              <button
+                className="sb-signout"
+                type="button"
+                aria-label="로그아웃"
+                onClick={onLogout}
+              >
+                {I.signout}
+              </button>
             </div>
-            <button className="sb-login" type="button" onClick={onLogin}>
-              로그인
-            </button>
-          </div>
-        )}
+          ) : (
+            <div className="sb-auth">
+              <div className="sb-auth-row">
+                <div className="sb-auth-avatar">{I.userOutline}</div>
+                <div className="sb-auth-title">학습 시작을 위해 로그인이 필요해요</div>
+              </div>
+              <button className="sb-login" type="button" onClick={onLogin}>
+                로그인
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </aside>
   );
