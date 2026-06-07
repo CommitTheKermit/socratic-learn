@@ -1,6 +1,7 @@
 import { useState, type RefObject } from "react";
 import { I } from "./icons";
 import { STAGE_LABELS, type Stage } from "../stages/data";
+import { getSessionItemKey } from "../state/sessionIndex";
 import type { SessionMeta } from "../state/sessionIndex";
 
 interface Props {
@@ -118,7 +119,7 @@ export function Sidebar({
                 const active = s.sessionId === activeSessionId;
                 return (
                   <div
-                    key={s.sessionId}
+                    key={getSessionItemKey(s)}
                     className={"sb-history-item" + (active ? " is-active" : "")}
                     aria-current={active ? "true" : undefined}
                   >
