@@ -15,6 +15,7 @@ export const ApiPaths = {
   SESSION_SAVE: "/sessionSave",
   SESSION_LIST: "/sessionList",
   SESSION_GET: "/sessionGet",
+  SESSION_DELETE: "/sessionDelete",
 } as const;
 
 // stepDetailStream SSE 이벤트. body 는 delta 로 흘리고 questions 는 complete 에 담긴다.
@@ -153,6 +154,11 @@ export interface SessionListResponse {
 /** GET /sessionGet?id= 응답. 없으면 state=null. */
 export interface SessionGetResponse {
   state: SessionState | null;
+}
+
+/** POST /sessionDelete 요청. uid 격리 컬렉션에서 해당 세션을 영구 삭제한다. */
+export interface SessionDeleteRequest {
+  sessionId: string;
 }
 
 export const API_BASE_URL: string =
