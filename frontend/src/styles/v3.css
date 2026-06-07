@@ -1076,6 +1076,8 @@ body {
 /* ── Learn (통합 학습 페이지) ────────────────────────────────────── */
 .lv-board {
   width: min(1080px, 100%);
+  /* 가로 모드 2단 전환을 뷰포트가 아닌 board 실제 너비로 판단하기 위한 컨테이너 */
+  container: lv-board / inline-size;
   margin: 8px auto;
   display: flex;
   flex-direction: column;
@@ -1281,7 +1283,8 @@ body {
   gap: 18px;
   align-items: start;
 }
-@media (max-width: 900px) {
+/* board 본문 폭이 좁으면(2단이 짓눌려 겹치기 전에) 1단으로 전환 */
+@container lv-board (max-width: 760px) {
   .lv-body.lv2-body { grid-template-columns: 1fr; }
 }
 .lv2-left, .lv2-right {

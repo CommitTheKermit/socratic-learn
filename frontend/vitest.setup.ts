@@ -1,6 +1,21 @@
 import "@testing-library/jest-dom/vitest";
 import { vi } from "vitest";
 
+// jsdom 은 matchMedia 를 구현하지 않는다. App 이 사이드바 반응형 처리에 사용하므로 폴리필.
+if (!window.matchMedia) {
+  window.matchMedia = (query: string) =>
+    ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }) as unknown as MediaQueryList;
+}
+
 // useAuth 를 전역 모킹한다. 이유:
 // 1) src/lib/firebase.ts 는 모듈 로드 시점에 getAuth() 를 실행하는데 jsdom 테스트엔
 //    VITE_FIREBASE_* env 가 없어 auth/invalid-api-key 로 터진다. 모킹하면 firebase 가

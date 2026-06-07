@@ -155,7 +155,16 @@ function AppWorkspace({
     (user as { reloadUserInfo?: { screenName?: string } } | null)?.reloadUserInfo
       ?.screenName ?? undefined;
 
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // 좁은 창(<=1024px)에서는 드로워를 닫아 본문 폭을 확보한다. 창 너비에 양방향으로 반응.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => window.matchMedia("(max-width: 1024px)").matches,
+  );
+  useEffect(() => {
+    const mql = window.matchMedia("(max-width: 1024px)");
+    const onChange = (e: MediaQueryListEvent) => setSidebarCollapsed(e.matches);
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
   const [depth, setDepth] = useState<string>(() => loaded?.depth ?? "0depth");
   const [accent] = useState<string[]>(ACCENT_PRESETS[0]);
   const showAurora = true;
