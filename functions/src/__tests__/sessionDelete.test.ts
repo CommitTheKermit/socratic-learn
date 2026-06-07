@@ -22,16 +22,13 @@ vi.mock("firebase-functions/logger", () => ({
 /** getFirestore() 반환값을 vitest spy 로 제어한다. */
 const mockDelete = vi.fn();
 const mockGet = vi.fn();
-const mockDoc = vi.fn(() => ({ get: mockGet, delete: mockDelete }));
-const mockCollection = vi.fn(() => ({ doc: mockDoc }));
-const mockItemsCol = vi.fn(() => ({ doc: mockDoc }));
 
 vi.mock("firebase-admin/firestore", () => ({
   getFirestore: () => ({
-    collection: (name: string) => ({
-      doc: (uid: string) => ({
+    collection: (_name: string) => ({
+      doc: (_uid: string) => ({
         collection: (_sub: string) => ({
-          doc: mockItemsCol(uid),  // itemsCol(uid).doc(sessionId) 흐름
+          doc: (_sid: string) => ({ get: mockGet, delete: mockDelete }),
         }),
       }),
     }),
@@ -39,7 +36,7 @@ vi.mock("firebase-admin/firestore", () => ({
 }));
 
 /** requireAuth 와 recordUsage 를 독립 mock 으로 교체한다. */
-const mockRequireAuth = vi.fn<[unknown, unknown], Promise<string | null>>();
+const mockRequireAuth = vi.fn<(...args: unknown[]) => Promise<string | null>>();
 const mockRecordUsage = vi.fn();
 
 vi.mock("../auth", () => ({
