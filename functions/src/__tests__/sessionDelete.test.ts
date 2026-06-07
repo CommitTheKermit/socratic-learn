@@ -149,16 +149,18 @@ describe("sessionDelete handler", () => {
     expect(res._status).toBe(400);
   });
 
-  // ── 403(타 uid 세션 삭제 시도) ────────────────────────────────────────────
-  it("인증된 uid 의 컬렉션에 해당 sessionId 가 없으면 403 을 반환한다(타 uid 세션 포함)", async () => {
+  // ── 멱등 삭제(컬렉션에 없음 = 이미 없음/로컬 전용) ─────────────────────────
+  it("인증된 uid 의 컬렉션에 sessionId 가 없으면 멱등 성공(ok:true, alreadyAbsent)을 반환한다", async () => {
     mockRequireAuth.mockResolvedValue("uid-alice");
-    // uid-alice 의 컬렉션에 sessionId 가 없음(exists=false) - uid-bob 소유 세션 시뮬레이션
+    // uid 격리 컬렉션에 문서 없음(exists=false) - 로컬 전용이거나 이미 삭제됨
     mockGet.mockResolvedValue({ exists: false });
-    const req = makeReq({ sessionId: "session-of-bob" });
+    const req = makeReq({ sessionId: "local-only-session" });
     const res = makeRes();
     await handler(req, res);
-    expect(res._status).toBe(403);
-    expect((res._body as { code?: string })?.code).toBe("FORBIDDEN");
+    expect(res._status).toBe(200);
+    expect((res._body as { ok?: boolean; alreadyAbsent?: boolean })?.ok).toBe(true);
+    expect((res._body as { alreadyAbsent?: boolean })?.alreadyAbsent).toBe(true);
+    // 없는 문서이므로 delete 는 호출하지 않는다
     expect(mockDelete).not.toHaveBeenCalled();
   });
 
