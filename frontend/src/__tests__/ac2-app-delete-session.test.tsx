@@ -3,6 +3,14 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 
+// sessionApi 를 stub 해 네트워크 호출 없이 비관적 삭제 흐름을 테스트한다.
+vi.mock("../api/sessionApi", () => ({
+  deleteSessionRemote: vi.fn(() => Promise.resolve()),
+  saveSessionRemote: vi.fn(() => Promise.resolve()),
+  listSessionsRemote: vi.fn(() => Promise.resolve([])),
+  getSessionRemote: vi.fn(() => Promise.resolve(null)),
+}));
+
 // 학습 단계의 콘텐츠 로딩(네트워크/Claude)을 stub 하여 렌더 테스트를 격리한다.
 vi.mock("../api/claudeContent", () => ({
   ClaudeContentError: class ClaudeContentError extends Error {

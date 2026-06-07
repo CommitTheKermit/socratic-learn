@@ -1,8 +1,75 @@
-import { useState, type RefObject } from "react";
+import { memo, useState, type RefObject } from "react";
 import { I } from "./icons";
 import { STAGE_LABELS, type Stage } from "../stages/data";
 import { getSessionItemKey } from "../state/sessionIndex";
 import type { SessionMeta } from "../state/sessionIndex";
+
+export interface SessionItemProps {
+  sessionId: string;
+  conceptSummary: string;
+  stage: Stage;
+  createdAt: number;
+  isActive: boolean;
+  onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
+}
+
+function relTime(ts: number): string {
+  if (!ts) return "";
+  const m = Math.floor((Date.now() - ts) / 60000);
+  if (m < 1) return "방금";
+  if (m < 60) return `${m}분 전`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}시간 전`;
+  return `${Math.floor(h / 24)}일 전`;
+}
+
+/**
+ * 히스토리 목록 단일 행. React.memo 로 래핑해 부모 리렌더 시
+ * props 가 변하지 않은 비활성 항목의 리마운트/리렌더를 방지한다.
+ */
+export const SessionItem = memo(function SessionItem({
+  sessionId,
+  conceptSummary,
+  stage,
+  createdAt,
+  isActive,
+  onSelect,
+  onDelete,
+}: SessionItemProps) {
+  return (
+    <div
+      className={"sb-history-item" + (isActive ? " is-active" : "")}
+      aria-current={isActive ? "true" : undefined}
+    >
+      <button
+        className="sb-history-open"
+        type="button"
+        onClick={() => onSelect(sessionId)}
+      >
+        <span className="sb-hi-main">
+          <span className="sb-hi-title">
+            {isActive && <span className="sb-hi-livedot" />}
+            <span className="nm">{conceptSummary}</span>
+          </span>
+          <span className="sb-hi-meta">
+            <span className="stg">{STAGE_LABELS[stage]}</span>
+            <span className="sep">·</span>
+            {isActive ? "진행 중" : relTime(createdAt)}
+          </span>
+        </span>
+      </button>
+      <button
+        className="sb-hi-del"
+        type="button"
+        aria-label="세션 삭제"
+        onClick={() => onDelete(sessionId)}
+      >
+        {I.trash}
+      </button>
+    </div>
+  );
+});
 
 interface Props {
   stage: Stage;
@@ -47,16 +114,6 @@ export function Sidebar({
 }: Props) {
   const [historyOpen, setHistoryOpen] = useState(true);
   const isActive = stage !== "input";
-
-  const relTime = (ts: number): string => {
-    if (!ts) return "";
-    const m = Math.floor((Date.now() - ts) / 60000);
-    if (m < 1) return "방금";
-    if (m < 60) return `${m}분 전`;
-    const h = Math.floor(m / 60);
-    if (h < 24) return `${h}시간 전`;
-    return `${Math.floor(h / 24)}일 전`;
-  };
 
   return (
     <aside
@@ -115,42 +172,18 @@ export function Sidebar({
         (sessions !== undefined ? (
           sessions.length > 0 ? (
             <div className="sb-history-list">
-              {sessions.map((s) => {
-                const active = s.sessionId === activeSessionId;
-                return (
-                  <div
-                    key={getSessionItemKey(s)}
-                    className={"sb-history-item" + (active ? " is-active" : "")}
-                    aria-current={active ? "true" : undefined}
-                  >
-                    <button
-                      className="sb-history-open"
-                      type="button"
-                      onClick={() => onSelectSession?.(s.sessionId)}
-                    >
-                      <span className="sb-hi-main">
-                        <span className="sb-hi-title">
-                          {active && <span className="sb-hi-livedot" />}
-                          <span className="nm">{s.conceptSummary}</span>
-                        </span>
-                        <span className="sb-hi-meta">
-                          <span className="stg">{STAGE_LABELS[s.stage]}</span>
-                          <span className="sep">·</span>
-                          {active ? "진행 중" : relTime(s.createdAt)}
-                        </span>
-                      </span>
-                    </button>
-                    <button
-                      className="sb-hi-del"
-                      type="button"
-                      aria-label="세션 삭제"
-                      onClick={() => onDeleteSession?.(s.sessionId)}
-                    >
-                      {I.trash}
-                    </button>
-                  </div>
-                );
-              })}
+              {sessions.map((s) => (
+                <SessionItem
+                  key={getSessionItemKey(s)}
+                  sessionId={s.sessionId}
+                  conceptSummary={s.conceptSummary}
+                  stage={s.stage}
+                  createdAt={s.createdAt}
+                  isActive={s.sessionId === activeSessionId}
+                  onSelect={onSelectSession ?? (() => {})}
+                  onDelete={onDeleteSession ?? (() => {})}
+                />
+              ))}
             </div>
           ) : (
             <div className="sb-history-list">

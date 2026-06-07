@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import { Sidebar } from "./components/Sidebar";
 import { ProgressBar } from "./components/ProgressBar";
@@ -441,7 +441,7 @@ function AppWorkspace({
    * 사이드바에서 다른 세션 선택. 그 세션의 단계 URL 로 이동하면 key 재마운트로 산출물이 복원된다.
    * 캐시에 없는 원격 전용 세션(다기기 유입)은 먼저 Firestore 에서 받아 캐시에 채운 뒤 올바른 단계로 이동한다.
    */
-  const switchSession = async (targetId: string) => {
+  const switchSession = useCallback(async (targetId: string) => {
     if (targetId === sessionId) return;
     let target = loadSession(targetId);
     if (!target) {
@@ -458,13 +458,13 @@ function AppWorkspace({
       // 무시
     }
     navigate(pathFor(targetId, target?.stage ?? "input", target?.stepIdx ?? 0));
-  };
+  }, [sessionId, navigate]);
 
   /**
    * 세션 삭제 - 비관적 삭제: 원격 삭제 성공 시에만 로컬을 제거한다.
    * 원격 실패(네트워크/4xx/5xx) 시 console.error 1회, 로컬 보존, 목록 유지.
    */
-  const deleteSession = async (id: string) => {
+  const deleteSession = useCallback(async (id: string) => {
     try {
       await deleteSessionRemote(id);
     } catch (e) {
@@ -487,7 +487,7 @@ function AppWorkspace({
       }
       navigate("/");
     }
-  };
+  }, [sessionId, navigate]);
 
   return (
     <div
