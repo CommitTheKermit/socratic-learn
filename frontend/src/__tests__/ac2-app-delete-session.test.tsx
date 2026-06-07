@@ -19,7 +19,7 @@ vi.mock("../api/claudeContent", () => ({
 }));
 
 // sessionApi - 원격 삭제(deleteSessionRemote)를 성공으로 stub 한다.
-// 비관적 삭제: 원격 성공 후 로컬 제거가 일어나므로 테스트는 원격 성공을 전제로 검증한다.
+// 낙관적 삭제: 로컬을 즉시 제거하고 원격은 뒤따라 호출된다(성공 시 tombstone 해제).
 vi.mock("../api/sessionApi", () => ({
   deleteSessionRemote: vi.fn(async () => undefined),
   saveSessionRemote: vi.fn(async () => undefined),
@@ -30,6 +30,7 @@ vi.mock("../api/sessionApi", () => ({
 import * as sessionIndex from "../state/sessionIndex";
 import { upsertSessionMeta } from "../state/sessionIndex";
 import { sessionKey } from "../state/sessionPersist";
+import { listTombstones } from "../state/sessionTombstone";
 import App from "../App";
 
 const ACTIVE_KEY = "socratic:activeSessionId";
@@ -68,8 +69,8 @@ beforeEach(() => {
   vi.spyOn(window, "confirm").mockReturnValue(true);
 });
 
-describe("Sub-AC 3a: deleteSession 비관적 삭제 순서 보장", () => {
-  test("deleteSessionRemote가 pending인 동안 removeSessionMeta와 localStorage.removeItem을 호출하지 않는다", async () => {
+describe("낙관적 삭제: 로컬 즉시 제거 + tombstone, 원격은 뒤따라 호출", () => {
+  test("deleteSessionRemote 가 pending 이어도 클릭 즉시 로컬을 제거하고 tombstone 을 기록한다", async () => {
     localStorage.setItem(ACTIVE_KEY, "active-1");
     localStorage.setItem(
       sessionKey("active-1"),
@@ -84,7 +85,6 @@ describe("Sub-AC 3a: deleteSession 비관적 삭제 순서 보장", () => {
     vi.mocked(mockDeleteRemote).mockImplementation(() => new Promise(() => undefined));
 
     const removeMetaSpy = vi.spyOn(sessionIndex, "removeSessionMeta");
-    const removeItemSpy = vi.spyOn(Storage.prototype, "removeItem");
 
     const user = userEvent.setup();
     renderApp(["/"]);
@@ -96,89 +96,45 @@ describe("Sub-AC 3a: deleteSession 비관적 삭제 순서 보장", () => {
         .find(Boolean),
     )) as HTMLElement;
 
-    // 삭제 버튼 클릭 - deleteSessionRemote 는 pending 이라 await 에 걸려 있음
     await user.click(within(item).getByLabelText("세션 삭제"));
 
-    // pending 상태에서는 로컬 삭제가 일어나지 않아야 한다
-    expect(removeMetaSpy).not.toHaveBeenCalled();
-    // removeItem 은 다른 경로(navigate 등)에서 호출될 수 있으므로
-    // sessionKey("active-1") 와 인덱스 키 호출 여부만 확인한다
-    const sessionDataKey = sessionKey("active-1");
-    const sessionIndexKey = "socratic:sessions:index";
-    const removeItemCalls = removeItemSpy.mock.calls.map((c) => c[0]);
-    expect(removeItemCalls).not.toContain(sessionDataKey);
-    expect(removeItemCalls).not.toContain(sessionIndexKey);
+    // 낙관적: 원격이 pending 이어도 로컬은 즉시 제거된다
+    expect(removeMetaSpy).toHaveBeenCalledWith("active-1");
+    expect(localStorage.getItem(sessionKey("active-1"))).toBeNull();
+    expect(sessionIndex.listSessions().some((m) => m.sessionId === "active-1")).toBe(false);
+    // tombstone 에 기록되어, 원격 미완료 상태에서도 재출현이 차단된다
+    expect(listTombstones().has("active-1")).toBe(true);
+    // 원격 삭제는 (뒤따라) 호출되었다
+    expect(mockDeleteRemote).toHaveBeenCalledWith("active-1");
   });
-});
 
-describe("Sub-AC 3b: deleteSession 호출 순서 - resolved mock 검증", () => {
-  test("deleteSessionRemote resolve 후 removeSessionMeta -> localStorage.removeItem 순서로 호출된다", async () => {
-    localStorage.setItem(ACTIVE_KEY, "active-order");
+  test("원격 삭제 성공 시 tombstone 이 해제된다", async () => {
+    localStorage.setItem(ACTIVE_KEY, "active-ok");
     localStorage.setItem(
-      sessionKey("active-order"),
-      JSON.stringify(
-        seededState({ sessionId: "active-order", concept: "순서검증개념", conceptSummary: "순서검증개념" }),
-      ),
+      sessionKey("active-ok"),
+      JSON.stringify(seededState({ sessionId: "active-ok", concept: "성공개념", conceptSummary: "성공개념" })),
     );
-    upsertSessionMeta({ sessionId: "active-order", createdAt: 99, conceptSummary: "순서검증개념", stage: "input" });
+    upsertSessionMeta({ sessionId: "active-ok", createdAt: 9, conceptSummary: "성공개념", stage: "input" });
 
-    const callOrder: string[] = [];
-
-    // deleteSessionRemote: resolved mock - 호출 순서 기록
     const { deleteSessionRemote: mockDeleteRemote } = await import("../api/sessionApi");
-    vi.mocked(mockDeleteRemote).mockImplementation(async () => {
-      callOrder.push("deleteSessionRemote");
-    });
-
-    // removeSessionMeta: 순서 기록 후 원본 동작 유지
-    const origRemoveSessionMeta = sessionIndex.removeSessionMeta;
-    vi.spyOn(sessionIndex, "removeSessionMeta").mockImplementation((id, storage) => {
-      callOrder.push("removeSessionMeta");
-      origRemoveSessionMeta(id, storage);
-    });
-
-    // localStorage.removeItem: 대상 키에 한해 순서 기록 후 원본 동작 유지
-    const targetSessionKey = sessionKey("active-order");
-    const nativeRemoveItem = Storage.prototype.removeItem;
-    vi.spyOn(Storage.prototype, "removeItem").mockImplementation(function (
-      this: Storage,
-      key: string,
-    ) {
-      if (key === targetSessionKey) {
-        callOrder.push("localStorage.removeItem");
-      }
-      nativeRemoveItem.call(this, key);
-    });
+    vi.mocked(mockDeleteRemote).mockResolvedValue(undefined);
 
     const user = userEvent.setup();
     renderApp(["/"]);
 
     const item = (await waitFor(() =>
       screen
-        .getAllByText("순서검증개념")
+        .getAllByText("성공개념")
         .map((el) => el.closest(".sb-history-item"))
         .find(Boolean),
     )) as HTMLElement;
 
     await user.click(within(item).getByLabelText("세션 삭제"));
 
-    // deleteSessionRemote resolve 후 로컬 연산이 실행되기를 기다린다
+    // 원격 성공이 반영되면 tombstone 이 비워진다
     await waitFor(() => {
-      expect(callOrder).toContain("removeSessionMeta");
-      expect(callOrder).toContain("localStorage.removeItem");
+      expect(listTombstones().has("active-ok")).toBe(false);
     });
-
-    // 호출 순서 단언: deleteSessionRemote < removeSessionMeta < localStorage.removeItem
-    const remoteIdx = callOrder.indexOf("deleteSessionRemote");
-    const metaIdx = callOrder.indexOf("removeSessionMeta");
-    const removeItemIdx = callOrder.indexOf("localStorage.removeItem");
-
-    expect(remoteIdx).toBeGreaterThanOrEqual(0);
-    expect(metaIdx).toBeGreaterThanOrEqual(0);
-    expect(removeItemIdx).toBeGreaterThanOrEqual(0);
-
-    expect(remoteIdx).toBeLessThan(metaIdx);
-    expect(metaIdx).toBeLessThan(removeItemIdx);
   });
 });
 

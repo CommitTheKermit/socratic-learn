@@ -25,6 +25,7 @@ import {
   persistWithSync,
 } from "./state/sessionSync";
 import { deleteSessionRemote } from "./api/sessionApi";
+import { addTombstone, listTombstones, removeTombstone } from "./state/sessionTombstone";
 import { useDebouncedPersist } from "./state/useDebouncedPersist";
 import { useAuth } from "./state/useAuth";
 import { hasSynced, markSynced } from "./state/fetchOncePerSession";
@@ -247,11 +248,24 @@ function AppWorkspace({
   const [sessions, setSessions] = useState<SessionMeta[]>(() => listSessions());
 
   // 사이드바 목록을 원격과 1회 병합한다. 로컬(작업 중) 메타는 유지하고 원격 전용 세션만 추가한다.
+  // 낙관적 삭제의 tombstone 에 든 세션은 병합에서 제외해 재출현을 막고, 원격 삭제를 재시도한다.
   useEffect(() => {
     let alive = true;
     void fetchRemoteSessionList().then((remote) => {
-      if (!alive || !remote.length) return;
-      setSessions((local) => mergeSessionLists(local, remote));
+      if (!alive) return;
+      const tombstoned = listTombstones();
+      // tombstone 세션은 원격 삭제 재시도(성공 시 tombstone 해제). 실패는 다음 접속에 재시도.
+      for (const id of tombstoned) {
+        void deleteSessionRemote(id)
+          .then(() => removeTombstone(id))
+          .catch(() => {});
+      }
+      const visible = remote.filter((r) => !tombstoned.has(r.sessionId));
+      if (!visible.length) return;
+      setSessions((local) => {
+        const merged = mergeSessionLists(local, visible);
+        return sessionListsEqual(local, merged) ? local : merged;
+      });
     });
     return () => {
       alive = false;
@@ -461,17 +475,15 @@ function AppWorkspace({
   }, [sessionId, navigate]);
 
   /**
-   * 세션 삭제 - 비관적 삭제: 원격 삭제 성공 시에만 로컬을 제거한다.
-   * 원격 실패(네트워크/4xx/5xx) 시 console.error 1회, 로컬 보존, 목록 유지.
+   * 세션 삭제 - 낙관적 삭제: 로컬을 즉시 제거하고 원격 삭제는 뒤따라 시도한다.
+   * tombstone 으로 삭제 id 를 기록해, 원격 삭제가 실패해도 mergeSessionLists 가
+   * 되살리지 못하게 막는다. 원격 삭제가 성공하면 tombstone 을 해제하고,
+   * 실패(네트워크/4xx/5xx)하면 console.error 1회 후 tombstone 을 남겨 다음 접속에 재시도한다.
    */
-  const deleteSession = useCallback(async (id: string) => {
+  const deleteSession = useCallback((id: string) => {
+    // 1) 로컬 즉시 삭제(낙관적) + tombstone 기록.
     try {
-      await deleteSessionRemote(id);
-    } catch (e) {
-      console.error("[deleteSession] 원격 삭제 실패, 로컬 보존:", e);
-      return;
-    }
-    try {
+      addTombstone(id);
       removeSessionMeta(id);
       localStorage.removeItem(sessionKey(id));
     } catch {
@@ -487,6 +499,12 @@ function AppWorkspace({
       }
       navigate("/");
     }
+    // 2) 원격 삭제는 백그라운드. 성공 시 tombstone 해제, 실패 시 tombstone 유지(다음 접속 재시도).
+    void deleteSessionRemote(id)
+      .then(() => removeTombstone(id))
+      .catch((e) => {
+        console.error("[deleteSession] 원격 삭제 실패, tombstone 유지(다음 접속 재시도):", e);
+      });
   }, [sessionId, navigate]);
 
   return (

@@ -1,12 +1,14 @@
 /**
- * AC 4: deleteSessionRemote reject 시 로컬 메타/본문 보존 + 목록 항목 유지 + console.error 정확히 1회
+ * AC 4 (낙관적 삭제): deleteSessionRemote reject 시 로컬은 즉시 제거되고
+ * tombstone 이 유지되어 재출현이 차단되며 console.error 정확히 1회.
  *
  * 검증 항목:
  * 1. console.error spy: 정확히 1회 호출
- * 2. removeSessionMeta: 호출되지 않음 (로컬 메타 보존)
- * 3. localStorage.removeItem(sessionKey(id)): 호출되지 않음 (본문 보존)
- * 4. 세션 항목이 사이드바 목록에 그대로 남아 있음
- * 5. 다른 UI 알림(alert/toast) 없음 - window.alert spy 로 확인
+ * 2. removeSessionMeta: 호출됨 (낙관적 - 로컬 즉시 제거)
+ * 3. localStorage.removeItem(sessionKey(id)): 본문 즉시 제거
+ * 4. 세션 항목이 사이드바 목록에서 사라짐
+ * 5. tombstone 에 해당 id 가 남아 다음 접속 병합 시 재출현이 차단됨
+ * 6. 다른 UI 알림(alert/toast) 없음 - window.alert spy 로 확인
  */
 import { describe, test, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
@@ -39,6 +41,7 @@ import * as sessionApiModule from "../api/sessionApi";
 import * as sessionIndex from "../state/sessionIndex";
 import { upsertSessionMeta } from "../state/sessionIndex";
 import { sessionKey } from "../state/sessionPersist";
+import { listTombstones } from "../state/sessionTombstone";
 import App from "../App";
 
 const ACTIVE_KEY = "socratic:activeSessionId";
@@ -76,8 +79,8 @@ beforeEach(() => {
   vi.spyOn(window, "confirm").mockReturnValue(true);
 });
 
-describe("AC 4: deleteSessionRemote 실패 시 로컬 보존 + console.error 1회", () => {
-  test("원격 삭제 reject 시 console.error 정확히 1회, removeSessionMeta 미호출, 세션 본문 보존", async () => {
+describe("AC 4 (낙관적): deleteSessionRemote 실패 시 로컬 즉시 제거 + tombstone 유지 + console.error 1회", () => {
+  test("원격 삭제 reject 시 로컬 즉시 제거 + tombstone 유지 + console.error 1회 + alert 없음", async () => {
     // 1. 로컬 상태 씨드
     localStorage.setItem(ACTIVE_KEY, "del-fail-1");
     localStorage.setItem(
@@ -122,21 +125,23 @@ describe("AC 4: deleteSessionRemote 실패 시 로컬 보존 + console.error 1�
     // 7. console.error 정확히 1회
     expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
 
-    // 8. removeSessionMeta 미호출 - 로컬 메타 보존
-    expect(removeMetaSpy).not.toHaveBeenCalled();
+    // 8. removeSessionMeta 호출됨 - 낙관적 로컬 즉시 제거
+    expect(removeMetaSpy).toHaveBeenCalledWith("del-fail-1");
 
-    // 9. localStorage 본문 보존 - 세션 데이터 아직 있음
-    expect(localStorage.getItem(sessionKey("del-fail-1"))).not.toBeNull();
+    // 9. localStorage 본문 즉시 제거
+    expect(localStorage.getItem(sessionKey("del-fail-1"))).toBeNull();
 
-    // 10. 메타 인덱스도 보존
-    const sessions = sessionIndex.listSessions();
-    expect(sessions.some((m) => m.sessionId === "del-fail-1")).toBe(true);
+    // 10. 메타 인덱스에서도 사라짐
+    expect(sessionIndex.listSessions().some((m) => m.sessionId === "del-fail-1")).toBe(false);
 
-    // 11. 다른 UI 알림 없음
+    // 11. tombstone 유지 - 다음 접속 병합 시 재출현 차단
+    expect(listTombstones().has("del-fail-1")).toBe(true);
+
+    // 12. 다른 UI 알림 없음
     expect(alertSpy).not.toHaveBeenCalled();
   });
 
-  test("원격 삭제 reject 시 세션 항목이 사이드바 목록에 그대로 유지된다", async () => {
+  test("원격 삭제 reject(500) 시에도 항목이 사이드바 목록에서 사라지고 tombstone 에 남는다", async () => {
     // 비활성 세션 하나 + 삭제 시도할 세션 하나
     localStorage.setItem(ACTIVE_KEY, "active-ok");
     localStorage.setItem(
@@ -191,19 +196,19 @@ describe("AC 4: deleteSessionRemote 실패 시 로컬 보존 + console.error 1�
       expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
     });
 
-    // 항목이 사이드바에 아직 표시됨
-    expect(screen.getByText("삭제실패항목")).toBeInTheDocument();
+    // 항목이 사이드바에서 사라짐(낙관적)
+    expect(screen.queryByText("삭제실패항목")).not.toBeInTheDocument();
 
-    // 활성 세션도 영향 없음
+    // 활성 세션은 영향 없음
     expect(screen.getAllByText("활성개념OK").length).toBeGreaterThan(0);
 
-    // 로컬 데이터 보존
-    expect(localStorage.getItem(sessionKey("del-fail-2"))).not.toBeNull();
-    const sessions = sessionIndex.listSessions();
-    expect(sessions.some((m) => m.sessionId === "del-fail-2")).toBe(true);
+    // 로컬 데이터 즉시 제거 + tombstone 유지
+    expect(localStorage.getItem(sessionKey("del-fail-2"))).toBeNull();
+    expect(sessionIndex.listSessions().some((m) => m.sessionId === "del-fail-2")).toBe(false);
+    expect(listTombstones().has("del-fail-2")).toBe(true);
   });
 
-  test("4xx 응답(403) reject 도 동일하게 로컬 보존 + console.error 1회", async () => {
+  test("4xx 응답(403) reject 도 동일하게 로컬 즉시 제거 + tombstone 유지 + console.error 1회", async () => {
     localStorage.setItem(ACTIVE_KEY, "del-fail-3");
     localStorage.setItem(
       sessionKey("del-fail-3"),
@@ -244,13 +249,13 @@ describe("AC 4: deleteSessionRemote 실패 시 로컬 보존 + console.error 1�
       expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
     });
 
-    // 로컬 보존
-    expect(removeMetaSpy).not.toHaveBeenCalled();
-    expect(localStorage.getItem(sessionKey("del-fail-3"))).not.toBeNull();
+    // 낙관적 로컬 즉시 제거
+    expect(removeMetaSpy).toHaveBeenCalledWith("del-fail-3");
+    expect(localStorage.getItem(sessionKey("del-fail-3"))).toBeNull();
+    expect(sessionIndex.listSessions().some((m) => m.sessionId === "del-fail-3")).toBe(false);
 
-    // 목록 항목 유지
-    const sessions = sessionIndex.listSessions();
-    expect(sessions.some((m) => m.sessionId === "del-fail-3")).toBe(true);
+    // tombstone 유지
+    expect(listTombstones().has("del-fail-3")).toBe(true);
 
     // console.error 정확히 1회 (중복 호출 없음)
     expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
