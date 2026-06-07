@@ -24,6 +24,7 @@ import {
   mergeSessionLists,
   persistWithSync,
 } from "./state/sessionSync";
+import { deleteSessionRemote } from "./api/sessionApi";
 import { useDebouncedPersist } from "./state/useDebouncedPersist";
 import { useAuth } from "./state/useAuth";
 import { hasSynced, markSynced } from "./state/fetchOncePerSession";
@@ -459,8 +460,17 @@ function AppWorkspace({
     navigate(pathFor(targetId, target?.stage ?? "input", target?.stepIdx ?? 0));
   };
 
-  /** 세션 삭제. 활성 세션을 지우면 홈으로 이동한다. */
-  const deleteSession = (id: string) => {
+  /**
+   * 세션 삭제 - 비관적 삭제: 원격 삭제 성공 시에만 로컬을 제거한다.
+   * 원격 실패(네트워크/4xx/5xx) 시 console.error 1회, 로컬 보존, 목록 유지.
+   */
+  const deleteSession = async (id: string) => {
+    try {
+      await deleteSessionRemote(id);
+    } catch (e) {
+      console.error("[deleteSession] 원격 삭제 실패, 로컬 보존:", e);
+      return;
+    }
     try {
       removeSessionMeta(id);
       localStorage.removeItem(sessionKey(id));

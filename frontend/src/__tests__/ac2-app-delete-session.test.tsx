@@ -18,6 +18,15 @@ vi.mock("../api/claudeContent", () => ({
   generateAnswerEvaluation: vi.fn(async () => ({})),
 }));
 
+// sessionApi - 원격 삭제(deleteSessionRemote)를 성공으로 stub 한다.
+// 비관적 삭제: 원격 성공 후 로컬 제거가 일어나므로 테스트는 원격 성공을 전제로 검증한다.
+vi.mock("../api/sessionApi", () => ({
+  deleteSessionRemote: vi.fn(async () => undefined),
+  saveSessionRemote: vi.fn(async () => undefined),
+  listSessionsRemote: vi.fn(async () => []),
+  getSessionRemote: vi.fn(async () => null),
+}));
+
 import * as sessionIndex from "../state/sessionIndex";
 import { upsertSessionMeta } from "../state/sessionIndex";
 import { sessionKey } from "../state/sessionPersist";
