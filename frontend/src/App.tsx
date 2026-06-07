@@ -156,15 +156,71 @@ function AppWorkspace({
       ?.screenName ?? undefined;
 
   // 좁은 창(<=1024px)에서는 드로워를 닫아 본문 폭을 확보한다. 창 너비에 양방향으로 반응.
+  // overlayMode: 좁은 화면이면 드로워가 grid 칸을 차지하지 않고 본문 위에 떠서(오버레이) 열린다.
+  // 넓은 화면이면 기존처럼 grid 한 칸(인라인 push)으로 동작한다.
+  const [overlayMode, setOverlayMode] = useState(
+    () => window.matchMedia("(max-width: 1024px)").matches,
+  );
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => window.matchMedia("(max-width: 1024px)").matches,
   );
   useEffect(() => {
     const mql = window.matchMedia("(max-width: 1024px)");
-    const onChange = (e: MediaQueryListEvent) => setSidebarCollapsed(e.matches);
+    const onChange = (e: MediaQueryListEvent) => {
+      setOverlayMode(e.matches);
+      setSidebarCollapsed(e.matches);
+    };
     mql.addEventListener("change", onChange);
     return () => mql.removeEventListener("change", onChange);
   }, []);
+
+  // 오버레이 열기 트리거 버튼. 닫힐 때 이 버튼으로 포커스를 되돌린다.
+  const sidebarTriggerRef = useRef<HTMLButtonElement>(null);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const openSidebar = () => setSidebarCollapsed(false);
+  const closeSidebar = () => setSidebarCollapsed(true);
+  // 오버레이가 열린 상태에서만 스크림/포커스 처리. 넓은 화면(인라인)은 해당 없음.
+  const overlayOpen = overlayMode && !sidebarCollapsed;
+
+  // 오버레이 열림: 드로워로 포커스 이동 + Esc 로 닫기 + 닫힐 때 트리거로 포커스 복귀 + 단순 포커스 트랩.
+  useEffect(() => {
+    if (!overlayOpen) return;
+    const drawer = sidebarRef.current;
+    const focusables = () =>
+      drawer
+        ? Array.from(
+            drawer.querySelectorAll<HTMLElement>(
+              'button, [href], input, textarea, [tabindex]:not([tabindex="-1"])',
+            ),
+          ).filter((el) => !el.hasAttribute("disabled"))
+        : [];
+    focusables()[0]?.focus();
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeSidebar();
+        return;
+      }
+      if (e.key === "Tab") {
+        const items = focusables();
+        if (items.length === 0) return;
+        const first = items[0];
+        const last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      sidebarTriggerRef.current?.focus();
+    };
+  }, [overlayOpen]);
   const [depth, setDepth] = useState<string>(() => loaded?.depth ?? "0depth");
   const [accent] = useState<string[]>(ACCENT_PRESETS[0]);
   const showAurora = true;
@@ -419,17 +475,41 @@ function AppWorkspace({
     <div
       className="app"
       data-sidebar={sidebarCollapsed ? "collapsed" : "open"}
+      data-sidebar-mode={overlayMode ? "overlay" : "inline"}
       data-stage={stage}
       style={accentStyle}
     >
+      {sidebarCollapsed && (
+        <button
+          ref={sidebarTriggerRef}
+          className="sb-open"
+          type="button"
+          aria-label="사이드바 열기"
+          onClick={openSidebar}
+        >
+          {I.sidebar}
+        </button>
+      )}
+      {overlayOpen && (
+        <div className="scrim" onClick={closeSidebar} aria-hidden />
+      )}
+
       <Sidebar
+        ref={sidebarRef}
+        overlay={overlayOpen}
         stage={stage}
         concept={concept}
-        onNewSession={newSession}
+        onNewSession={() => {
+          if (overlayMode) closeSidebar();
+          newSession();
+        }}
         onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
         sessions={sessions}
         activeSessionId={sessionId ?? ""}
-        onSelectSession={switchSession}
+        onSelectSession={(id) => {
+          if (overlayMode) closeSidebar();
+          void switchSession(id);
+        }}
         onDeleteSession={deleteSession}
         authPending={authLoading}
         loggedIn={!!user}
