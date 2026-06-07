@@ -26,6 +26,7 @@ import {
 } from "./state/sessionSync";
 import { useDebouncedPersist } from "./state/useDebouncedPersist";
 import { useAuth } from "./state/useAuth";
+import { markComplete, isComplete } from "./state/sessionSyncRegistry";
 
 type AccentVars = CSSProperties & {
   "--holo"?: string;
@@ -45,12 +46,6 @@ function createSessionId(): string {
   return `s-${Date.now().toString(36)}-${sessionSeq.toString(36)}`;
 }
 
-/**
- * 탭 수명 동안 fetchAndMerge 가 성공한 sessionId 집합(메모리 내 Set).
- * AppShell key=sessionId 재마운트에도 살아남도록 모듈 스코프에 둔다.
- * 브라우저 새로고침(F5) 시 초기화되어 다음 진입에서 1회 재시도한다.
- */
-const syncedSessionIds = new Set<string>();
 
 /** stage(+stepIdx) 를 경로 문자열로 변환한다. sessionId 가 없으면 홈("/"). */
 function pathFor(sessionId: string | undefined, stage: Stage, stepIdx = 0): string {
@@ -109,11 +104,11 @@ function AppSession({ stage, sessionId }: { stage: Stage; sessionId?: string }) 
     [sessionId, reloadToken],
   );
   useEffect(() => {
-    if (!sessionId || syncedSessionIds.has(sessionId)) return;
+    if (!sessionId || isComplete(sessionId)) return;
     void fetchAndMerge(sessionId)
       .then((merged) => {
         // fetch 성공 시에만 완료로 기록(실패는 다음 진입에 재시도).
-        syncedSessionIds.add(sessionId);
+        markComplete(sessionId);
         // 병합 결과가 캐시와 달랐을 때만(merged != null) 재마운트해 모든 상태를 다시 시드한다.
         if (merged) setReloadToken((t) => t + 1);
       })
