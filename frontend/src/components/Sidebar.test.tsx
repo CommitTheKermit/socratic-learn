@@ -16,8 +16,8 @@ function renderSidebar(props: Partial<React.ComponentProps<typeof Sidebar>> = {}
     <Sidebar
       stage="input"
       concept=""
+      drawerState="open"
       onNewSession={noop}
-      onToggleCollapse={noop}
       sessions={sessions}
       activeSessionId="s1"
       onSelectSession={noop}
@@ -108,7 +108,6 @@ describe("Sidebar 로그인 상태 분기 (sb-foot)", () => {
         stage="input"
         concept=""
         onNewSession={noop}
-        onToggleCollapse={noop}
         sessions={sessions}
         activeSessionId="s1"
         onSelectSession={noop}

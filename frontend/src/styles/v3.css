@@ -39,7 +39,8 @@ textarea, input { font: inherit; color: inherit; }
   --radius-xl: 22px;
 
   --sidebar-w: 260px;
-  --sb-peek: 22px; /* 오버레이 접힘 시 가장자리에 남기는 드로워 슬리버 노출 폭 */
+  --sb-peek: 68px;   /* peek 상태에서 가장자리로 미리보기되는 드로워 노출 폭 */
+  --sb-edge-w: 16px; /* hidden 상태의 보이지 않는 엣지 핫존 폭 */
 
   --font-sans: "Pretendard Variable", Pretendard, system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
@@ -60,64 +61,65 @@ body {
   height: 100vh;
   overflow: hidden;
 }
-.app[data-sidebar="collapsed"] { grid-template-columns: 0 1fr; }
-.app[data-sidebar="collapsed"] .sidebar { transform: translateX(-100%); opacity: 0; }
+/* 드로워는 항상 fixed 오버레이라 grid 는 모든 상태에서 단일 컬럼(main 만 in-flow). */
+.app[data-drawer] { grid-template-columns: 1fr; }
 
-/* ── 드로워 모드 분기 ──────────────────────────────────────────────────
-   같은 드로워가 data-sidebar-mode 에 따라 두 가지로 동작한다:
-     inline  (넓음 > 1024px): grid 한 칸을 차지하며 본문을 민다. 스크림 없음.
-     overlay (좁음 ≤ 1024px): 흐름에서 빠져(fixed) 본문 위에 떠 있다.
-   App.tsx 가 matchMedia 결과로 속성을 부여한다. */
-
-/* overlay: 드로워가 흐름에서 빠지므로 main 만 유일한 in-flow grid child 가 된다.
-   한 칸(1fr)을 통째로 main 에 준다. 드로워는 동일 배경색 페이지 위에서도 슬리버가
-   구분되도록 살짝 띄운(elevated) 패널로 띄운다. */
-.app[data-sidebar-mode="overlay"] { grid-template-columns: 1fr; }
-.app[data-sidebar-mode="overlay"] .sidebar {
+/* ── 통합 드로워: 3단계 엣지-공개 (모든 폭 동일) ───────────────────────
+   드로워는 항상 흐름 밖(fixed)으로 본문 위에 떠 있고 컬럼을 차지/밀지 않는다.
+   data-drawer 가 .app 의 위치를 정한다:
+     hidden : 화면 밖. 왼쪽에 보이지 않는 얇은 엣지 핫존(옅은 그립 힌트). 호버 → peek.
+     peek   : 커서가 가장자리에 머무는 동안 드로워 일부가 클릭 가능한 미리보기로
+              슬라이드 아웃. 벗어나면 hidden 으로 되접힘.
+     open   : peek 을 클릭하면 전체가 슬라이드 + 고정(PIN). 마우스를 떼도 유지되며
+              드로워 안 "숨기기" 버튼(또는 Esc)으로 hidden 복귀.
+   패널은 동일 배경 위에서도 구분되도록 살짝 띄운다(elevated). */
+.app .sidebar {
   position: fixed;
   top: 0; left: 0; bottom: 0;
   width: var(--sidebar-w);
   z-index: 100;
   background: var(--bg-elev-1);
   box-shadow: 24px 0 60px -28px oklch(0 0 0 / 0.7);
-  will-change: transform, opacity;
+  will-change: transform;
+  transform: translateX(-100%);            /* hidden (기본) */
 }
-/* overlay 접힘: 드로워가 완전히 나가지 않고 가장자리에 실제 패널의 슬리버(--sb-peek)
-   만큼 남아 재오픈 어포던스가 된다. 호버하면 전체가 미끄러져 나오고(밀림·스크림 없음),
-   벗어나면 다시 슬리버로 접힌다. (base 의 full-hide 를 더 높은 specificity 로 덮는다.) */
-.app[data-sidebar-mode="overlay"][data-sidebar="collapsed"] .sidebar {
-  transform: translateX(calc(-100% + var(--sb-peek)));
-  opacity: 1;
-}
+.app[data-drawer="peek"] .sidebar { transform: translateX(calc(-100% + var(--sb-peek))); }
+.app[data-drawer="open"] .sidebar { transform: translateX(0); }
 
-/* edge hotzone — 슬리버 위에 깔리는 투명 스트립. 호버/클릭/키보드 포커스를 받는다.
-   드로워보다 위에 있어 보이는 슬리버를 호버하면 노출된다. inline 모드(슬리버 없음)
-   에서는 슬리버 대신 얇은 그립을 재오픈 어포던스로 보여준다. */
+/* edge hotzone / peek catcher — 왼쪽 가장자리를 덮는 투명 컨트롤. hidden 에선
+   호버로 peek 을 여는 얇은 스트립, peek 에선 보이는 미리보기를 덮을 만큼 넓어져
+   클릭 시 드로워를 고정한다(미리보기 중 안쪽 nav 가 잘못 눌리지 않게). open 이면 사라짐. */
 .sb-edge {
   position: fixed;
   left: 0; top: 0; bottom: 0;
-  width: 24px;
-  z-index: 120;
+  width: var(--sb-edge-w);
+  z-index: 130;
   display: none;
   align-items: center;
   justify-content: flex-start;
   background: transparent;
+  cursor: pointer;
+  outline: none;   /* 전체 높이 스트립 → 포커스 표시는 그립의 상태로 대신한다 */
 }
-.app[data-sidebar="collapsed"] .sb-edge { display: flex; }
+.app[data-drawer="hidden"] .sb-edge,
+.app[data-drawer="peek"] .sb-edge { display: flex; }
+.app[data-drawer="peek"] .sb-edge { width: var(--sb-peek); }
+
+/* 옅은 그립 힌트 — hidden 가장자리를 발견 가능하게. hidden 상태에서만 보인다. */
 .sb-edge-grip {
-  display: none;
-  width: 4px; height: 46px;
-  margin-left: 3px;
+  width: 3px; height: 40px;
+  margin-left: 4px;
   border-radius: 999px;
-  background: var(--line);
-  transition: background .16s ease, height .16s ease;
+  background: var(--line-2);
+  opacity: 0;
+  transition: opacity .18s ease, height .18s ease, background .18s ease;
 }
-.app[data-sidebar-mode="inline"][data-sidebar="collapsed"] .sb-edge-grip { display: block; }
-.sb-edge:hover .sb-edge-grip,
-.sb-edge:focus-visible .sb-edge-grip {
-  background: var(--fg-dim);
-  height: 72px;
+.app[data-drawer="hidden"] .sb-edge-grip { opacity: 0.55; }
+.app[data-drawer="hidden"] .sb-edge:hover .sb-edge-grip,
+.app[data-drawer="hidden"] .sb-edge:focus-visible .sb-edge-grip {
+  opacity: 1; height: 60px; background: var(--fg-dim);
 }
+.app[data-drawer="peek"] .sb-edge-grip { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .sidebar { transition: none; }
