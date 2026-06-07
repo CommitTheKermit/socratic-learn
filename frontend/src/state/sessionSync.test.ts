@@ -156,6 +156,56 @@ describe("mergeSessionLists", () => {
     const out = mergeSessionLists([meta("a", 10)], [entry("b", 30), entry("c", 20)]);
     expect(out.map((m) => m.sessionId)).toEqual(["b", "c", "a"]);
   });
+
+  // AC 5b: 삭제 성공 후 mergeSessionLists 재실행해도 삭제 세션 미포함
+  describe("AC5b: 원격 삭제 성공 후 mergeSessionLists 재실행 시 삭제 세션 미포함", () => {
+    test("원격에서도 제거된 세션은 mergeSessionLists 결과에 포함되지 않는다", () => {
+      // 삭제 전: 로컬 [a, b, c], 원격 [a, b, c]
+      const localBefore = [meta("a", 300), meta("b", 200), meta("c", 100)];
+      const remoteBefore = [entry("a", 300), entry("b", 200), entry("c", 100)];
+      const before = mergeSessionLists(localBefore, remoteBefore);
+      expect(before.map((m) => m.sessionId)).toContain("b");
+
+      // 원격 삭제 성공 후: 로컬 [a, c], 원격 [a, c] (양쪽에서 b 제거)
+      const localAfter = [meta("a", 300), meta("c", 100)];
+      const remoteAfter = [entry("a", 300), entry("c", 100)];
+      const after = mergeSessionLists(localAfter, remoteAfter);
+
+      expect(after.map((m) => m.sessionId)).not.toContain("b");
+      expect(after.map((m) => m.sessionId)).toEqual(["a", "c"]);
+    });
+
+    test("로컬만 삭제하고 원격에 세션이 남아 있으면 mergeSessionLists가 되살린다(구 문제 재현)", () => {
+      // 로컬에서만 b 제거, 원격은 b 보유 -> mergeSessionLists 가 b 재추가(구 문제)
+      const localOnlyDeleted = [meta("a", 300), meta("c", 100)];
+      const remoteStillHasB = [entry("a", 300), entry("b", 200), entry("c", 100)];
+      const result = mergeSessionLists(localOnlyDeleted, remoteStillHasB);
+
+      // 원격 전용 항목으로 b 가 추가됨 - 이것이 /sessionDelete 없이 로컬만 지울 때의 문제
+      expect(result.map((m) => m.sessionId)).toContain("b");
+    });
+
+    test("원격 삭제 성공 후 재실행: 남은 세션의 순서/값은 보존된다", () => {
+      // a(300), b(200), c(100), d(50) 중 b 삭제
+      const localAfter = [meta("a", 300), meta("c", 100), meta("d", 50)];
+      const remoteAfter = [entry("a", 300), entry("c", 100), entry("d", 50)];
+      const result = mergeSessionLists(localAfter, remoteAfter);
+
+      expect(result.map((m) => m.sessionId)).toEqual(["a", "c", "d"]);
+      // 로컬 메타 값(createdAt) 보존
+      expect(result.find((m) => m.sessionId === "a")?.createdAt).toBe(300);
+      expect(result.find((m) => m.sessionId === "c")?.createdAt).toBe(100);
+    });
+
+    test("삭제된 세션이 원격에서 유일한 항목이어도 빈 목록을 올바르게 반환한다", () => {
+      // 마지막 세션을 삭제
+      const localAfter: SessionMeta[] = [];
+      const remoteAfter: SessionIndexEntry[] = [];
+      const result = mergeSessionLists(localAfter, remoteAfter);
+
+      expect(result).toEqual([]);
+    });
+  });
 });
 
 describe("fetchRemoteSessionList", () => {
