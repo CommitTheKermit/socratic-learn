@@ -111,6 +111,77 @@ describe("Sub-AC 3a: deleteSession 비관적 삭제 순서 보장", () => {
   });
 });
 
+describe("Sub-AC 3b: deleteSession 호출 순서 - resolved mock 검증", () => {
+  test("deleteSessionRemote resolve 후 removeSessionMeta -> localStorage.removeItem 순서로 호출된다", async () => {
+    localStorage.setItem(ACTIVE_KEY, "active-order");
+    localStorage.setItem(
+      sessionKey("active-order"),
+      JSON.stringify(
+        seededState({ sessionId: "active-order", concept: "순서검증개념", conceptSummary: "순서검증개념" }),
+      ),
+    );
+    upsertSessionMeta({ sessionId: "active-order", createdAt: 99, conceptSummary: "순서검증개념", stage: "input" });
+
+    const callOrder: string[] = [];
+
+    // deleteSessionRemote: resolved mock - 호출 순서 기록
+    const { deleteSessionRemote: mockDeleteRemote } = await import("../api/sessionApi");
+    vi.mocked(mockDeleteRemote).mockImplementation(async () => {
+      callOrder.push("deleteSessionRemote");
+    });
+
+    // removeSessionMeta: 순서 기록 후 원본 동작 유지
+    const origRemoveSessionMeta = sessionIndex.removeSessionMeta;
+    vi.spyOn(sessionIndex, "removeSessionMeta").mockImplementation((id, storage) => {
+      callOrder.push("removeSessionMeta");
+      origRemoveSessionMeta(id, storage);
+    });
+
+    // localStorage.removeItem: 대상 키에 한해 순서 기록 후 원본 동작 유지
+    const targetSessionKey = sessionKey("active-order");
+    const nativeRemoveItem = Storage.prototype.removeItem;
+    vi.spyOn(Storage.prototype, "removeItem").mockImplementation(function (
+      this: Storage,
+      key: string,
+    ) {
+      if (key === targetSessionKey) {
+        callOrder.push("localStorage.removeItem");
+      }
+      nativeRemoveItem.call(this, key);
+    });
+
+    const user = userEvent.setup();
+    renderApp(["/"]);
+
+    const item = (await waitFor(() =>
+      screen
+        .getAllByText("순서검증개념")
+        .map((el) => el.closest(".sb-history-item"))
+        .find(Boolean),
+    )) as HTMLElement;
+
+    await user.click(within(item).getByLabelText("세션 삭제"));
+
+    // deleteSessionRemote resolve 후 로컬 연산이 실행되기를 기다린다
+    await waitFor(() => {
+      expect(callOrder).toContain("removeSessionMeta");
+      expect(callOrder).toContain("localStorage.removeItem");
+    });
+
+    // 호출 순서 단언: deleteSessionRemote < removeSessionMeta < localStorage.removeItem
+    const remoteIdx = callOrder.indexOf("deleteSessionRemote");
+    const metaIdx = callOrder.indexOf("removeSessionMeta");
+    const removeItemIdx = callOrder.indexOf("localStorage.removeItem");
+
+    expect(remoteIdx).toBeGreaterThanOrEqual(0);
+    expect(metaIdx).toBeGreaterThanOrEqual(0);
+    expect(removeItemIdx).toBeGreaterThanOrEqual(0);
+
+    expect(remoteIdx).toBeLessThan(metaIdx);
+    expect(metaIdx).toBeLessThan(removeItemIdx);
+  });
+});
+
 describe("AC2: App.tsx deleteSession", () => {
   test("활성 세션 삭제 시 removeSessionMeta+removeItem 호출 후 홈(input)으로 이동한다", async () => {
     localStorage.setItem(ACTIVE_KEY, "active-1");
