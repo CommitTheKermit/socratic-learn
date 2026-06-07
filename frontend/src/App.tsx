@@ -15,6 +15,7 @@ import { StageLearn } from "./stages/Learn";
 import { StageDone } from "./stages/Done";
 import { LearnContentProvider, useLearnContent } from "./state/LearnContent";
 import { loadSession, sessionKey } from "./state/sessionPersist";
+import { loadSidebarPinned, saveSidebarPinned } from "./state/sidebarSetting";
 import { listSessions, removeSessionMeta, type SessionMeta } from "./state/sessionIndex";
 import type { SessionState } from "./state/sessionState";
 import {
@@ -155,14 +156,17 @@ function AppWorkspace({
     (user as { reloadUserInfo?: { screenName?: string } } | null)?.reloadUserInfo
       ?.screenName ?? undefined;
 
-  // 드로워: 3단계 엣지-공개. 모든 폭에서 동일하게 항상 오버레이(fixed)로 떠 있고 컬럼을
-  // 밀지 않는다.
+  // 드로워: 3단계 엣지-공개.
   //   hidden : 화면 밖. 왼쪽에 보이지 않는 엣지 핫존(옅은 그립). 호버 → peek.
-  //   peek   : 커서가 가장자리에 머무는 동안 드로워 일부가 클릭 가능한 미리보기로 슬라이드.
-  //            벗어나면 hidden 으로 되접힘.
-  //   open   : peek 을 클릭하면 전체 슬라이드 + 고정(PIN). 마우스를 떼도 유지되고
-  //            드로워 안 "숨기기" 버튼 / Esc 로 hidden 복귀.
-  const [pinned, setPinned] = useState(false);
+  //   peek   : 커서가 가장자리에 머무는 동안 드로워 일부가 클릭 가능한 미리보기로 오버레이
+  //            슬라이드(본문 안 밀림). 벗어나면 hidden 으로 되접힘.
+  //   open   : peek 을 클릭하면 전체 슬라이드 + 고정(PIN). 이때는 본문을 사이드바 폭만큼
+  //            밀어 컬럼을 가리지 않는다. 드로워 안 "숨기기" 버튼 / Esc 로 hidden 복귀.
+  // pinned 는 localStorage 에 영속화해 메인/모든 단계가 같은 설정 하나를 공유한다.
+  // (좁은 화면에선 본문을 가리므로 초기엔 고정하지 않는다. peeking 은 일시적이라 저장 안 함.)
+  const [pinned, setPinned] = useState(
+    () => loadSidebarPinned() && !window.matchMedia("(max-width: 1024px)").matches,
+  );
   const [peeking, setPeeking] = useState(false);
   const drawerState: "hidden" | "peek" | "open" = pinned
     ? "open"
@@ -184,6 +188,7 @@ function AppWorkspace({
   const pin = () => {
     setPinned(true);
     setPeeking(false);
+    saveSidebarPinned(true);
     requestAnimationFrame(() => {
       const el = drawerRef.current;
       const f = el?.querySelector<HTMLElement>(".sb-collapse") ?? el;
@@ -193,6 +198,7 @@ function AppWorkspace({
   const hide = () => {
     setPinned(false);
     setPeeking(false);
+    saveSidebarPinned(false);
     requestAnimationFrame(() => edgeRef.current?.focus());
   };
 
