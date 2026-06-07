@@ -31,7 +31,10 @@ export function Hero({ depth, onDepth, concept, setConcept, onStart }: Props) {
       </h1>
       <p className="sub">한 줄로 입력하시면 도와드릴게요</p>
 
-      <form className="input-bar" onSubmit={submit}>
+      <form className="input-bar has-lead" onSubmit={submit}>
+        <span className="in-lead plain" aria-hidden>
+          {I.sparkle}
+        </span>
         <label className="depth-select">
           {DEPTHS.find((d) => d.value === depth)?.label || "0depth"}
           <span className="chev">{I.chevSmall}</span>

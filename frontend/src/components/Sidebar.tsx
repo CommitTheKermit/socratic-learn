@@ -143,7 +143,7 @@ export function Sidebar({
         type="button"
         onClick={onNewSession}
       >
-        <span className="ico">{I.capture}</span>
+        <span className="ico">{I.newLearn}</span>
         새로 학습하기
       </button>
 
@@ -209,6 +209,16 @@ export function Sidebar({
       <div className="sb-spacer" />
 
       <div className="sb-foot">
+        <a
+          className="sb-feedback"
+          href="mailto:commit3921@gmail.com?subject=Socratic%20Learn%20%ED%94%BC%EB%93%9C%EB%B0%B1"
+        >
+          <span className="sb-feedback-ico">{I.mail}</span>
+          <span className="sb-feedback-text">
+            <span className="sb-feedback-title">피드백을 부탁드립니다!</span>
+            <span className="sb-feedback-mail">commit3921@gmail.com</span>
+          </span>
+        </a>
         {authPending ? (
           <div className="sb-user sb-user-pending" aria-hidden>
             <div className="sb-avatar" />
