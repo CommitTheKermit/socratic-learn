@@ -16,7 +16,7 @@ import { StageDone } from "./stages/Done";
 import { LearnContentProvider, useLearnContent } from "./state/LearnContent";
 import { loadSession, sessionKey } from "./state/sessionPersist";
 import { loadSidebarPinned, saveSidebarPinned } from "./state/sidebarSetting";
-import { listSessions, removeSessionMeta, type SessionMeta } from "./state/sessionIndex";
+import { listSessions, removeSessionMeta, sessionListsEqual, type SessionMeta } from "./state/sessionIndex";
 import type { SessionState } from "./state/sessionState";
 import {
   fetchAndMerge,
@@ -321,7 +321,7 @@ function AppWorkspace({
       } catch {
         // 무시
       }
-      setSessions(listSessions());
+      setSessions((prev) => { const next = listSessions(); return sessionListsEqual(prev, next) ? prev : next; });
     },
     3000,
   );
@@ -346,7 +346,7 @@ function AppWorkspace({
     } catch {
       // 저장 실패(용량 초과 등) 복구는 별도 책임이므로 여기서는 무시한다.
     }
-    setSessions(listSessions());
+    setSessions((prev) => { const next = listSessions(); return sessionListsEqual(prev, next) ? prev : next; });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     sessionId,
@@ -467,7 +467,7 @@ function AppWorkspace({
     } catch {
       // 무시
     }
-    setSessions(listSessions());
+    setSessions((prev) => { const next = listSessions(); return sessionListsEqual(prev, next) ? prev : next; });
     if (id === sessionId) {
       try {
         localStorage.removeItem(ACTIVE_SESSION_KEY);
