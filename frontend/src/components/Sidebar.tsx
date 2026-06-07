@@ -146,14 +146,6 @@ export function Sidebar({
         <span className="ico">{I.capture}</span>
         새로 학습하기
       </button>
-      <button className="sb-item" type="button">
-        <span className="ico">{I.archive}</span>
-        아카이브
-      </button>
-      <button className="sb-item" type="button">
-        <span className="ico">{I.folder}</span>
-        폴더
-      </button>
 
       <div className="sb-divider" />
 
