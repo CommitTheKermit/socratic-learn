@@ -1,5 +1,6 @@
 import { API_BASE_URL, ApiPaths } from "./contract";
 import type {
+  SessionDeleteRequest,
   SessionGetResponse,
   SessionIndexEntry,
   SessionListResponse,
@@ -66,6 +67,25 @@ export async function listSessionsRemote(): Promise<SessionIndexEntry[]> {
   if (!res.ok) await throwFromResponse(res, "세션 목록 조회 실패");
   const body = (await res.json()) as SessionListResponse;
   return body.sessions ?? [];
+}
+
+/**
+ * 서버(Firestore)에서 세션을 영구 삭제한다. 비관적 삭제 - 서버 성공 시에만 호출자가 로컬을 제거한다.
+ * 원격 삭제 실패(네트워크/4xx/5xx) 시 throw 한다(호출자는 로컬 보존 + console.error).
+ */
+export async function deleteSessionRemote(sessionId: string): Promise<void> {
+  const payload: SessionDeleteRequest = { sessionId };
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE_URL}${ApiPaths.SESSION_DELETE}`, {
+      method: "POST",
+      headers: await authHeaders(),
+      body: JSON.stringify(payload),
+    });
+  } catch (e) {
+    throw new SessionApiError("PERSIST_ERROR", (e as Error)?.message ?? "네트워크 오류");
+  }
+  if (!res.ok) await throwFromResponse(res, "세션 삭제 실패");
 }
 
 /** 단일 세션 본문을 가져온다. 서버에 없으면 null. */
