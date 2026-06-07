@@ -60,56 +60,68 @@ body {
   height: 100vh;
   overflow: hidden;
 }
-/* 인라인(넓은 화면) 접힘: grid 칸을 0 으로 줄여 본문이 폭을 차지하고 드로워는 밖으로 숨는다. */
 .app[data-sidebar="collapsed"] { grid-template-columns: 0 1fr; }
 .app[data-sidebar="collapsed"] .sidebar { transform: translateX(-100%); opacity: 0; }
 
-/* ── 오버레이 모드 (좁은 화면 <=1024px): peek 슬리버 + 호버 노출 ───────
-   드로워가 grid 칸을 차지하지 않고 본문 위에 떠 있다. 접힌 상태에서도 완전히
-   숨기지 않고 왼쪽 가장자리에 실제 패널의 일부(--sb-peek)를 남겨 두고,
-   슬리버/가장자리에 호버하면 패널 전체가 본문 위로 미끄러져 나온다.
-   스크림 없음, 본문 밀림 없음. 넓은 화면(inline)은 위 push 동작을 유지한다. */
-.app[data-sidebar-mode="overlay"] { grid-template-columns: 0 1fr; }
+/* ── 드로워 모드 분기 ──────────────────────────────────────────────────
+   같은 드로워가 data-sidebar-mode 에 따라 두 가지로 동작한다:
+     inline  (넓음 > 1024px): grid 한 칸을 차지하며 본문을 민다. 스크림 없음.
+     overlay (좁음 ≤ 1024px): 흐름에서 빠져(fixed) 본문 위에 떠 있다.
+   App.tsx 가 matchMedia 결과로 속성을 부여한다. */
+
+/* overlay: 드로워가 흐름에서 빠지므로 main 만 유일한 in-flow grid child 가 된다.
+   한 칸(1fr)을 통째로 main 에 준다. 드로워는 동일 배경색 페이지 위에서도 슬리버가
+   구분되도록 살짝 띄운(elevated) 패널로 띄운다. */
+.app[data-sidebar-mode="overlay"] { grid-template-columns: 1fr; }
 .app[data-sidebar-mode="overlay"] .sidebar {
   position: fixed;
   top: 0; left: 0; bottom: 0;
   width: var(--sidebar-w);
-  z-index: 60;
-  /* 동일 배경색 위에서도 슬리버가 구분되도록 살짝 띄운 표면 + 그림자 */
+  z-index: 100;
   background: var(--bg-elev-1);
-  box-shadow: 0 0 0 1px var(--line), 18px 0 40px -24px oklch(0 0 0 / 0.7);
-  /* 접힘이든 아니든(상태와 무관하게) 기본은 슬리버만 보이는 위치 */
+  box-shadow: 24px 0 60px -28px oklch(0 0 0 / 0.7);
+  will-change: transform, opacity;
+}
+/* overlay 접힘: 드로워가 완전히 나가지 않고 가장자리에 실제 패널의 슬리버(--sb-peek)
+   만큼 남아 재오픈 어포던스가 된다. 호버하면 전체가 미끄러져 나오고(밀림·스크림 없음),
+   벗어나면 다시 슬리버로 접힌다. (base 의 full-hide 를 더 높은 specificity 로 덮는다.) */
+.app[data-sidebar-mode="overlay"][data-sidebar="collapsed"] .sidebar {
   transform: translateX(calc(-100% + var(--sb-peek)));
   opacity: 1;
 }
-.app[data-sidebar-mode="overlay"] .sidebar:hover,
-.app[data-sidebar-mode="overlay"] .sidebar:focus-within {
-  transform: translateX(0);
-}
-/* 오버레이에서는 호버 노출이 토글을 대신하므로 드로워 내부 접기 버튼을 숨긴다. */
-.app[data-sidebar-mode="overlay"] .sb-collapse { display: none; }
 
-/* 넓은 화면(인라인)에서 수동으로 접었을 때 남는 얇은 그립(재오픈 어포던스).
-   클릭하면 다시 grid 한 칸으로 펼쳐진다. 오버레이 모드에선 슬리버가 대신하므로 숨긴다. */
-.sb-open {
+/* edge hotzone — 슬리버 위에 깔리는 투명 스트립. 호버/클릭/키보드 포커스를 받는다.
+   드로워보다 위에 있어 보이는 슬리버를 호버하면 노출된다. inline 모드(슬리버 없음)
+   에서는 슬리버 대신 얇은 그립을 재오픈 어포던스로 보여준다. */
+.sb-edge {
   position: fixed;
-  top: 0; left: 0; bottom: 0;
-  z-index: 40;
-  width: 14px;
-  display: grid; place-items: center;
-  color: var(--fg-dim);
-  background: var(--bg-elev-1);
-  border-right: 1px solid var(--line);
+  left: 0; top: 0; bottom: 0;
+  width: 24px;
+  z-index: 120;
+  display: none;
+  align-items: center;
+  justify-content: flex-start;
+  background: transparent;
 }
-.sb-open::before {
-  content: "";
-  width: 3px; height: 38px;
+.app[data-sidebar="collapsed"] .sb-edge { display: flex; }
+.sb-edge-grip {
+  display: none;
+  width: 4px; height: 46px;
+  margin-left: 3px;
   border-radius: 999px;
-  background: var(--line-2);
+  background: var(--line);
+  transition: background .16s ease, height .16s ease;
 }
-.sb-open:hover { color: var(--fg); background: var(--bg-elev-2); }
-.sb-open:hover::before { background: var(--fg-dim); }
-.app[data-sidebar-mode="overlay"] .sb-open { display: none; }
+.app[data-sidebar-mode="inline"][data-sidebar="collapsed"] .sb-edge-grip { display: block; }
+.sb-edge:hover .sb-edge-grip,
+.sb-edge:focus-visible .sb-edge-grip {
+  background: var(--fg-dim);
+  height: 72px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar { transition: none; }
+}
 
 /* ── sidebar ──────────────────────────────────────────────────────── */
 .sidebar {

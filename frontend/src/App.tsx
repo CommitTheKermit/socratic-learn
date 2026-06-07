@@ -155,26 +155,91 @@ function AppWorkspace({
     (user as { reloadUserInfo?: { screenName?: string } } | null)?.reloadUserInfo
       ?.screenName ?? undefined;
 
-  // 화면 폭에 따른 드로워 표시 모드.
-  // overlayMode(<=1024px): 드로워가 grid 칸을 차지하지 않고 본문 위에 떠 있다. 접힘 상태에서도
-  //   가장자리에 패널 일부(--sb-peek 슬리버)가 남고, 호버하면 패널 전체가 미끄러져 나온다(CSS).
-  // 넓은 화면: 기존처럼 grid 한 칸(인라인 push). 수동으로 접으면 얇은 그립으로 재오픈한다.
-  const [overlayMode, setOverlayMode] = useState(
+  // 반응형 드로워: inline(넓음) <-> overlay(좁음). 같은 드로워의 두 컨테이너 동작.
+  // matchMedia(≤1024px) 가 모드를 정한다. 넓음 = 인라인 push(grid 칸), 좁음 = 본문 위 오버레이.
+  const [overlay, setOverlay] = useState(
     () => window.matchMedia("(max-width: 1024px)").matches,
   );
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => window.matchMedia("(max-width: 1024px)").matches,
   );
+  // effect/이벤트 핸들러에서 최신 값을 읽기 위한 ref 미러.
+  const overlayRef = useRef(overlay);
+  overlayRef.current = overlay;
+  const collapsedRef = useRef(sidebarCollapsed);
+  collapsedRef.current = sidebarCollapsed;
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const drawerRef = useRef<HTMLElement>(null);
+  const focusOnOpenRef = useRef(false);
+
+  // 양방향: ≤1024px 진입 시 자동 접힘, 벗어나면 자동 열림.
   useEffect(() => {
     const mql = window.matchMedia("(max-width: 1024px)");
     const onChange = (e: MediaQueryListEvent) => {
-      setOverlayMode(e.matches);
+      setOverlay(e.matches);
       setSidebarCollapsed(e.matches);
     };
     mql.addEventListener("change", onChange);
     return () => mql.removeEventListener("change", onChange);
   }, []);
-  const openSidebar = () => setSidebarCollapsed(false);
+
+  // focusInto: 드로워 안으로 포커스를 끌어온다(키보드/클릭). 단순 호버에서는 끌어오지 않는다.
+  const openDrawer = (focusInto: boolean) => {
+    focusOnOpenRef.current = focusInto;
+    setSidebarCollapsed(false);
+  };
+  const closeDrawer = (returnFocus: boolean) => {
+    setSidebarCollapsed(true);
+    if (returnFocus && overlayRef.current) {
+      requestAnimationFrame(() => triggerRef.current?.focus());
+    }
+  };
+  const closeIfOverlay = () => {
+    if (overlayRef.current) closeDrawer(false);
+  };
+  // 커서가 드로워를 벗어나면 펼쳐진 오버레이 드로워를 다시 슬리버로 접는다.
+  const handleDrawerLeave = () => {
+    if (overlayRef.current && !collapsedRef.current) closeDrawer(false);
+  };
+
+  // 오버레이 열림: Esc 닫기 + 단순 포커스 트랩. 포커스는 의도적으로(클릭/키보드) 열었을 때만
+  // 끌어오고 호버에서는 끌어오지 않는다.
+  const drawerOpen = overlay && !sidebarCollapsed;
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const el = drawerRef.current;
+    if (focusOnOpenRef.current) {
+      const f0 = el?.querySelector<HTMLElement>(".sb-collapse") ?? el;
+      f0?.focus?.();
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeDrawer(true);
+        return;
+      }
+      if (e.key === "Tab" && el) {
+        const f = Array.from(
+          el.querySelectorAll<HTMLElement>(
+            'button, [href], textarea, input, select, [tabindex]:not([tabindex="-1"])',
+          ),
+        ).filter((n) => !(n as HTMLButtonElement).disabled && n.offsetParent !== null);
+        if (!f.length) return;
+        const a = f[0];
+        const b = f[f.length - 1];
+        if (e.shiftKey && document.activeElement === a) {
+          e.preventDefault();
+          b.focus();
+        } else if (!e.shiftKey && document.activeElement === b) {
+          e.preventDefault();
+          a.focus();
+        }
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drawerOpen]);
   const [depth, setDepth] = useState<string>(() => loaded?.depth ?? "0depth");
   const [accent] = useState<string[]>(ACCENT_PRESETS[0]);
   const showAurora = true;
@@ -429,24 +494,20 @@ function AppWorkspace({
     <div
       className="app"
       data-sidebar={sidebarCollapsed ? "collapsed" : "open"}
-      data-sidebar-mode={overlayMode ? "overlay" : "inline"}
+      data-sidebar-mode={overlay ? "overlay" : "inline"}
       data-stage={stage}
       style={accentStyle}
     >
-      {!overlayMode && sidebarCollapsed && (
-        <button
-          className="sb-open"
-          type="button"
-          aria-label="사이드바 열기"
-          onClick={openSidebar}
-        />
-      )}
-
       <Sidebar
+        drawerRef={drawerRef}
+        overlay={overlay}
+        open={!sidebarCollapsed}
+        onNavigate={closeIfOverlay}
+        onDrawerLeave={handleDrawerLeave}
         stage={stage}
         concept={concept}
         onNewSession={newSession}
-        onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
+        onToggleCollapse={() => closeDrawer(true)}
         sessions={sessions}
         activeSessionId={sessionId ?? ""}
         onSelectSession={switchSession}
@@ -458,6 +519,22 @@ function AppWorkspace({
         onLogin={() => void login()}
         onLogout={() => void logout()}
       />
+
+      {/* edge hotzone: 접힘 시 가장자리 슬리버(overlay)/그립(inline) 위에 떠서
+          호버하면 오버레이를 펼치고, 클릭/키보드로 열면 포커스까지 끌어온다. */}
+      <button
+        ref={triggerRef}
+        className="sb-edge"
+        type="button"
+        aria-label="사이드바 열기"
+        aria-expanded={!sidebarCollapsed}
+        onMouseEnter={() => {
+          if (overlayRef.current) openDrawer(false);
+        }}
+        onClick={() => openDrawer(true)}
+      >
+        <span className="sb-edge-grip" aria-hidden />
+      </button>
 
       <main className="main">
         {showAurora && (

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type RefObject } from "react";
 import { I } from "./icons";
 import { STAGE_LABELS, type Stage } from "../stages/data";
 import type { SessionMeta } from "../state/sessionIndex";
@@ -6,6 +6,16 @@ import type { SessionMeta } from "../state/sessionIndex";
 interface Props {
   stage: Stage;
   concept: string;
+  /** 드로워(aside) DOM 참조. 오버레이 포커스 트랩/이동에 쓴다. */
+  drawerRef?: RefObject<HTMLElement>;
+  /** 좁은 화면에서 본문 위에 떠 있는 오버레이 모드 여부. dialog 시맨틱을 부여한다. */
+  overlay?: boolean;
+  /** 드로워가 펼쳐져 있는지(=접히지 않음). aria-modal/aria-hidden 판단에 쓴다. */
+  open?: boolean;
+  /** nav/세션 선택 등 화면 전환 직후 호출(오버레이면 드로워를 슬리버로 접는다). */
+  onNavigate?: () => void;
+  /** 커서가 드로워를 벗어날 때 호출(오버레이 펼침 상태에서 슬리버로 접힘). */
+  onDrawerLeave?: () => void;
   onNewSession: () => void;
   onToggleCollapse: () => void;
   sessions?: SessionMeta[];
@@ -24,6 +34,11 @@ interface Props {
 export function Sidebar({
   stage,
   concept,
+  drawerRef,
+  overlay = false,
+  open = true,
+  onNavigate,
+  onDrawerLeave,
   onNewSession,
   onToggleCollapse,
   sessions,
@@ -51,7 +66,16 @@ export function Sidebar({
   };
 
   return (
-    <aside className="sidebar">
+    <aside
+      className="sidebar"
+      ref={drawerRef}
+      tabIndex={-1}
+      onMouseLeave={onDrawerLeave}
+      role={overlay ? "dialog" : undefined}
+      aria-modal={overlay && open ? true : undefined}
+      aria-label={overlay ? "사이드바" : undefined}
+      aria-hidden={!open ? true : undefined}
+    >
       <div className="sb-brand">
         <span className="sb-brand-mark">{I.brand}</span>
         <span className="sb-brand-name">Socratic</span>
@@ -68,16 +92,19 @@ export function Sidebar({
       <button
         className={"sb-item is-primary" + (stage === "input" ? " is-active" : "")}
         type="button"
-        onClick={onNewSession}
+        onClick={() => {
+          onNewSession();
+          onNavigate?.();
+        }}
       >
         <span className="ico">{I.capture}</span>
         새로 학습하기
       </button>
-      <button className="sb-item" type="button">
+      <button className="sb-item" type="button" onClick={onNavigate}>
         <span className="ico">{I.archive}</span>
         아카이브
       </button>
-      <button className="sb-item" type="button">
+      <button className="sb-item" type="button" onClick={onNavigate}>
         <span className="ico">{I.folder}</span>
         폴더
       </button>
@@ -110,7 +137,10 @@ export function Sidebar({
                     <button
                       className="sb-history-open"
                       type="button"
-                      onClick={() => onSelectSession?.(s.sessionId)}
+                      onClick={() => {
+                        onSelectSession?.(s.sessionId);
+                        onNavigate?.();
+                      }}
                     >
                       <span className="sb-hi-main">
                         <span className="sb-hi-title">
