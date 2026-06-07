@@ -26,7 +26,7 @@ import {
 } from "./state/sessionSync";
 import { useDebouncedPersist } from "./state/useDebouncedPersist";
 import { useAuth } from "./state/useAuth";
-import { markComplete, isComplete } from "./state/sessionSyncRegistry";
+import { hasSynced, markSynced } from "./state/fetchOncePerSession";
 
 type AccentVars = CSSProperties & {
   "--holo"?: string;
@@ -104,11 +104,11 @@ function AppSession({ stage, sessionId }: { stage: Stage; sessionId?: string }) 
     [sessionId, reloadToken],
   );
   useEffect(() => {
-    if (!sessionId || isComplete(sessionId)) return;
+    if (!sessionId || hasSynced(sessionId)) return;
     void fetchAndMerge(sessionId)
       .then((merged) => {
         // fetch 성공 시에만 완료로 기록(실패는 다음 진입에 재시도).
-        markComplete(sessionId);
+        markSynced(sessionId);
         // 병합 결과가 캐시와 달랐을 때만(merged != null) 재마운트해 모든 상태를 다시 시드한다.
         if (merged) setReloadToken((t) => t + 1);
       })
