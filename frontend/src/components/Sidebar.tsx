@@ -125,8 +125,16 @@ export function Sidebar({
       aria-hidden={drawerState === "hidden" ? true : undefined}
     >
       <div className="sb-brand">
-        <span className="sb-brand-mark">{I.brand}</span>
-        <span className="sb-brand-name">Socratic</span>
+        <button
+          className="sb-brand-home"
+          type="button"
+          aria-label="메인으로 이동"
+          title="메인으로 이동"
+          onClick={onNewSession}
+        >
+          <span className="sb-brand-mark">{I.brand}</span>
+          <span className="sb-brand-name">Socratic</span>
+        </button>
         <button
           className="sb-collapse"
           aria-label="사이드바 숨기기"
