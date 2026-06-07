@@ -3,14 +3,6 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 
-// sessionApi 를 stub 해 네트워크 호출 없이 비관적 삭제 흐름을 테스트한다.
-vi.mock("../api/sessionApi", () => ({
-  deleteSessionRemote: vi.fn(() => Promise.resolve()),
-  saveSessionRemote: vi.fn(() => Promise.resolve()),
-  listSessionsRemote: vi.fn(() => Promise.resolve([])),
-  getSessionRemote: vi.fn(() => Promise.resolve(null)),
-}));
-
 // 학습 단계의 콘텐츠 로딩(네트워크/Claude)을 stub 하여 렌더 테스트를 격리한다.
 vi.mock("../api/claudeContent", () => ({
   ClaudeContentError: class ClaudeContentError extends Error {
@@ -74,6 +66,49 @@ beforeEach(() => {
   vi.restoreAllMocks();
   localStorage.clear();
   vi.spyOn(window, "confirm").mockReturnValue(true);
+});
+
+describe("Sub-AC 3a: deleteSession 비관적 삭제 순서 보장", () => {
+  test("deleteSessionRemote가 pending인 동안 removeSessionMeta와 localStorage.removeItem을 호출하지 않는다", async () => {
+    localStorage.setItem(ACTIVE_KEY, "active-1");
+    localStorage.setItem(
+      sessionKey("active-1"),
+      JSON.stringify(
+        seededState({ sessionId: "active-1", stage: "input", concept: "활성개념", conceptSummary: "활성개념" }),
+      ),
+    );
+    upsertSessionMeta({ sessionId: "active-1", createdAt: 5, conceptSummary: "활성개념", stage: "input" });
+
+    // deleteSessionRemote 가 절대 resolve 되지 않는 pending 상태로 고정
+    const { deleteSessionRemote: mockDeleteRemote } = await import("../api/sessionApi");
+    vi.mocked(mockDeleteRemote).mockImplementation(() => new Promise(() => undefined));
+
+    const removeMetaSpy = vi.spyOn(sessionIndex, "removeSessionMeta");
+    const removeItemSpy = vi.spyOn(Storage.prototype, "removeItem");
+
+    const user = userEvent.setup();
+    renderApp(["/"]);
+
+    const item = (await waitFor(() =>
+      screen
+        .getAllByText("활성개념")
+        .map((el) => el.closest(".sb-history-item"))
+        .find(Boolean),
+    )) as HTMLElement;
+
+    // 삭제 버튼 클릭 - deleteSessionRemote 는 pending 이라 await 에 걸려 있음
+    await user.click(within(item).getByLabelText("세션 삭제"));
+
+    // pending 상태에서는 로컬 삭제가 일어나지 않아야 한다
+    expect(removeMetaSpy).not.toHaveBeenCalled();
+    // removeItem 은 다른 경로(navigate 등)에서 호출될 수 있으므로
+    // sessionKey("active-1") 와 인덱스 키 호출 여부만 확인한다
+    const sessionDataKey = sessionKey("active-1");
+    const sessionIndexKey = "socratic:sessions:index";
+    const removeItemCalls = removeItemSpy.mock.calls.map((c) => c[0]);
+    expect(removeItemCalls).not.toContain(sessionDataKey);
+    expect(removeItemCalls).not.toContain(sessionIndexKey);
+  });
 });
 
 describe("AC2: App.tsx deleteSession", () => {
