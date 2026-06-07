@@ -1,4 +1,4 @@
-import { forwardRef, useState } from "react";
+import { useState } from "react";
 import { I } from "./icons";
 import { STAGE_LABELS, type Stage } from "../stages/data";
 import type { SessionMeta } from "../state/sessionIndex";
@@ -6,8 +6,6 @@ import type { SessionMeta } from "../state/sessionIndex";
 interface Props {
   stage: Stage;
   concept: string;
-  /** 좁은 화면에서 본문 위에 떠 있는 오버레이 모드 여부. true 면 dialog 시맨틱을 부여한다. */
-  overlay?: boolean;
   onNewSession: () => void;
   onToggleCollapse: () => void;
   sessions?: SessionMeta[];
@@ -23,26 +21,22 @@ interface Props {
   onLogout?: () => void;
 }
 
-export const Sidebar = forwardRef<HTMLElement, Props>(function Sidebar(
-  {
-    stage,
-    concept,
-    overlay = false,
-    onNewSession,
-    onToggleCollapse,
-    sessions,
-    activeSessionId,
-    onSelectSession,
-    onDeleteSession,
-    authPending = false,
-    loggedIn = false,
-    userName,
-    photoURL,
-    onLogin,
-    onLogout,
-  }: Props,
-  ref,
-) {
+export function Sidebar({
+  stage,
+  concept,
+  onNewSession,
+  onToggleCollapse,
+  sessions,
+  activeSessionId,
+  onSelectSession,
+  onDeleteSession,
+  authPending = false,
+  loggedIn = false,
+  userName,
+  photoURL,
+  onLogin,
+  onLogout,
+}: Props) {
   const [historyOpen, setHistoryOpen] = useState(true);
   const isActive = stage !== "input";
 
@@ -57,13 +51,7 @@ export const Sidebar = forwardRef<HTMLElement, Props>(function Sidebar(
   };
 
   return (
-    <aside
-      className="sidebar"
-      ref={ref}
-      role={overlay ? "dialog" : undefined}
-      aria-modal={overlay ? true : undefined}
-      aria-label={overlay ? "사이드바" : undefined}
-    >
+    <aside className="sidebar">
       <div className="sb-brand">
         <span className="sb-brand-mark">{I.brand}</span>
         <span className="sb-brand-name">Socratic</span>
@@ -223,4 +211,4 @@ export const Sidebar = forwardRef<HTMLElement, Props>(function Sidebar(
       </div>
     </aside>
   );
-});
+}
