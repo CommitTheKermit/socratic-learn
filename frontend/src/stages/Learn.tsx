@@ -385,11 +385,13 @@ export function StageLearn({
                 <div className="qa-foot">
                   <button
                     type="button"
-                    className={"qa-dunno" + (isSkipped ? " is-active" : "")}
-                    aria-pressed={isSkipped}
-                    onClick={() => setSkips({ ...skips, [q.id]: !isSkipped })}
+                    className="qa-dunno"
+                    onClick={() => {
+                      setAnswers({ ...answers, [q.id]: "모르겠어요" });
+                      if (isSkipped) setSkips({ ...skips, [q.id]: false });
+                    }}
                   >
-                    {isSkipped ? "모르겠어요로 표시함" : "모르겠어요"}
+                    모르겠어요
                   </button>
                 </div>
               )}

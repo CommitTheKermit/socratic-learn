@@ -1544,7 +1544,6 @@ body {
   transition: color .15s ease, text-decoration-color .15s ease;
 }
 .qa-dunno:hover { color: var(--fg-mut); text-decoration-color: var(--fg-dim); }
-.qa-dunno.is-active { color: var(--fg-mut); text-decoration-color: var(--fg-dim); }
 
 /* ── Learn 가로/세로 방향 전환 ──────────────────────────────────────── */
 /* 헤더의 가로/세로 세그먼트 토글 */
