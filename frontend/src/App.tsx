@@ -166,10 +166,8 @@ function AppWorkspace({
   //   open   : peek 을 클릭하면 전체 슬라이드 + 고정(PIN). 이때는 본문을 사이드바 폭만큼
   //            밀어 컬럼을 가리지 않는다. 드로워 안 "숨기기" 버튼 / Esc 로 hidden 복귀.
   // pinned 는 localStorage 에 영속화해 메인/모든 단계가 같은 설정 하나를 공유한다.
-  // (좁은 화면에선 본문을 가리므로 초기엔 고정하지 않는다. peeking 은 일시적이라 저장 안 함.)
-  const [pinned, setPinned] = useState(
-    () => loadSidebarPinned() && !window.matchMedia("(max-width: 1024px)").matches,
-  );
+  // (화면 폭과 무관하게 사용자의 선택만 따른다. peeking 은 일시적이라 저장 안 함.)
+  const [pinned, setPinned] = useState(loadSidebarPinned);
   const [peeking, setPeeking] = useState(false);
   const drawerState: "hidden" | "peek" | "open" = pinned
     ? "open"
@@ -218,18 +216,6 @@ function AppWorkspace({
     return () => document.removeEventListener("keydown", onKey);
   }, [pinned]);
 
-  // 창이 좁아지면 고정된 드로워가 좁아진 본문 컬럼을 가리지 않도록 hidden 으로 되돌린다.
-  useEffect(() => {
-    const mql = window.matchMedia("(max-width: 1024px)");
-    const onChange = (e: MediaQueryListEvent) => {
-      if (e.matches) {
-        setPinned(false);
-        setPeeking(false);
-      }
-    };
-    mql.addEventListener("change", onChange);
-    return () => mql.removeEventListener("change", onChange);
-  }, []);
   const [depth, setDepth] = useState<string>(() => loaded?.depth ?? "0depth");
   const [accent] = useState<string[]>(ACCENT_PRESETS[0]);
   const showAurora = true;
