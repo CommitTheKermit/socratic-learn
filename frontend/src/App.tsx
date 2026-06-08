@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useNavigate, useParams } from "react-router-do
 import { Sidebar } from "./components/Sidebar";
 import { ProgressBar } from "./components/ProgressBar";
 import { Hero } from "./components/Hero";
+import { SessionLoadOverlay } from "./components/SessionLoadOverlay";
 import { I } from "./components/icons";
 import {
   ACCENT_PRESETS,
@@ -261,6 +262,8 @@ function AppWorkspace({
   // 사이드바 목록. 진실 출처는 원격(Firestore). undefined 는 "원격 응답 전(로딩)" 을 뜻하며,
   // 이때 Sidebar 는 진행 중 세션만 보여준다. 원격 fetch 와 현재 세션 저장이 이 상태를 채운다.
   const [sessions, setSessions] = useState<SessionMeta[] | undefined>(undefined);
+  // 히스토리 선택 → 세션 로딩 중 블로킹 오버레이에 표시할 세션 제목(null 이면 미표시).
+  const [loadingTitle, setLoadingTitle] = useState<string | null>(null);
 
   // 사이드바 목록을 원격(Firestore)에서 1회 받아 채운다. 현재 작업 중 세션(메모리)은 유지하고
   // 원격 전용 세션만 추가한다. 낙관적 삭제의 tombstone 에 든 세션은 목록에서 제외해 재출현을
@@ -547,6 +550,7 @@ function AppWorkspace({
       data-drawer={drawerState}
       data-stage={stage}
       style={accentStyle}
+      aria-busy={loadingTitle !== null ? "true" : undefined}
     >
       <Sidebar
         drawerRef={drawerRef}
@@ -655,6 +659,8 @@ function AppWorkspace({
           </div>
         )}
       </main>
+
+      <SessionLoadOverlay open={loadingTitle !== null} title={loadingTitle ?? undefined} />
     </div>
   );
 }

@@ -1808,3 +1808,88 @@ body {
   gap: 0.6rem;
   justify-content: flex-end;
 }
+
+/* ── 세션 로딩 블로킹 오버레이 ─────────────────────────────────────────
+   학습 히스토리 선택 → 세션 불러오는 동안 화면 전체 상호작용을 차단한다.
+   설정 고정: 로더 = 점 호흡(dot), 배경 = 옅게(veil).
+   브랜드 토큰(--holo, --font-sans, --font-mono)은 :root 에서 가져다 쓴다. */
+.session-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 900;                 /* 앱 셸 위, (있다면) 토스트 아래 */
+  display: grid;
+  place-items: center;
+  /* 옅게(veil): 옅은 디밍 + 부드러운 블러 — 아래 콘텐츠가 은은히 비친다 */
+  background: oklch(0.135 0.005 270 / 0.42);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  cursor: progress;
+  animation: sovIn .32s ease both;
+}
+@keyframes sovIn { from { opacity: 0; } to { opacity: 1; } }
+.session-overlay.is-out { animation: sovOut .28s ease both; }
+@keyframes sovOut { from { opacity: 1; } to { opacity: 0; } }
+
+/* 상단 헤어라인 진행바 */
+.sov-bar {
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  overflow: hidden; background: oklch(1 0 0 / 0.04);
+}
+.sov-bar i {
+  position: absolute; top: 0; bottom: 0; width: 34%; border-radius: 999px;
+  background: linear-gradient(90deg, transparent, #7DE3FF, #C8B6FF, transparent);
+  animation: sovSweep 1.5s cubic-bezier(0.5, 0, 0.3, 1) infinite;
+}
+@keyframes sovSweep { 0% { left: -38%; } 100% { left: 100%; } }
+
+/* 중앙 클러스터 */
+.sov-center {
+  display: flex; flex-direction: column; align-items: center; gap: 18px;
+  transform: translateY(-2%);
+}
+
+/* 점 호흡 — 점 하나 호흡 + 확산 링 */
+.sov-dot-wrap { position: relative; width: 44px; height: 44px; display: grid; place-items: center; }
+.sov-ring {
+  position: absolute; inset: 0; border-radius: 50%;
+  border: 1px solid oklch(0.97 0 0 / 0.16);
+  animation: sovRing 2.6s ease-out infinite;
+}
+.sov-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--holo, linear-gradient(135deg, #A8FFC9, #7DE3FF));
+  box-shadow: 0 0 18px 3px rgba(168, 255, 201, 0.4);
+  animation: sovDot 2.6s ease-in-out infinite;
+}
+@keyframes sovRing {
+  0% { transform: scale(0.3); opacity: 0; }
+  35% { opacity: 0.5; }
+  100% { transform: scale(1); opacity: 0; }
+}
+@keyframes sovDot {
+  0%, 100% { transform: scale(0.82); opacity: 0.55; }
+  50%      { transform: scale(1.08); opacity: 1; }
+}
+
+/* 텍스트 */
+.sov-text { display: flex; flex-direction: column; align-items: center; gap: 7px; }
+.sov-title {
+  font-family: var(--font-sans, "Pretendard Variable", system-ui, sans-serif);
+  font-size: 14px; color: oklch(0.97 0 0 / 0.7);
+  letter-spacing: -0.005em; white-space: nowrap;
+}
+.sov-title.is-fade { animation: sovFade .55s ease; }
+@keyframes sovFade { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+.sov-sub {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 11px; color: oklch(0.97 0 0 / 0.34); letter-spacing: 0.04em;
+}
+.sov-sub .nm {
+  display: inline-block; max-width: 240px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: oklch(0.97 0 0 / 0.5); vertical-align: bottom;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sov-bar i, .sov-ring, .sov-dot { animation: none !important; }
+}
