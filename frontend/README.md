@@ -1,63 +1,63 @@
 # frontend (Vite + React 18 + TypeScript)
 
-`socratic-learn` 의 단일 페이지 클라이언트. v3 시안의 단계 머신(input → probe → roadmap → explain → questions → answering → done)을 React 로 이식한다.
+`socratic-learn` 의 단일 페이지 클라이언트. 소크라테스식 점진 학습 단계 머신(input → probe → learn → done)을 React 로 구현한다.
 
-현재 빌드는 **로컬 개발 전용 Claude 직접 호출 모드** 로 동작한다 - 백엔드(Ktor) 없이 브라우저에서 `@anthropic-ai/sdk` 를 통해 Claude API 를 직접 호출한다.
+브라우저는 Anthropic 을 **직접 호출하지 않는다**. 모든 Claude 호출은 Firebase Functions 를 `fetch` 로 경유하며, **API 키는 브라우저 번들에 존재하지 않는다**. 학습 시작은 Firebase Auth(GitHub) 로그인이 필요하다.
 
-## ⚠️ 보안 주의
+```
+브라우저(React) → Firebase Functions(onRequest) → Anthropic Messages API
+                ↘ Firestore(세션 저장 / 사용량 기록), Firebase Auth(GitHub)
+```
 
-- API 키를 브라우저에서 직접 사용하면 **빌드 결과물에 키가 그대로 포함**된다. 개인 로컬 개발 외 용도(공유 빌드, 배포, 데모 사이트 등)에 절대 사용하지 말 것.
-- `@anthropic-ai/sdk` 의 `dangerouslyAllowBrowser: true` 가 필요하다 (이름 그대로 위험).
-- `.env.local` 은 gitignore 대상이다. 키를 다른 위치에 적지 말 것.
-- 키가 노출됐다면 즉시 [console.anthropic.com](https://console.anthropic.com) 에서 revoke + 재발급.
+> 프롬프트 / 모델 선택 / 구조화 출력은 전부 `functions/` 가 전담한다. 프론트에는 프롬프트가 없다.
 
 ## 사전 요구
 - Node.js LTS (20 이상 권장)
-- Anthropic API 키 (`sk-ant-api03-...`)
+- 백엔드: Firebase Functions emulator(로컬) 또는 배포된 Functions. 키 셋업·실행은 루트 `../CLAUDE.md` 와 `../functions/` 참고.
 
 ## 셋업
 ```bash
 cd frontend
-cp .env.local.example .env.local
-# .env.local 에 VITE_ANTHROPIC_API_KEY 값 입력
-npm install            # 최초 1회
-npm run dev            # 기본 5173 (FE_PORT 로 변경)
+cp .env.local.example .env.local     # 값 채우기(아래 환경 변수 표)
+npm install                          # 최초 1회
+npm run dev                          # dev server (기본 5173, FE_PORT 로 변경)
 ```
-브라우저에서 dev server URL 접속 (기본 http://localhost:5173) → 개념 입력 → probe → roadmap → explain 단계에서 Claude 가 스트리밍 응답.
-
-## 빌드
-```bash
-npm run build          # tsc -b && vite build → dist/
-npm run preview        # dist 정적 서버 미리보기
-```
+- dev server 만으로는 Claude 응답이 오지 않는다. `VITE_API_BASE_URL` 이 가리키는 Functions(emulator 또는 배포)가 떠 있어야 한다. 로컬 emulator 는 루트에서 `cd functions && npm run serve`.
+- `.env.local` 은 Vite 빌드/기동 시점에 인라인되므로 값 변경 후 dev server 를 재시작해야 한다.
 
 ## 환경 변수
-| 변수 | 기본값 | 설명 |
-|------|--------|------|
-| `FE_PORT` | `5173` | Vite dev/preview 포트 |
-| `VITE_ANTHROPIC_API_KEY` | (없음) | Anthropic API 키. Vite 빌드 시점에 인라인됨 - 로컬 전용 |
-| `VITE_API_BASE_URL` | `http://localhost:8081` | (현재 미사용) 후속 PR 에서 Ktor 백엔드 다시 붙일 때 사용 |
+| 변수 | 설명 |
+|------|------|
+| `VITE_API_BASE_URL` | Functions base URL. emulator `http://127.0.0.1:5001/<project-id>/us-central1`, 배포 `https://us-central1-<project-id>.cloudfunctions.net`. (미설정 시 기본값 `http://localhost:8081` 은 구 백엔드 잔재이므로 반드시 설정) |
+| `VITE_FIREBASE_API_KEY` 외 5개 | GitHub 로그인용 Firebase 웹 config(`AUTH_DOMAIN`/`PROJECT_ID`/`STORAGE_BUCKET`/`MESSAGING_SENDER_ID`/`APP_ID`). `src/lib/firebase.ts` 에서 주입. `apiKey` 는 비밀이 아니라 식별자라 번들 인라인 무방 |
+| `FE_PORT` | Vite dev/preview 포트(기본 5173) |
+| `VITE_AUTH_EMULATOR_URL`, `VITE_E2E_AUTO_SIGNIN` | E2E 전용. Auth emulator 연결 + 자동 익명 로그인으로 로그인 게이팅 우회. 실서비스 빌드엔 없어 무영향 |
 
-## 모델 / 동작
-- 모델: `claude-sonnet-4-6` (`src/api/claudeClient.ts` 의 `CLAUDE_MODEL`)
-- 적응형 thinking (`thinking: {type: "adaptive"}`)
-- 시스템 프롬프트 prompt caching (`cache_control: ephemeral`)
-- 스트리밍: SDK `messages.stream()` + `stream.on("text", ...)` 델타
+## 빌드 / 테스트
+```bash
+npm run build                                  # tsc -b && vite build → dist/
+npm run preview                                # dist 정적 미리보기
+npx vitest run                                 # 단위 테스트 전체(npm test 와 동일)
+npx vitest run src/state/sessionMerge.test.ts  # 파일 1개만
+npx vitest run -t "이름 패턴"                    # 이름으로 1개만
+node e2e/<file>.cjs                            # Playwright E2E (Functions/Auth emulator + dev server 필요)
+```
+앱 버전은 `package.json` 의 `version` 한 곳에만 있다(현재 `0.6.0`). 배포·버전 정책은 루트 CLAUDE.md.
 
 ## 주요 디렉터리
 | 경로 | 내용 |
 |------|------|
-| `src/App.tsx` | 상태 머신 진입점 |
-| `src/components/` | Sidebar, Hero, ProgressBar, 인라인 SVG 아이콘 |
-| `src/stages/` | 각 단계 컴포넌트 + 정적 데이터(`data.ts`) |
-| `src/api/claudeClient.ts` | `@anthropic-ai/sdk` 싱글톤 (브라우저 모드) |
-| `src/api/claudeLearnStream.ts` | Claude 스트리밍 클라이언트 (explain 단계에서 호출) |
-| `src/api/contract.ts` | shared/ Kotlin 계약 TS 미러 (백엔드 재연동용, 현재는 타입만 사용) |
-| `src/api/learnStream.ts` | (backup) Ktor `/learn/stream` SSE 클라이언트 - 현재 미사용, 백엔드 재연동 시 import 만 교체 |
-| `src/api/answers.ts` | (backup) `/answers` 클라이언트 - 현재 미사용 |
-| `src/lib/markdown.tsx` | 미니 markdown (**bold** / *em* / `code` / ```block```) 렌더 |
-| `src/lib/errors.ts` | 에러 코드 → 사용자 메시지 매핑 |
-| `src/styles/v3.css` | v3 시안 디자인 토큰 |
+| `src/App.tsx` | 단계 상태 머신 + 라우팅(URL 이 단계/스텝의 진실 출처) |
+| `src/main.tsx` | 진입점. `BrowserRouter` + `AuthProvider` 로 App 을 감싼다 |
+| `src/components/` | Sidebar, Hero, ProgressBar, SessionLoadOverlay, `branch/`(분기 UI), 인라인 SVG 아이콘 |
+| `src/stages/` | Probe / Learn / Done 단계 컴포넌트 + 정적 데이터(`data.ts`) |
+| `src/state/` | Context(`useAuth` / `LearnContent` / `SessionListContext`) + 세션 영속화(`sessionSync`/`sessionPersist`/`sessionState`/`sessionMerge`/`sessionTombstone`/`sessionIndex`) + 훅 |
+| `src/api/` | `claudeContent.ts`(학습 콘텐츠 Functions 호출) / `sessionApi.ts`(Firestore 세션 CRUD) / `contract.ts`(경로·DTO 단일 출처) / `authHeaders.ts` / `stepDetailStream.ts` |
+| `src/lib/` | `firebase.ts`(웹 SDK 초기화) / `errors.ts`(에러 코드 → 메시지) / `markdown.tsx`(미니 마크다운) |
+| `src/styles/v3.css` | 디자인 토큰 / 전역 스타일 |
 
-## 백엔드 모드로 되돌리기 (후속)
-`src/stages/Explain.tsx` 의 import 한 줄을 `claudeLearnStream` → `learnStream` 로 바꾸면 Ktor `/learn/stream` SSE 모드로 복귀한다. `Done.tsx` 의 `submitAnswers` 호출도 같이 복원해야 한다.
+> `@anthropic-ai/sdk` 가 의존성에 남아 있으나 브라우저에서 Anthropic 을 직접 호출하지 않는다. 일부 Node 전용 하위 모듈은 `vite.config.ts` 의 `STUB_PATTERN` 으로 빈 모듈 처리된다.
+
+## 더 보기
+- `CLAUDE.md` (이 디렉터리): 라우팅 상태 머신 / Context 3계층 / 세션 영속화 모델 / 테스트 전역 mock 등 내부 아키텍처.
+- `../CLAUDE.md` (루트): 모노레포 구성 / Functions / 배포 / API 계약 변경 절차 / 환경 변수 전반.

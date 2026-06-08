@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 이 파일은 `frontend/` 내부 아키텍처에 집중한다. 모노레포 구성 / 배포 / 환경변수 / Functions 쪽 / API 계약 변경 절차 / 런타임 개요는 **루트 `../CLAUDE.md`** 가 단일 출처이므로 중복 서술하지 않는다. 충돌 시 루트 CLAUDE.md 와 실제 코드가 우선한다.
 
-> 주의: `frontend/README.md` 는 **구버전**이다. "브라우저가 `@anthropic-ai/sdk` 로 Anthropic 직접 호출 / `VITE_ANTHROPIC_API_KEY` / Ktor / claudeClient.ts / 단계명 roadmap·explain" 등은 모두 폐기된 내용이다. 현재는 브라우저 → Firebase Functions → Anthropic 이며 키는 번들에 없다. 아키텍처 판단은 README 가 아니라 실제 코드(`src/api/claudeContent.ts`, `src/lib/firebase.ts`)와 루트 CLAUDE.md 를 따를 것.
+`frontend/README.md` 는 셋업·실행 가이드(사람용), 이 파일은 내부 아키텍처(에이전트용)로 역할이 다르다. 둘 다 현재 Firebase 구조 기준이다.
 
 ## 명령
 
