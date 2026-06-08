@@ -71,6 +71,27 @@ export const SessionItem = memo(function SessionItem({
   );
 });
 
+/**
+ * 학습 히스토리 목록 로딩 스켈레톤.
+ * 실제 .sb-history-item(제목+메타 2줄) 박스 모델에 맞춘 골격 바를 rows 개 그려, 목록이 들어올
+ * 자리를 자리 이동 없이 그대로 그린다. 셰브론 반짝임은 각 바 안에서만 흐른다(차분한 톤).
+ * 순수 장식이라 aria-hidden.
+ */
+function HistorySkeleton({ rows = 5 }: { rows?: number }) {
+  return (
+    <div className="sb-hist-skel" aria-hidden="true">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div className="shi" key={i}>
+          <div className="shi-main">
+            <div className="shi-bar shi-title" />
+            <div className="shi-bar shi-meta" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 interface Props {
   stage: Stage;
   concept: string;
@@ -208,6 +229,10 @@ export function Sidebar({
               </button>
             </div>
           </div>
+        ) : loggedIn || authPending ? (
+          // 목록 fetch 진행 중(로그인됨/인증 미확정) → 로딩 스켈레톤.
+          // 비로그인은 fetch 자체가 없어 sessions 가 영영 undefined 이므로 스켈레톤 대신 빈 상태.
+          <HistorySkeleton />
         ) : (
           <div className="sb-history-list">
             <div className="sb-empty">히스토리가 없습니다</div>

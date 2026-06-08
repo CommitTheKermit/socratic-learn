@@ -50,8 +50,10 @@ describe("히스토리는 '학습 시작' 시점에만 사이드바에 등록된
     expect(localStorage.getItem(DRAFT_CONCEPT_KEY)).toBe("코루틴이 왜 필요한지");
     // 아직 세션이 발급되지 않았다.
     expect(localStorage.getItem("socratic:activeSessionId")).toBeNull();
-    // 사이드바 히스토리에도 항목이 없다.
-    expect(screen.getByText("히스토리가 없습니다")).toBeInTheDocument();
+    // 사이드바 히스토리에도 항목이 없다(로딩 스켈레톤이 fetch 완료 후 빈 상태로 정착).
+    await waitFor(() =>
+      expect(screen.getByText("히스토리가 없습니다")).toBeInTheDocument(),
+    );
   });
 
   test("'학습 시작'(probe 전이) 후 세션이 발급되어 사이드바 목록에 나타난다", async () => {

@@ -289,6 +289,58 @@ body {
 .sb-hi-del:hover { color: oklch(0.78 0.13 25); background: oklch(0.6 0.16 25 / 0.14); }
 .sb-hi-del svg { width: 14px; height: 14px; }
 
+/* 학습 히스토리 목록 로딩 스켈레톤. 실제 .sb-history-item 박스 모델(패딩 9px 10px,
+   제목+메타 2줄)에 1:1로 맞춰 자리 이동(layout shift) 없이 실제 목록과 교차한다.
+   반짝이는 셰브론은 각 골격 바 안에서만 흐르고(항목 사이 빈 공간은 정적) 차분한 톤을 유지한다. */
+.sb-hist-skel {
+  display: flex; flex-direction: column;
+  padding: 0 2px;
+  animation: shiIn .3s ease both;
+}
+.shi {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 10px;
+  border-radius: var(--radius-sm);
+}
+.shi-main { display: flex; flex-direction: column; gap: 7px; min-width: 0; width: 100%; }
+/* 골격 바 — 제목 줄(13px)·메타 줄(11px) 높이에 맞춤 */
+.shi-bar {
+  position: relative; overflow: hidden;
+  height: 9px; border-radius: 999px;
+  background: oklch(1 0 0 / 0.06);
+}
+/* 반짝이는 흐름은 바 안에서만 — 리스트 빈 공간엔 적용 X */
+.shi-bar::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(100deg, transparent 38%, oklch(1 0 0 / 0.16) 50%, transparent 62%);
+  background-size: 220% 100%;
+  animation: shiSheen 2.2s ease-in-out infinite;
+}
+.shi-title { height: 11px; }
+.shi-meta  { height: 8px; opacity: 0.7; }
+/* 폭에 자연스러운 리듬을 주어 진짜 제목/메타처럼 보이게 */
+.shi:nth-child(1) .shi-title { width: 78%; }
+.shi:nth-child(1) .shi-meta  { width: 46%; }
+.shi:nth-child(2) .shi-title { width: 64%; }
+.shi:nth-child(2) .shi-meta  { width: 52%; }
+.shi:nth-child(3) .shi-title { width: 83%; }
+.shi:nth-child(3) .shi-meta  { width: 40%; }
+.shi:nth-child(4) .shi-title { width: 57%; }
+.shi:nth-child(4) .shi-meta  { width: 48%; }
+.shi:nth-child(5) .shi-title { width: 72%; }
+.shi:nth-child(5) .shi-meta  { width: 44%; }
+@keyframes shiSheen {
+  0%   { background-position: 130% 0; }
+  100% { background-position: -130% 0; }
+}
+@keyframes shiIn { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .shi-bar::after { animation: none !important; }
+}
+
 .sb-spacer { flex: 1; min-height: 8px; }
 
 .sb-foot {

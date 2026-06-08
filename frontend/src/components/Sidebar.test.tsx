@@ -120,3 +120,48 @@ describe("Sidebar 로그인 상태 분기 (sb-foot)", () => {
     expect(screen.getByText("테")).toBeInTheDocument();
   });
 });
+
+describe("Sidebar 히스토리 로딩 스켈레톤", () => {
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
+  test("sessions===undefined + 로그인 상태(로딩)면 스켈레톤을 5행 보여준다", () => {
+    const { container } = renderSidebar({ sessions: undefined, loggedIn: true });
+    expect(container.querySelector(".sb-hist-skel")).toBeInTheDocument();
+    expect(container.querySelectorAll(".sb-hist-skel .shi")).toHaveLength(5);
+    expect(screen.queryByText("히스토리가 없습니다")).not.toBeInTheDocument();
+  });
+
+  test("sessions===undefined + 인증 미확정(authPending)도 스켈레톤을 보여준다", () => {
+    const { container } = renderSidebar({
+      sessions: undefined,
+      authPending: true,
+      loggedIn: false,
+    });
+    expect(container.querySelector(".sb-hist-skel")).toBeInTheDocument();
+  });
+
+  test("sessions===undefined + 비로그인(fetch 없음)이면 스켈레톤 대신 빈 상태", () => {
+    const { container } = renderSidebar({
+      sessions: undefined,
+      loggedIn: false,
+      authPending: false,
+    });
+    expect(container.querySelector(".sb-hist-skel")).not.toBeInTheDocument();
+    expect(screen.getByText("히스토리가 없습니다")).toBeInTheDocument();
+  });
+
+  test("sessions===undefined + 활성 세션(진행 중)이면 스켈레톤 대신 현재 세션을 보여준다", () => {
+    const { container } = renderSidebar({
+      sessions: undefined,
+      loggedIn: true,
+      stage: "learn",
+      concept: "이벤트 루프",
+    });
+    expect(container.querySelector(".sb-hist-skel")).not.toBeInTheDocument();
+    expect(screen.getByText("이벤트 루프")).toBeInTheDocument();
+    expect(screen.getByText("진행 중")).toBeInTheDocument();
+  });
+});
