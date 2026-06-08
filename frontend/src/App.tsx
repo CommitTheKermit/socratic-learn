@@ -47,6 +47,23 @@ function createSessionId(): string {
   return `s-${Date.now().toString(36)}-${sessionSeq.toString(36)}`;
 }
 
+/**
+ * 사이드바 세션 목록을 로컬 인덱스 최신 상태로 갱신하되, prev 에만 있던
+ * 원격 전용 세션(로컬 인덱스에 메타가 없는 다기기/과거 세션)은 보존한다.
+ *
+ * setSessions(listSessions()) 로 통째 교체하면 mount 시 원격에서 머지해 둔 항목들이
+ * 사라져, 세션 1건 저장/삭제만으로도 사이드바가 통째로 비어 보이는 회귀가 난다.
+ * 로컬 인덱스에 있는 세션은 listSessions() 의 최신 메타를 채택하고,
+ * 로컬에 없는(원격 전용) 세션은 prev 의 항목을 그대로 살려 createdAt 내림차순으로 합친다.
+ */
+function reconcileSessions(prev: SessionMeta[]): SessionMeta[] {
+  const local = listSessions();
+  const localIds = new Set(local.map((m) => m.sessionId));
+  const remoteOnly = prev.filter((m) => !localIds.has(m.sessionId));
+  const next = [...local, ...remoteOnly].sort((a, b) => b.createdAt - a.createdAt);
+  return sessionListsEqual(prev, next) ? prev : next;
+}
+
 
 /** stage(+stepIdx) 를 경로 문자열로 변환한다. sessionId 가 없으면 홈("/"). */
 function pathFor(sessionId: string | undefined, stage: Stage, stepIdx = 0): string {
@@ -323,7 +340,7 @@ function AppWorkspace({
       } catch {
         // 무시
       }
-      setSessions((prev) => { const next = listSessions(); return sessionListsEqual(prev, next) ? prev : next; });
+      setSessions(reconcileSessions);
     },
     3000,
   );
@@ -348,7 +365,7 @@ function AppWorkspace({
     } catch {
       // 저장 실패(용량 초과 등) 복구는 별도 책임이므로 여기서는 무시한다.
     }
-    setSessions((prev) => { const next = listSessions(); return sessionListsEqual(prev, next) ? prev : next; });
+    setSessions(reconcileSessions);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     sessionId,
@@ -481,7 +498,12 @@ function AppWorkspace({
     } catch {
       // 무시
     }
-    setSessions((prev) => { const next = listSessions(); return sessionListsEqual(prev, next) ? prev : next; });
+    // 화면 목록에서 해당 id 만 제거한다(로컬/원격 전용 무관). listSessions() 로 재구성하면
+    // 원격 머지 항목이 함께 사라져 "전부 삭제"처럼 보이므로 prev 에서 직접 걸러낸다.
+    setSessions((prev) => {
+      const next = prev.filter((m) => m.sessionId !== id);
+      return next.length === prev.length ? prev : next;
+    });
     if (id === sessionId) {
       try {
         localStorage.removeItem(ACTIVE_SESSION_KEY);
