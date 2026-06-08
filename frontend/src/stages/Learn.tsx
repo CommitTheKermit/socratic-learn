@@ -346,7 +346,9 @@ export function StageLearn({
           </button>
         </div>
       )}
-      {!detailLoading && !detailErrored && step.body && <Markdown text={step.body} />}
+      {!detailLoading && !detailErrored && step.body && (
+        <Markdown text={step.body} streaming={detailStatus === "streaming"} />
+      )}
     </>
   ) : null;
 

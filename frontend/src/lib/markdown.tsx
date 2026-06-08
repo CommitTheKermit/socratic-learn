@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 
 function renderInline(text: string): ReactNode[] {
   const parts: ReactNode[] = [];
@@ -47,7 +47,7 @@ function isTableSeparator(line: string): boolean {
   return cells.length > 0 && cells.every((c) => /^:?-{2,}:?$/.test(c));
 }
 
-export function Markdown({ text }: { text: string }) {
+function parseBlocks(text: string): Block[] {
   const lines = text.split("\n");
   const blocks: Block[] = [];
   let code: { lang: string; lines: string[] } | null = null;
@@ -98,54 +98,134 @@ export function Markdown({ text }: { text: string }) {
   if (code) {
     blocks.push({ kind: "code", lang: code.lang, text: code.lines.join("\n") });
   }
+  return blocks;
+}
+
+// 활성(스트리밍 중인 마지막) 블록을 raw 텍스트로 환원한다. settle 시 renderBlock 으로 서식화된다.
+function blockRawText(b: Block): string {
+  if (b.kind === "code") return b.text;
+  if (b.kind === "table")
+    return [b.header.join(" | "), ...b.rows.map((r) => r.join(" | "))].join("\n");
+  return b.text;
+}
+
+function renderBlock(b: Block, key: number): ReactNode {
+  if (b.kind === "code") {
+    return (
+      <pre key={key} className="code-block">
+        {b.lang && <span className="code-lang">{b.lang}</span>}
+        <code>{b.text}</code>
+      </pre>
+    );
+  }
+  if (b.kind === "table") {
+    return (
+      <table key={key} className="md-table">
+        <thead>
+          <tr>
+            {b.header.map((h, j) => (
+              <th key={j}>
+                {renderInline(h).map((node, k) => (
+                  <Fragment key={k}>{node}</Fragment>
+                ))}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {b.rows.map((row, r) => (
+            <tr key={r}>
+              {row.map((cell, c) => (
+                <td key={c}>
+                  {renderInline(cell).map((node, k) => (
+                    <Fragment key={k}>{node}</Fragment>
+                  ))}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  }
+  return (
+    <p key={key}>
+      {renderInline(b.text).map((node, j) => (
+        <Fragment key={j}>{node}</Fragment>
+      ))}
+    </p>
+  );
+}
+
+type Chunk = { id: number; text: string };
+
+/**
+ * 스트리밍 중인 마지막(활성) 블록.
+ * raw 텍스트가 자라면 "새로 추가된 조각"만 별도 span 으로 append 하고, 그 span 은
+ * mount 시점에 1회만 fade-in 한다(CSS `md-fade-chunk`). 이미 mount 된 조각 span 은
+ * 안정 key(c.id) 라 재마운트되지 않으므로 재페이드/깜빡임이 없다.
+ */
+function StreamingActiveBlock({
+  raw,
+  kind,
+  lang,
+}: {
+  raw: string;
+  kind: Block["kind"];
+  lang?: string;
+}) {
+  const [chunks, setChunks] = useState<Chunk[]>(() => (raw ? [{ id: 0, text: raw }] : []));
+  const seenRef = useRef(raw);
+  const idRef = useRef(1);
+
+  useEffect(() => {
+    if (raw === seenRef.current) return;
+    // append-only 가 아닌 변화(재시도/블록 재파싱)는 이 블록만 리셋한다.
+    if (!raw.startsWith(seenRef.current)) {
+      seenRef.current = raw;
+      setChunks(raw ? [{ id: idRef.current++, text: raw }] : []);
+      return;
+    }
+    const added = raw.slice(seenRef.current.length);
+    seenRef.current = raw;
+    if (added) setChunks((cur) => [...cur, { id: idRef.current++, text: added }]);
+  }, [raw]);
+
+  const spans = chunks.map((c) => (
+    <span key={c.id} className="md-fade-chunk">
+      {c.text}
+    </span>
+  ));
+
+  if (kind === "code") {
+    return (
+      <pre className="code-block">
+        {lang && <span className="code-lang">{lang}</span>}
+        <code>{spans}</code>
+      </pre>
+    );
+  }
+  return <p className="md-stream-p">{spans}</p>;
+}
+
+export function Markdown({ text, streaming = false }: { text: string; streaming?: boolean }) {
+  const blocks = parseBlocks(text);
+  const lastIdx = blocks.length - 1;
   return (
     <div className="md-body">
       {blocks.map((b, i) => {
-        if (b.kind === "code") {
+        // 스트리밍 중에는 "마지막 블록"만 토큰 단위 fade. 이전(완료) 블록은 서식화·고정.
+        if (streaming && i === lastIdx) {
           return (
-            <pre key={i} className="code-block">
-              {b.lang && <span className="code-lang">{b.lang}</span>}
-              <code>{b.text}</code>
-            </pre>
+            <StreamingActiveBlock
+              key={i}
+              raw={blockRawText(b)}
+              kind={b.kind}
+              lang={b.kind === "code" ? b.lang : undefined}
+            />
           );
         }
-        if (b.kind === "table") {
-          return (
-            <table key={i} className="md-table">
-              <thead>
-                <tr>
-                  {b.header.map((h, j) => (
-                    <th key={j}>
-                      {renderInline(h).map((node, k) => (
-                        <Fragment key={k}>{node}</Fragment>
-                      ))}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {b.rows.map((row, r) => (
-                  <tr key={r}>
-                    {row.map((cell, c) => (
-                      <td key={c}>
-                        {renderInline(cell).map((node, k) => (
-                          <Fragment key={k}>{node}</Fragment>
-                        ))}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          );
-        }
-        return (
-          <p key={i}>
-            {renderInline(b.text).map((node, j) => (
-              <Fragment key={j}>{node}</Fragment>
-            ))}
-          </p>
-        );
+        return renderBlock(b, i);
       })}
     </div>
   );
