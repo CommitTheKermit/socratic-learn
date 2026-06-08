@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLearnContent } from "../state/LearnContent";
 import { Markdown } from "../lib/markdown";
 import { LEVEL_LABELS, type Step } from "./data";
+import { pickRandomPlaceholder } from "./placeholders";
 import { describeErrorCode } from "../lib/errors";
 import { I } from "../components/icons";
 import type { Grade } from "../api/claudeContent";
@@ -16,6 +17,34 @@ interface InsertedMeta {
 
 function stripLeadingZero(label: string): string {
   return label.replace(/^0+(?=\d)/, "");
+}
+
+/**
+ * 확인 질문 답변 입력칸. 마운트 시 1회만 랜덤 placeholder 를 골라 고정한다.
+ * 질문마다 독립 컴포넌트로 마운트되므로 입력칸마다 서로 다른 문구가 표시된다.
+ */
+function QaAnswer({
+  value,
+  readOnly,
+  onChange,
+  onBlur,
+}: {
+  value: string;
+  readOnly: boolean;
+  onChange: (v: string) => void;
+  onBlur: () => void;
+}) {
+  const [placeholder] = useState(pickRandomPlaceholder);
+  return (
+    <textarea
+      className="qa-answer"
+      placeholder={placeholder}
+      value={value}
+      readOnly={readOnly}
+      onChange={(e) => onChange(e.target.value)}
+      onBlur={onBlur}
+    />
+  );
 }
 
 interface Props {
@@ -363,14 +392,12 @@ export function StageLearn({
                   <span className={`grade-badge grade-${ev.grade}`}>{GRADE_LABEL[ev.grade]}</span>
                 )}
               </div>
-              <textarea
-                className="qa-answer"
-                placeholder="자유롭게 적어주세요. 짧아도 좋아요."
+              <QaAnswer
                 value={val}
                 readOnly={locked}
-                onChange={(e) => {
+                onChange={(v) => {
                   if (locked) return;
-                  setAnswers({ ...answers, [q.id]: e.target.value });
+                  setAnswers({ ...answers, [q.id]: v });
                   if (isSkipped) setSkips({ ...skips, [q.id]: false });
                 }}
                 onBlur={() => onAnswerCommit?.()}
