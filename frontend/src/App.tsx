@@ -152,6 +152,8 @@ function AppWorkspace({
     stage === "learn" ? Math.max(0, Number.parseInt(params.stepIdx ?? "0", 10) || 0) : 0;
 
   const createdAtRef = useRef(loaded?.createdAt ?? Date.now());
+  // "학습 시작" 재진입 가드(중복 세션 발급 방지).
+  const startingRef = useRef(false);
 
   const { user, loading: authLoading, login, logout } = useAuth();
   // GitHub 로그인 핸들(예: octocat). displayName(표시 이름)과 달리 User 타입에 노출되지 않아 reloadUserInfo 에서 추출한다.
@@ -388,16 +390,21 @@ function AppWorkspace({
 
   /** "학습 시작": 홈이면 새 세션을 발급해 저장 후 probe 로, 기존 세션이면 그대로 probe 로 이동. */
   const startLearning = async () => {
+    if (sessionId) {
+      goStage("probe");
+      return;
+    }
+    // 재진입 가드: 빠른 더블클릭이나 로그인 팝업(await) 대기 중 재호출로
+    // 세션이 두 개 발급되는 것을 막는다(성공 시 navigate 로 언마운트되어 ref 는 버려진다).
+    if (startingRef.current) return;
+    startingRef.current = true;
     if (!user) {
       try {
         await login();
       } catch {
+        startingRef.current = false;
         return;
       }
-    }
-    if (sessionId) {
-      goStage("probe");
-      return;
     }
     const newId = createSessionId();
     const snap: SessionState = {
