@@ -14,18 +14,11 @@ import { StageProbe } from "./stages/Probe";
 import { StageLearn } from "./stages/Learn";
 import { StageDone } from "./stages/Done";
 import { LearnContentProvider, useLearnContent } from "./state/LearnContent";
-import { loadSession, sessionKey } from "./state/sessionPersist";
+import { loadSession } from "./state/sessionPersist";
 import { loadSidebarPinned, saveSidebarPinned } from "./state/sidebarSetting";
-import { sessionListsEqual, type SessionMeta } from "./state/sessionIndex";
+import { SessionListProvider, useSessionList } from "./state/SessionListContext";
 import type { SessionState } from "./state/sessionState";
-import {
-  fetchAndMerge,
-  fetchRemoteSessionList,
-  mergeSessionLists,
-  persistWithSync,
-} from "./state/sessionSync";
-import { deleteSessionRemote } from "./api/sessionApi";
-import { addTombstone, listTombstones, removeTombstone } from "./state/sessionTombstone";
+import { fetchAndMerge, persistWithSync } from "./state/sessionSync";
 import { useDebouncedPersist } from "./state/useDebouncedPersist";
 import { useAuth } from "./state/useAuth";
 import { hasSynced, markSynced } from "./state/fetchOncePerSession";
@@ -47,33 +40,6 @@ function createSessionId(): string {
   sessionSeq += 1;
   return `s-${Date.now().toString(36)}-${sessionSeq.toString(36)}`;
 }
-
-/**
- * 사이드바 세션 목록(메모리)에 현재 세션의 메타를 반영(upsert)한다.
- *
- * 세션 목록의 진실 출처는 Firestore(원격)이고, localStorage 인덱스는 더 이상 쓰지 않는다.
- * 그래서 현재 기기에서 작업 중인 세션은 저장 시점마다 이 함수로 메모리 목록에 직접 반영한다.
- * - input 단계(= 학습 시작 전)는 히스토리에 노출하지 않으므로 prev 를 그대로 둔다.
- * - 같은 sessionId 가 이미 있으면 갱신, 없으면 추가하고 createdAt 내림차순 정렬.
- * - 결과가 prev 와 동일하면(참조 안정성) prev 를 그대로 반환한다.
- */
-function upsertVisible(
-  prev: SessionMeta[] | undefined,
-  snapshot: SessionState,
-): SessionMeta[] | undefined {
-  if (snapshot.stage === "input") return prev;
-  const meta: SessionMeta = {
-    sessionId: snapshot.sessionId,
-    createdAt: snapshot.createdAt,
-    conceptSummary: snapshot.conceptSummary,
-    stage: snapshot.stage,
-  };
-  const base = prev ?? [];
-  const others = base.filter((m) => m.sessionId !== meta.sessionId);
-  const next = [meta, ...others].sort((a, b) => b.createdAt - a.createdAt);
-  return prev !== undefined && sessionListsEqual(prev, next) ? prev : next;
-}
-
 
 /** stage(+stepIdx) 를 경로 문자열로 변환한다. sessionId 가 없으면 홈("/"). */
 function pathFor(sessionId: string | undefined, stage: Stage, stepIdx = 0): string {
@@ -259,36 +225,12 @@ function AppWorkspace({
   );
   const [answers, setAnswers] = useState<Record<string, string>>(() => loaded?.answers ?? {});
   const [skips, setSkips] = useState<Record<string, boolean>>(() => loaded?.skips ?? {});
-  // 사이드바 목록. 진실 출처는 원격(Firestore). undefined 는 "원격 응답 전(로딩)" 을 뜻하며,
-  // 이때 Sidebar 는 진행 중 세션만 보여준다. 원격 fetch 와 현재 세션 저장이 이 상태를 채운다.
-  const [sessions, setSessions] = useState<SessionMeta[] | undefined>(undefined);
+  // 사이드바 세션 목록은 App 레벨 SessionListProvider(Routes 바깥)가 보유한다. 단계 전환으로
+  // 이 워크스페이스가 재마운트되어도 sessions/원격 fetch 상태가 유지되어 목록이 깜빡이지 않는다.
+  // 원격 fetch(user 구독)와 목록 mutation 은 Provider 가 담당하고, 여기서는 소비만 한다.
+  const { sessions, upsertSession, removeSession } = useSessionList();
   // 히스토리 선택 → 세션 로딩 중 블로킹 오버레이에 표시할 세션 제목(null 이면 미표시).
   const [loadingTitle, setLoadingTitle] = useState<string | null>(null);
-
-  // 사이드바 목록을 원격(Firestore)에서 1회 받아 채운다. 현재 작업 중 세션(메모리)은 유지하고
-  // 원격 전용 세션만 추가한다. 낙관적 삭제의 tombstone 에 든 세션은 목록에서 제외해 재출현을
-  // 막고, 원격 삭제를 재시도한다. 응답이 비어도 undefined → [] 로 전환해 "로딩 종료" 를 알린다.
-  useEffect(() => {
-    let alive = true;
-    void fetchRemoteSessionList().then((remote) => {
-      if (!alive) return;
-      const tombstoned = listTombstones();
-      // tombstone 세션은 원격 삭제 재시도(성공 시 tombstone 해제). 실패는 다음 접속에 재시도.
-      for (const id of tombstoned) {
-        void deleteSessionRemote(id)
-          .then(() => removeTombstone(id))
-          .catch(() => {});
-      }
-      const visible = remote.filter((r) => !tombstoned.has(r.sessionId));
-      setSessions((prev) => {
-        const merged = mergeSessionLists(prev ?? [], visible);
-        return prev !== undefined && sessionListsEqual(prev, merged) ? prev : merged;
-      });
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   const {
     steps,
@@ -354,7 +296,7 @@ function AppWorkspace({
       } catch {
         // 무시
       }
-      setSessions((prev) => upsertVisible(prev, snap));
+      upsertSession(snap);
     },
     3000,
   );
@@ -379,7 +321,7 @@ function AppWorkspace({
     } catch {
       // 저장 실패(용량 초과 등) 복구는 별도 책임이므로 여기서는 무시한다.
     }
-    setSessions((prev) => upsertVisible(prev, snapshot));
+    upsertSession(snapshot);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     sessionId,
@@ -508,25 +450,12 @@ function AppWorkspace({
   }, [sessionId, navigate, sessions]);
 
   /**
-   * 세션 삭제 - 낙관적 삭제: 메모리 목록/본문 캐시를 즉시 제거하고 원격 삭제는 뒤따라 시도한다.
-   * tombstone 으로 삭제 id 를 기록해, 원격 삭제가 실패해도 다음 접속의 원격 목록 머지가
-   * 되살리지 못하게 막는다. 원격 삭제가 성공하면 tombstone 을 해제하고,
-   * 실패(네트워크/4xx/5xx)하면 console.error 1회 후 tombstone 을 남겨 다음 접속에 재시도한다.
+   * 세션 삭제. 목록/본문 캐시/원격의 낙관적 제거(tombstone 차단 포함)는 Provider 의
+   * removeSession 이 담당하고, 여기서는 활성 세션을 지운 경우의 라우팅(활성 키 제거 + 홈 이동)만
+   * 책임진다(sessionId/navigate 의존이라 워크스페이스에 잔류).
    */
   const deleteSession = useCallback((id: string) => {
-    // 1) 본문 캐시 즉시 제거(낙관적) + tombstone 기록.
-    try {
-      addTombstone(id);
-      localStorage.removeItem(sessionKey(id));
-    } catch {
-      // 무시
-    }
-    // 화면 목록(메모리)에서 해당 id 만 제거한다. 목록 인덱스는 더 이상 없다.
-    setSessions((prev) => {
-      if (!prev) return prev;
-      const next = prev.filter((m) => m.sessionId !== id);
-      return next.length === prev.length ? prev : next;
-    });
+    removeSession(id);
     if (id === sessionId) {
       try {
         localStorage.removeItem(ACTIVE_SESSION_KEY);
@@ -536,13 +465,7 @@ function AppWorkspace({
       }
       navigate("/");
     }
-    // 2) 원격 삭제는 백그라운드. 성공 시 tombstone 해제, 실패 시 tombstone 유지(다음 접속 재시도).
-    void deleteSessionRemote(id)
-      .then(() => removeTombstone(id))
-      .catch((e) => {
-        console.error("[deleteSession] 원격 삭제 실패, tombstone 유지(다음 접속 재시도):", e);
-      });
-  }, [sessionId, navigate]);
+  }, [sessionId, navigate, removeSession]);
 
   return (
     <div
@@ -666,14 +589,18 @@ function AppWorkspace({
 }
 
 export default function App() {
+  // SessionListProvider 는 Routes 바깥에 둔다. 단계 전환으로 매칭 Route(=AppShell)가 교체되어
+  // 워크스페이스가 재마운트되어도 Provider 는 유지되어 사이드바 목록이 깜빡이지 않는다.
   return (
-    <Routes>
-      <Route path="/" element={<HomeRedirect />} />
-      <Route path="/s/:sessionId" element={<AppShell stage="input" />} />
-      <Route path="/s/:sessionId/probe" element={<AppShell stage="probe" />} />
-      <Route path="/s/:sessionId/learn/:stepIdx" element={<AppShell stage="learn" />} />
-      <Route path="/s/:sessionId/done" element={<AppShell stage="done" />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <SessionListProvider>
+      <Routes>
+        <Route path="/" element={<HomeRedirect />} />
+        <Route path="/s/:sessionId" element={<AppShell stage="input" />} />
+        <Route path="/s/:sessionId/probe" element={<AppShell stage="probe" />} />
+        <Route path="/s/:sessionId/learn/:stepIdx" element={<AppShell stage="learn" />} />
+        <Route path="/s/:sessionId/done" element={<AppShell stage="done" />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </SessionListProvider>
   );
 }
