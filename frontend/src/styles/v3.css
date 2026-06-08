@@ -583,25 +583,52 @@ body {
 .input-bar textarea::placeholder { color: var(--fg-dim); }
 
 .btn-capture {
+  position: relative;
+  z-index: 0;
+  overflow: hidden;
   display: inline-flex; align-items: center; gap: 6px;
   padding: 0 20px;
   height: 40px;
   border-radius: 999px;
-  background: var(--holo);
+  background: #A8FFC9;                /* 기본: 민트 솔리드 */
   color: var(--holo-on);
   font-size: 13px;
   font-weight: 700;
   letter-spacing: -0.005em;
   white-space: nowrap;
-  box-shadow: var(--holo-glow);
-  transition: filter .15s ease, transform .15s ease, box-shadow .2s ease;
+  box-shadow: 0 8px 24px -10px rgba(168, 255, 201, 0.45),
+              0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+  transition: transform .15s ease, box-shadow .25s ease;
+}
+/* 흐르는 그라데이션 레이어 (텍스트 뒤) */
+.btn-capture::before {
+  content: "";
+  position: absolute; inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: linear-gradient(115deg,
+              #A8FFC9 0%, #7DE3FF 25%, #C8B6FF 50%, #FFB3D9 75%, #A8FFC9 100%);
+  background-size: 220% 100%;
+  background-position: 0% 50%;
+  opacity: 1;
+  animation: btn-flow 4s linear infinite;
 }
 .btn-capture:hover {
-  filter: brightness(1.05) saturate(1.05);
   box-shadow: 0 10px 36px -8px rgba(200, 182, 255, 0.5),
               0 0 0 1px rgba(255, 255, 255, 0.08) inset;
 }
+.btn-capture:hover::before {
+  animation-duration: 2.4s;
+}
 .btn-capture:active { transform: translateY(1px); }
+
+@keyframes btn-flow {
+  from { background-position: 0% 50%; }
+  to   { background-position: 200% 50%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn-capture::before { animation: none; }
+}
 
 /* ── Hero guide (입력바 아래 접이식 · 가로 4-스텝, 뉴트럴) ──────────── */
 .hero-guide {
