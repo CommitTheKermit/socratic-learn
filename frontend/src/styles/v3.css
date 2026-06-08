@@ -577,7 +577,9 @@ body {
   font-family: var(--font-sans);
   letter-spacing: -0.005em;
   line-height: 1.4;
+  scrollbar-width: none; /* Firefox: 세로 스크롤바 숨김 */
 }
+.input-bar textarea::-webkit-scrollbar { width: 0; height: 0; display: none; } /* WebKit: 둥근 회색 스크롤바 숨김 */
 .input-bar textarea::placeholder { color: var(--fg-dim); }
 
 .btn-capture {
