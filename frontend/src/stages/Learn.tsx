@@ -381,11 +381,18 @@ export function StageLearn({
                   <p>{ev.feedback}</p>
                 </div>
               )}
-              <div className="qa-foot">
-                <span className="qa-count">
-                  {val.length}자{isSkipped ? " · 건너뜀" : ""}
-                </span>
-              </div>
+              {!locked && (
+                <div className="qa-foot">
+                  <button
+                    type="button"
+                    className={"qa-dunno" + (isSkipped ? " is-active" : "")}
+                    aria-pressed={isSkipped}
+                    onClick={() => setSkips({ ...skips, [q.id]: !isSkipped })}
+                  >
+                    {isSkipped ? "모르겠어요로 표시함" : "모르겠어요"}
+                  </button>
+                </div>
+              )}
             </div>
           );
         })}
