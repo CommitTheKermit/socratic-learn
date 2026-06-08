@@ -15,7 +15,7 @@ import { StageDone } from "./stages/Done";
 import { LearnContentProvider, useLearnContent } from "./state/LearnContent";
 import { loadSession, sessionKey } from "./state/sessionPersist";
 import { loadSidebarPinned, saveSidebarPinned } from "./state/sidebarSetting";
-import { listSessions, removeSessionMeta, sessionListsEqual, type SessionMeta } from "./state/sessionIndex";
+import { sessionListsEqual, type SessionMeta } from "./state/sessionIndex";
 import type { SessionState } from "./state/sessionState";
 import {
   fetchAndMerge,
@@ -48,20 +48,29 @@ function createSessionId(): string {
 }
 
 /**
- * 사이드바 세션 목록을 로컬 인덱스 최신 상태로 갱신하되, prev 에만 있던
- * 원격 전용 세션(로컬 인덱스에 메타가 없는 다기기/과거 세션)은 보존한다.
+ * 사이드바 세션 목록(메모리)에 현재 세션의 메타를 반영(upsert)한다.
  *
- * setSessions(listSessions()) 로 통째 교체하면 mount 시 원격에서 머지해 둔 항목들이
- * 사라져, 세션 1건 저장/삭제만으로도 사이드바가 통째로 비어 보이는 회귀가 난다.
- * 로컬 인덱스에 있는 세션은 listSessions() 의 최신 메타를 채택하고,
- * 로컬에 없는(원격 전용) 세션은 prev 의 항목을 그대로 살려 createdAt 내림차순으로 합친다.
+ * 세션 목록의 진실 출처는 Firestore(원격)이고, localStorage 인덱스는 더 이상 쓰지 않는다.
+ * 그래서 현재 기기에서 작업 중인 세션은 저장 시점마다 이 함수로 메모리 목록에 직접 반영한다.
+ * - input 단계(= 학습 시작 전)는 히스토리에 노출하지 않으므로 prev 를 그대로 둔다.
+ * - 같은 sessionId 가 이미 있으면 갱신, 없으면 추가하고 createdAt 내림차순 정렬.
+ * - 결과가 prev 와 동일하면(참조 안정성) prev 를 그대로 반환한다.
  */
-function reconcileSessions(prev: SessionMeta[]): SessionMeta[] {
-  const local = listSessions();
-  const localIds = new Set(local.map((m) => m.sessionId));
-  const remoteOnly = prev.filter((m) => !localIds.has(m.sessionId));
-  const next = [...local, ...remoteOnly].sort((a, b) => b.createdAt - a.createdAt);
-  return sessionListsEqual(prev, next) ? prev : next;
+function upsertVisible(
+  prev: SessionMeta[] | undefined,
+  snapshot: SessionState,
+): SessionMeta[] | undefined {
+  if (snapshot.stage === "input") return prev;
+  const meta: SessionMeta = {
+    sessionId: snapshot.sessionId,
+    createdAt: snapshot.createdAt,
+    conceptSummary: snapshot.conceptSummary,
+    stage: snapshot.stage,
+  };
+  const base = prev ?? [];
+  const others = base.filter((m) => m.sessionId !== meta.sessionId);
+  const next = [meta, ...others].sort((a, b) => b.createdAt - a.createdAt);
+  return prev !== undefined && sessionListsEqual(prev, next) ? prev : next;
 }
 
 
@@ -249,10 +258,13 @@ function AppWorkspace({
   );
   const [answers, setAnswers] = useState<Record<string, string>>(() => loaded?.answers ?? {});
   const [skips, setSkips] = useState<Record<string, boolean>>(() => loaded?.skips ?? {});
-  const [sessions, setSessions] = useState<SessionMeta[]>(() => listSessions());
+  // 사이드바 목록. 진실 출처는 원격(Firestore). undefined 는 "원격 응답 전(로딩)" 을 뜻하며,
+  // 이때 Sidebar 는 진행 중 세션만 보여준다. 원격 fetch 와 현재 세션 저장이 이 상태를 채운다.
+  const [sessions, setSessions] = useState<SessionMeta[] | undefined>(undefined);
 
-  // 사이드바 목록을 원격과 1회 병합한다. 로컬(작업 중) 메타는 유지하고 원격 전용 세션만 추가한다.
-  // 낙관적 삭제의 tombstone 에 든 세션은 병합에서 제외해 재출현을 막고, 원격 삭제를 재시도한다.
+  // 사이드바 목록을 원격(Firestore)에서 1회 받아 채운다. 현재 작업 중 세션(메모리)은 유지하고
+  // 원격 전용 세션만 추가한다. 낙관적 삭제의 tombstone 에 든 세션은 목록에서 제외해 재출현을
+  // 막고, 원격 삭제를 재시도한다. 응답이 비어도 undefined → [] 로 전환해 "로딩 종료" 를 알린다.
   useEffect(() => {
     let alive = true;
     void fetchRemoteSessionList().then((remote) => {
@@ -265,10 +277,9 @@ function AppWorkspace({
           .catch(() => {});
       }
       const visible = remote.filter((r) => !tombstoned.has(r.sessionId));
-      if (!visible.length) return;
-      setSessions((local) => {
-        const merged = mergeSessionLists(local, visible);
-        return sessionListsEqual(local, merged) ? local : merged;
+      setSessions((prev) => {
+        const merged = mergeSessionLists(prev ?? [], visible);
+        return prev !== undefined && sessionListsEqual(prev, merged) ? prev : merged;
       });
     });
     return () => {
@@ -340,7 +351,7 @@ function AppWorkspace({
       } catch {
         // 무시
       }
-      setSessions(reconcileSessions);
+      setSessions((prev) => upsertVisible(prev, snap));
     },
     3000,
   );
@@ -360,12 +371,12 @@ function AppWorkspace({
     const snapshot = buildSnapshot();
     try {
       localStorage.setItem(ACTIVE_SESSION_KEY, sessionId);
-      // input 단계(= "학습 시작" 전)는 본문 초안만 보관하고 히스토리 인덱스/원격에는 올리지 않는다.
-      persistWithSync(snapshot, undefined, { index: stage !== "input" });
+      // input 단계(= "학습 시작" 전)는 본문 캐시만 보관하고 원격/히스토리에는 올리지 않는다.
+      persistWithSync(snapshot, undefined, { remote: stage !== "input" });
     } catch {
       // 저장 실패(용량 초과 등) 복구는 별도 책임이므로 여기서는 무시한다.
     }
-    setSessions(reconcileSessions);
+    setSessions((prev) => upsertVisible(prev, snapshot));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     sessionId,
@@ -441,7 +452,7 @@ function AppWorkspace({
     try {
       localStorage.setItem(ACTIVE_SESSION_KEY, newId);
       localStorage.removeItem(DRAFT_CONCEPT_KEY);
-      persistWithSync(snap, undefined, { index: true });
+      persistWithSync(snap, undefined, { remote: true });
     } catch {
       // 무시
     }
@@ -466,41 +477,50 @@ function AppWorkspace({
    */
   const switchSession = useCallback(async (targetId: string) => {
     if (targetId === sessionId) return;
-    let target = loadSession(targetId);
-    if (!target) {
-      try {
-        await fetchAndMerge(targetId);
-        target = loadSession(targetId);
-      } catch {
-        // 원격 조회 실패: input 으로 이동(이후 진입 시 재시도).
-      }
-    }
+    // 불러오는 동안 화면 전체 클릭을 막는 블로킹 오버레이를 띄운다. 캐시에 있으면
+    // 거의 즉시 navigate 되어 잠깐 스쳐 지나가고, 원격 전용 세션은 fetch 동안 유지된다.
+    const meta = sessions?.find((s) => s.sessionId === targetId);
+    setLoadingTitle(meta?.conceptSummary ?? "");
     try {
-      localStorage.setItem(ACTIVE_SESSION_KEY, targetId);
-    } catch {
-      // 무시
+      let target = loadSession(targetId);
+      if (!target) {
+        try {
+          await fetchAndMerge(targetId);
+          target = loadSession(targetId);
+        } catch {
+          // 원격 조회 실패: input 으로 이동(이후 진입 시 재시도).
+        }
+      }
+      try {
+        localStorage.setItem(ACTIVE_SESSION_KEY, targetId);
+      } catch {
+        // 무시
+      }
+      navigate(pathFor(targetId, target?.stage ?? "input", target?.stepIdx ?? 0));
+    } finally {
+      // navigate 시 워크스페이스가 key 재마운트되어 오버레이는 자연히 사라지지만,
+      // 같은 트리가 유지되는 경로(원격 실패 등)를 위해 명시적으로 닫는다.
+      setLoadingTitle(null);
     }
-    navigate(pathFor(targetId, target?.stage ?? "input", target?.stepIdx ?? 0));
-  }, [sessionId, navigate]);
+  }, [sessionId, navigate, sessions]);
 
   /**
-   * 세션 삭제 - 낙관적 삭제: 로컬을 즉시 제거하고 원격 삭제는 뒤따라 시도한다.
-   * tombstone 으로 삭제 id 를 기록해, 원격 삭제가 실패해도 mergeSessionLists 가
+   * 세션 삭제 - 낙관적 삭제: 메모리 목록/본문 캐시를 즉시 제거하고 원격 삭제는 뒤따라 시도한다.
+   * tombstone 으로 삭제 id 를 기록해, 원격 삭제가 실패해도 다음 접속의 원격 목록 머지가
    * 되살리지 못하게 막는다. 원격 삭제가 성공하면 tombstone 을 해제하고,
    * 실패(네트워크/4xx/5xx)하면 console.error 1회 후 tombstone 을 남겨 다음 접속에 재시도한다.
    */
   const deleteSession = useCallback((id: string) => {
-    // 1) 로컬 즉시 삭제(낙관적) + tombstone 기록.
+    // 1) 본문 캐시 즉시 제거(낙관적) + tombstone 기록.
     try {
       addTombstone(id);
-      removeSessionMeta(id);
       localStorage.removeItem(sessionKey(id));
     } catch {
       // 무시
     }
-    // 화면 목록에서 해당 id 만 제거한다(로컬/원격 전용 무관). listSessions() 로 재구성하면
-    // 원격 머지 항목이 함께 사라져 "전부 삭제"처럼 보이므로 prev 에서 직접 걸러낸다.
+    // 화면 목록(메모리)에서 해당 id 만 제거한다. 목록 인덱스는 더 이상 없다.
     setSessions((prev) => {
+      if (!prev) return prev;
       const next = prev.filter((m) => m.sessionId !== id);
       return next.length === prev.length ? prev : next;
     });

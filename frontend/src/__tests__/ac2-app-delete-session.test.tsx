@@ -19,7 +19,8 @@ vi.mock("../api/claudeContent", () => ({
 }));
 
 // sessionApi - 원격 삭제(deleteSessionRemote)를 성공으로 stub 한다.
-// 낙관적 삭제: 로컬을 즉시 제거하고 원격은 뒤따라 호출된다(성공 시 tombstone 해제).
+// 사이드바 목록의 진실 출처는 원격(listSessionsRemote)이므로 각 테스트에서 mockResolvedValue 로 채운다.
+// 낙관적 삭제: 로컬(본문 캐시/메모리 목록)을 즉시 제거하고 원격은 뒤따라 호출된다(성공 시 tombstone 해제).
 vi.mock("../api/sessionApi", () => ({
   deleteSessionRemote: vi.fn(async () => undefined),
   saveSessionRemote: vi.fn(async () => undefined),
@@ -27,14 +28,13 @@ vi.mock("../api/sessionApi", () => ({
   getSessionRemote: vi.fn(async () => null),
 }));
 
-import * as sessionIndex from "../state/sessionIndex";
-import { upsertSessionMeta } from "../state/sessionIndex";
+import { listSessionsRemote } from "../api/sessionApi";
 import { sessionKey } from "../state/sessionPersist";
 import { listTombstones } from "../state/sessionTombstone";
+import type { SessionIndexEntry } from "../api/contract";
 import App from "../App";
 
 const ACTIVE_KEY = "socratic:activeSessionId";
-const PLACEHOLDER = "배우고 싶은 개념을 입력해서 시작해보세요";
 
 function renderApp(entries: string[] = ["/"]) {
   return render(
@@ -42,6 +42,22 @@ function renderApp(entries: string[] = ["/"]) {
       <App />
     </MemoryRouter>,
   );
+}
+
+/**
+ * 사이드바 히스토리 항목을 concept 텍스트로 찾는다.
+ * 목록은 원격(비동기)으로 채워지므로 항목이 나타날 때까지 대기한다. 활성 세션의 concept 은
+ * 메인 화면에도 보일 수 있어 .sb-history-item 으로 한정한다.
+ */
+async function findHistoryItem(concept: string): Promise<HTMLElement> {
+  return (await waitFor(() => {
+    const el = screen
+      .getAllByText(concept)
+      .map((n) => n.closest<HTMLElement>(".sb-history-item"))
+      .find(Boolean);
+    expect(el).toBeTruthy();
+    return el!;
+  }));
 }
 
 function seededState(overrides: Partial<Record<string, unknown>> = {}) {
@@ -62,6 +78,11 @@ function seededState(overrides: Partial<Record<string, unknown>> = {}) {
   };
 }
 
+/** 원격 목록 mock 을 채운다(사이드바에 세션이 나타나게 한다). */
+function seedRemoteList(entries: SessionIndexEntry[]) {
+  vi.mocked(listSessionsRemote).mockResolvedValue(entries);
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.restoreAllMocks();
@@ -78,30 +99,21 @@ describe("낙관적 삭제: 로컬 즉시 제거 + tombstone, 원격은 뒤따�
         seededState({ sessionId: "active-1", stage: "input", concept: "활성개념", conceptSummary: "활성개념" }),
       ),
     );
-    upsertSessionMeta({ sessionId: "active-1", createdAt: 5, conceptSummary: "활성개념", stage: "input" });
+    seedRemoteList([{ sessionId: "active-1", conceptSummary: "활성개념", stage: "input", updatedAt: 5 }]);
 
     // deleteSessionRemote 가 절대 resolve 되지 않는 pending 상태로 고정
     const { deleteSessionRemote: mockDeleteRemote } = await import("../api/sessionApi");
     vi.mocked(mockDeleteRemote).mockImplementation(() => new Promise(() => undefined));
 
-    const removeMetaSpy = vi.spyOn(sessionIndex, "removeSessionMeta");
-
     const user = userEvent.setup();
     renderApp(["/"]);
 
-    const item = (await waitFor(() =>
-      screen
-        .getAllByText("활성개념")
-        .map((el) => el.closest(".sb-history-item"))
-        .find(Boolean),
-    )) as HTMLElement;
+    const item = await findHistoryItem("활성개념");
 
     await user.click(within(item).getByLabelText("세션 삭제"));
 
-    // 낙관적: 원격이 pending 이어도 로컬은 즉시 제거된다
-    expect(removeMetaSpy).toHaveBeenCalledWith("active-1");
+    // 낙관적: 원격이 pending 이어도 본문 캐시는 즉시 제거된다
     expect(localStorage.getItem(sessionKey("active-1"))).toBeNull();
-    expect(sessionIndex.listSessions().some((m) => m.sessionId === "active-1")).toBe(false);
     // tombstone 에 기록되어, 원격 미완료 상태에서도 재출현이 차단된다
     expect(listTombstones().has("active-1")).toBe(true);
     // 원격 삭제는 (뒤따라) 호출되었다
@@ -114,7 +126,7 @@ describe("낙관적 삭제: 로컬 즉시 제거 + tombstone, 원격은 뒤따�
       sessionKey("active-ok"),
       JSON.stringify(seededState({ sessionId: "active-ok", concept: "성공개념", conceptSummary: "성공개념" })),
     );
-    upsertSessionMeta({ sessionId: "active-ok", createdAt: 9, conceptSummary: "성공개념", stage: "input" });
+    seedRemoteList([{ sessionId: "active-ok", conceptSummary: "성공개념", stage: "input", updatedAt: 9 }]);
 
     const { deleteSessionRemote: mockDeleteRemote } = await import("../api/sessionApi");
     vi.mocked(mockDeleteRemote).mockResolvedValue(undefined);
@@ -122,12 +134,7 @@ describe("낙관적 삭제: 로컬 즉시 제거 + tombstone, 원격은 뒤따�
     const user = userEvent.setup();
     renderApp(["/"]);
 
-    const item = (await waitFor(() =>
-      screen
-        .getAllByText("성공개념")
-        .map((el) => el.closest(".sb-history-item"))
-        .find(Boolean),
-    )) as HTMLElement;
+    const item = await findHistoryItem("성공개념");
 
     await user.click(within(item).getByLabelText("세션 삭제"));
 
@@ -139,7 +146,7 @@ describe("낙관적 삭제: 로컬 즉시 제거 + tombstone, 원격은 뒤따�
 });
 
 describe("AC2: App.tsx deleteSession", () => {
-  test("활성 세션 삭제 시 removeSessionMeta+removeItem 호출 후 홈(input)으로 이동한다", async () => {
+  test("활성 세션 삭제 시 본문 키 제거 후 홈(input)으로 이동한다", async () => {
     localStorage.setItem(ACTIVE_KEY, "active-1");
     // 루트 진입 시 활성 세션(input)으로 복원된다.
     localStorage.setItem(
@@ -148,9 +155,8 @@ describe("AC2: App.tsx deleteSession", () => {
         seededState({ sessionId: "active-1", stage: "input", concept: "활성개념", conceptSummary: "활성개념" }),
       ),
     );
-    upsertSessionMeta({ sessionId: "active-1", createdAt: 5, conceptSummary: "활성개념", stage: "input" });
+    seedRemoteList([{ sessionId: "active-1", conceptSummary: "활성개념", stage: "input", updatedAt: 5 }]);
 
-    const removeMetaSpy = vi.spyOn(sessionIndex, "removeSessionMeta");
     const removeItemSpy = vi.spyOn(Storage.prototype, "removeItem");
 
     const user = userEvent.setup();
@@ -158,15 +164,9 @@ describe("AC2: App.tsx deleteSession", () => {
 
     // input 단계로 복원된 활성 세션은 concept 이 메인 화면과 사이드바 양쪽에 표시되므로
     // 사이드바 히스토리 항목으로 한정해 조회한다.
-    const item = (await waitFor(() =>
-      screen
-        .getAllByText("활성개념")
-        .map((el) => el.closest(".sb-history-item"))
-        .find(Boolean),
-    )) as HTMLElement;
+    const item = await findHistoryItem("활성개념");
     await user.click(within(item).getByLabelText("세션 삭제"));
 
-    expect(removeMetaSpy).toHaveBeenCalledWith("active-1");
     expect(removeItemSpy).toHaveBeenCalledWith(sessionKey("active-1"));
 
     // 활성 세션이었으므로 홈(input)으로 이동해 빈 입력 화면이 된다.
@@ -179,7 +179,7 @@ describe("AC2: App.tsx deleteSession", () => {
     expect(localStorage.getItem(sessionKey("active-1"))).toBeNull();
   });
 
-  test("비활성 세션 삭제 시 인덱스/본문 키만 제거하고 활성 세션은 유지한다", async () => {
+  test("비활성 세션 삭제 시 본문 키만 제거하고 활성 세션은 유지한다", async () => {
     localStorage.setItem(ACTIVE_KEY, "active-1");
     localStorage.setItem(
       sessionKey("active-1"),
@@ -189,28 +189,28 @@ describe("AC2: App.tsx deleteSession", () => {
       sessionKey("other-2"),
       JSON.stringify(seededState({ sessionId: "other-2", concept: "다른개념", conceptSummary: "다른개념" })),
     );
-    upsertSessionMeta({ sessionId: "active-1", createdAt: 5, conceptSummary: "활성개념", stage: "input" });
-    upsertSessionMeta({ sessionId: "other-2", createdAt: 2, conceptSummary: "다른개념", stage: "input" });
+    seedRemoteList([
+      { sessionId: "active-1", conceptSummary: "활성개념", stage: "input", updatedAt: 5 },
+      { sessionId: "other-2", conceptSummary: "다른개념", stage: "input", updatedAt: 2 },
+    ]);
 
-    const removeMetaSpy = vi.spyOn(sessionIndex, "removeSessionMeta");
     const removeItemSpy = vi.spyOn(Storage.prototype, "removeItem");
 
     const user = userEvent.setup();
     renderApp(["/"]);
 
-    const item = (await waitFor(() =>
-      screen.getByText("다른개념").closest(".sb-history-item"),
-    )) as HTMLElement;
+    const item = await findHistoryItem("다른개념");
     await user.click(within(item).getByLabelText("세션 삭제"));
 
-    expect(removeMetaSpy).toHaveBeenCalledWith("other-2");
     expect(removeItemSpy).toHaveBeenCalledWith(sessionKey("other-2"));
 
     // 활성 세션은 그대로 유지된다.
     expect(localStorage.getItem(ACTIVE_KEY)).toBe("active-1");
     expect(localStorage.getItem(sessionKey("other-2"))).toBeNull();
     expect(localStorage.getItem(sessionKey("active-1"))).not.toBeNull();
-    // 비활성 삭제는 인덱스에서만 사라진다.
-    expect(sessionIndex.listSessions().some((m) => m.sessionId === "other-2")).toBe(false);
+    // 비활성 삭제는 사이드바 목록(화면)에서만 사라진다.
+    await waitFor(() => {
+      expect(screen.queryByText("다른개념")).not.toBeInTheDocument();
+    });
   });
 });

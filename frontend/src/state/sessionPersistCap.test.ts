@@ -1,12 +1,19 @@
 import { beforeEach, describe, expect, test } from "vitest";
 import {
   MAX_SESSIONS,
+  SESSION_KEY_PREFIX,
   isQuotaExceeded,
   persistSession,
   sessionKey,
 } from "./sessionPersist";
-import { listSessions, SESSIONS_INDEX_KEY } from "./sessionIndex";
 import type { SessionState } from "./sessionState";
+
+/** 본문 캐시 키(SESSION_KEY_PREFIX)들에서 sessionId 목록을 뽑는다(목록 인덱스 제거 후 검증용). */
+function cachedIds(store: Map<string, string>): string[] {
+  return [...store.keys()]
+    .filter((k) => k.startsWith(SESSION_KEY_PREFIX))
+    .map((k) => k.slice(SESSION_KEY_PREFIX.length));
+}
 
 /**
  * 테스트용 storage. setItem 에 quota 시뮬레이션 훅을 제공한다.
@@ -93,7 +100,7 @@ describe("persistSession 세션 수 상한 (MAX_SESSIONS=20)", () => {
     for (let i = 0; i < MAX_SESSIONS; i += 1) {
       persistSession(state(`s${i}`, i + 1), ctx.storage);
     }
-    expect(listSessions(ctx.storage)).toHaveLength(MAX_SESSIONS);
+    expect(cachedIds(ctx.store)).toHaveLength(MAX_SESSIONS);
   });
 
   test("MAX_SESSIONS 초과 시 가장 오래된 비활성 세션이 evict 된다", () => {
@@ -104,10 +111,10 @@ describe("persistSession 세션 수 상한 (MAX_SESSIONS=20)", () => {
     // 21번째(활성). createdAt 최신. s0 (가장 오래된 비활성) 이 evict 되어야 함.
     persistSession(state("active", 9999), ctx.storage);
 
-    const metas = listSessions(ctx.storage);
-    expect(metas).toHaveLength(MAX_SESSIONS);
-    expect(metas.find((m) => m.sessionId === "s0")).toBeUndefined();
-    expect(metas.find((m) => m.sessionId === "active")).toBeDefined();
+    const ids = cachedIds(ctx.store);
+    expect(ids).toHaveLength(MAX_SESSIONS);
+    expect(ids).not.toContain("s0");
+    expect(ids).toContain("active");
     // 본문 키도 함께 제거
     expect(ctx.store.has(sessionKey("s0"))).toBe(false);
   });
@@ -118,12 +125,11 @@ describe("persistSession 세션 수 상한 (MAX_SESSIONS=20)", () => {
     for (let i = 0; i < MAX_SESSIONS; i += 1) {
       persistSession(state(`s${i}`, i + 100), ctx.storage);
     }
-    // 인덱스에는 active + s0..s19 = 21개. cap 초과 → active 는 보호되므로 s0(다음 오래된)이 evict.
-    // 단, 마지막 persistSession 의 활성은 s19. 그러므로 보호 대상은 s19, 가장 오래된 비활성은 active.
-    // 따라서 active 가 evict.
-    const metas = listSessions(ctx.storage);
-    expect(metas).toHaveLength(MAX_SESSIONS);
-    expect(metas.find((m) => m.sessionId === "active")).toBeUndefined();
+    // 본문 캐시는 active + s0..s19 = 21개. cap 초과 → 마지막 저장의 활성은 s19 라 보호되고,
+    // 가장 오래된 비활성인 active 가 evict 된다.
+    const ids = cachedIds(ctx.store);
+    expect(ids).toHaveLength(MAX_SESSIONS);
+    expect(ids).not.toContain("active");
   });
 
   test("활성 세션이 다시 저장될 때 보호되어 evict 되지 않는다", () => {
@@ -132,12 +138,12 @@ describe("persistSession 세션 수 상한 (MAX_SESSIONS=20)", () => {
     for (let i = 0; i < MAX_SESSIONS - 1; i += 1) {
       persistSession(state(`s${i}`, i + 100), ctx.storage);
     }
-    // 지금 인덱스 길이 = 20. active 를 다시 persist (활성 유지)
+    // 지금 본문 캐시 = 20개. active 를 다시 persist (활성 유지)
     persistSession(state("active", 1, { stage: "probe" }), ctx.storage);
 
-    const metas = listSessions(ctx.storage);
-    expect(metas).toHaveLength(MAX_SESSIONS);
-    expect(metas.find((m) => m.sessionId === "active")).toBeDefined();
+    const ids = cachedIds(ctx.store);
+    expect(ids).toHaveLength(MAX_SESSIONS);
+    expect(ids).toContain("active");
   });
 });
 
@@ -157,7 +163,7 @@ describe("persistSession QuotaExceededError 처리", () => {
     // old(가장 오래된 비활성)가 evict 되어야 함. new 는 정상 저장.
     expect(ctx.store.has(sessionKey("old"))).toBe(false);
     expect(ctx.store.has(sessionKey("new"))).toBe(true);
-    const ids = listSessions(ctx.storage).map((m) => m.sessionId);
+    const ids = cachedIds(ctx.store);
     expect(ids).not.toContain("old");
     expect(ids).toContain("new");
     expect(ids).toContain("mid");
@@ -166,18 +172,7 @@ describe("persistSession QuotaExceededError 처리", () => {
   test("evict 할 비활성 세션이 없으면 throw 한다", () => {
     ctx.quotaOnce.add(sessionKey("solo"));
     expect(() => persistSession(state("solo", 1), ctx.storage)).toThrow();
-    // 본문 저장 실패했고 인덱스도 아직 없으므로 깨끗.
+    // 본문 저장 실패했으므로 깨끗.
     expect(ctx.store.has(sessionKey("solo"))).toBe(false);
-  });
-
-  test("인덱스 저장 시 Quota 도 evict 후 재시도로 회복된다", () => {
-    persistSession(state("old", 1), ctx.storage);
-    persistSession(state("mid", 2), ctx.storage);
-    // 본문은 정상이지만 인덱스 setItem 만 1회 throw
-    ctx.quotaOnce.add(SESSIONS_INDEX_KEY);
-
-    expect(() => persistSession(state("new", 3), ctx.storage)).not.toThrow();
-    const ids = listSessions(ctx.storage).map((m) => m.sessionId);
-    expect(ids).toContain("new");
   });
 });

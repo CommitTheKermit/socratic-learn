@@ -88,7 +88,7 @@ describe("persistWithSync", () => {
   });
 
   test("remote=false 면 원격 저장을 던지지 않는다(input 초안)", () => {
-    persistWithSync(baseState({ stage: "input" }), storage, { index: false });
+    persistWithSync(baseState({ stage: "input" }), storage, { remote: false });
     expect(saveSessionRemote).not.toHaveBeenCalled();
   });
 });

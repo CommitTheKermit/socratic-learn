@@ -17,10 +17,19 @@ vi.mock("../api/claudeContent", () => ({
   generateAnswerEvaluation: vi.fn(async () => ({})),
 }));
 
+// 사이드바 목록의 진실 출처는 원격(listSessionsRemote)이므로 각 테스트에서 mockResolvedValue 로 채운다.
+vi.mock("../api/sessionApi", () => ({
+  deleteSessionRemote: vi.fn(async () => undefined),
+  saveSessionRemote: vi.fn(async () => undefined),
+  listSessionsRemote: vi.fn(async () => []),
+  getSessionRemote: vi.fn(async () => null),
+}));
+
 import App from "../App";
 import { persistSession, loadSession } from "../state/sessionPersist";
-import { listSessions } from "../state/sessionIndex";
+import { listSessionsRemote } from "../api/sessionApi";
 import type { SessionState } from "../state/sessionState";
+import type { SessionIndexEntry } from "../api/contract";
 
 const ACTIVE_SESSION_KEY = "socratic:activeSessionId";
 
@@ -42,6 +51,11 @@ function makeState(id: string, concept: string, over: Partial<SessionState> = {}
   };
 }
 
+/** 원격 목록 mock 을 채운다(사이드바에 세션이 나타나게 한다). */
+function seedRemoteList(entries: SessionIndexEntry[]) {
+  vi.mocked(listSessionsRemote).mockResolvedValue(entries);
+}
+
 function clickOpen(conceptText: string) {
   const item = screen.getByText(conceptText).closest(".sb-history-item") as HTMLElement;
   const openBtn = item.querySelector(".sb-history-open") as HTMLElement;
@@ -58,6 +72,7 @@ function renderApp(entries: string[] = ["/"]) {
 
 describe("AC1: App switchSession 통합", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     localStorage.clear();
   });
 
@@ -65,12 +80,15 @@ describe("AC1: App switchSession 통합", () => {
     persistSession(makeState("s-target", "재귀이론", { stage: "done" }));
     // 활성 세션 키는 본문이 없는 id 라 루트 진입 시 홈(input)으로 시작한다(전환 대상과 구분).
     localStorage.setItem(ACTIVE_SESSION_KEY, "s-current");
+    seedRemoteList([{ sessionId: "s-target", conceptSummary: "재귀이론", stage: "done", updatedAt: 4242 }]);
 
     renderApp(["/"]);
 
     // 전환 전: 본문 없는 활성 세션이므로 홈(input) 화면
     expect(document.querySelector(".app")?.getAttribute("data-stage")).toBe("input");
 
+    // 사이드바에 전환 대상(원격)이 나타날 때까지 대기
+    await waitFor(() => expect(screen.getByText("재귀이론")).toBeInTheDocument());
     clickOpen("재귀이론");
 
     // loadSession(s-target) 의 stage(done) 로 복원되어 앱 컨테이너 data-stage 가 갱신된다
@@ -86,6 +104,10 @@ describe("AC1: App switchSession 통합", () => {
     persistSession(makeState("s-source", "소스개념", { stage: "learn", estimatedLevel: 1 }));
     persistSession(makeState("s-target", "타깃개념", { stage: "done" }));
     localStorage.setItem(ACTIVE_SESSION_KEY, "s-source");
+    seedRemoteList([
+      { sessionId: "s-source", conceptSummary: "소스개념", stage: "learn", updatedAt: 4242 },
+      { sessionId: "s-target", conceptSummary: "타깃개념", stage: "done", updatedAt: 4242 },
+    ]);
 
     // 루트 진입 시 활성 세션(s-source, learn)으로 복원된다.
     renderApp(["/"]);
@@ -101,8 +123,7 @@ describe("AC1: App switchSession 통합", () => {
       expect(active?.textContent).toContain("타깃개념");
     });
 
-    // 떠난 s-source 세션이 인덱스/본문에 그대로 보존되어 있다.
-    expect(listSessions().some((m) => m.sessionId === "s-source")).toBe(true);
+    // 떠난 s-source 세션이 본문 캐시에 그대로 보존되어 있다.
     const saved = loadSession("s-source");
     expect(saved?.concept).toBe("소스개념");
     expect(saved?.stage).toBe("learn");

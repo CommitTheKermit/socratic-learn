@@ -19,7 +19,6 @@ vi.mock("../api/claudeContent", () => ({
 }));
 
 import App from "../App";
-import { listSessions } from "../state/sessionIndex";
 import { loadSession } from "../state/sessionPersist";
 
 const PLACEHOLDER = "배우고 싶은 개념을 입력해서 시작해보세요";
@@ -38,8 +37,8 @@ beforeEach(() => {
   localStorage.clear();
 });
 
-describe("히스토리 인덱스는 '학습 시작' 시점에만 등록된다", () => {
-  test("홈(input)에서 개념을 입력해도 세션/인덱스로 등록되지 않고 초안만 보관한다", async () => {
+describe("히스토리는 '학습 시작' 시점에만 사이드바에 등록된다", () => {
+  test("홈(input)에서 개념을 입력해도 세션으로 등록되지 않고 초안만 보관한다", async () => {
     const user = userEvent.setup();
     renderHome();
 
@@ -51,12 +50,11 @@ describe("히스토리 인덱스는 '학습 시작' 시점에만 등록된다", 
     expect(localStorage.getItem(DRAFT_CONCEPT_KEY)).toBe("코루틴이 왜 필요한지");
     // 아직 세션이 발급되지 않았다.
     expect(localStorage.getItem("socratic:activeSessionId")).toBeNull();
-    // 사이드바 히스토리 인덱스에도 등록되지 않는다.
-    expect(listSessions()).toHaveLength(0);
+    // 사이드바 히스토리에도 항목이 없다.
     expect(screen.getByText("히스토리가 없습니다")).toBeInTheDocument();
   });
 
-  test("'학습 시작'(probe 전이) 후 세션이 발급되고 인덱스에 등록되어 사이드바 목록에 나타난다", async () => {
+  test("'학습 시작'(probe 전이) 후 세션이 발급되어 사이드바 목록에 나타난다", async () => {
     const user = userEvent.setup();
     renderHome();
 
@@ -65,13 +63,17 @@ describe("히스토리 인덱스는 '학습 시작' 시점에만 등록된다", 
     await user.type(textarea, "코루틴이 왜 필요한지");
     await user.click(screen.getByRole("button", { name: "학습 시작" }));
 
-    await waitFor(() => expect(listSessions()).toHaveLength(1));
-    expect(listSessions()[0].conceptSummary).toBe("코루틴이 왜 필요한지");
+    // 발급된 세션이 사이드바 히스토리 항목으로 나타난다.
+    await waitFor(() => {
+      const item = screen
+        .getAllByText("코루틴이 왜 필요한지")
+        .map((el) => el.closest(".sb-history-item"))
+        .find(Boolean);
+      expect(item).toBeTruthy();
+    });
     // 발급된 세션 본문도 그 개념으로 저장되어 있다.
     const activeId = localStorage.getItem("socratic:activeSessionId")!;
     expect(activeId).toBeTruthy();
     expect(loadSession(activeId)!.concept).toBe("코루틴이 왜 필요한지");
-    const item = screen.getByText("코루틴이 왜 필요한지").closest(".sb-history-item");
-    expect(item).not.toBeNull();
   });
 });

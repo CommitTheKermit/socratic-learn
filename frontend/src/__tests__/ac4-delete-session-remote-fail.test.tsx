@@ -4,11 +4,10 @@
  *
  * 검증 항목:
  * 1. console.error spy: 정확히 1회 호출
- * 2. removeSessionMeta: 호출됨 (낙관적 - 로컬 즉시 제거)
- * 3. localStorage.removeItem(sessionKey(id)): 본문 즉시 제거
- * 4. 세션 항목이 사이드바 목록에서 사라짐
- * 5. tombstone 에 해당 id 가 남아 다음 접속 병합 시 재출현이 차단됨
- * 6. 다른 UI 알림(alert/toast) 없음 - window.alert spy 로 확인
+ * 2. localStorage.removeItem(sessionKey(id)): 본문 즉시 제거
+ * 3. 세션 항목이 사이드바 목록에서 사라짐
+ * 4. tombstone 에 해당 id 가 남아 다음 접속 병합 시 재출현이 차단됨
+ * 5. 다른 UI 알림(alert/toast) 없음 - window.alert spy 로 확인
  */
 import { describe, test, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
@@ -29,7 +28,8 @@ vi.mock("../api/claudeContent", () => ({
   generateAnswerEvaluation: vi.fn(async () => ({})),
 }));
 
-// deleteSessionRemote 는 각 테스트에서 reject 로 덮어쓴다
+// deleteSessionRemote 는 각 테스트에서 reject 로 덮어쓴다.
+// 사이드바 목록의 진실 출처는 원격(listSessionsRemote)이므로 각 테스트에서 mockResolvedValue 로 채운다.
 vi.mock("../api/sessionApi", () => ({
   deleteSessionRemote: vi.fn(async () => undefined),
   saveSessionRemote: vi.fn(async () => undefined),
@@ -38,10 +38,10 @@ vi.mock("../api/sessionApi", () => ({
 }));
 
 import * as sessionApiModule from "../api/sessionApi";
-import * as sessionIndex from "../state/sessionIndex";
-import { upsertSessionMeta } from "../state/sessionIndex";
+import { listSessionsRemote } from "../api/sessionApi";
 import { sessionKey } from "../state/sessionPersist";
 import { listTombstones } from "../state/sessionTombstone";
+import type { SessionIndexEntry } from "../api/contract";
 import App from "../App";
 
 const ACTIVE_KEY = "socratic:activeSessionId";
@@ -52,6 +52,21 @@ function renderApp(entries: string[] = ["/"]) {
       <App />
     </MemoryRouter>,
   );
+}
+
+/**
+ * 사이드바 히스토리 항목을 concept 텍스트로 찾는다.
+ * 목록은 원격(비동기)으로 채워지므로 항목이 나타날 때까지 대기한다.
+ */
+async function findHistoryItem(concept: string): Promise<HTMLElement> {
+  return (await waitFor(() => {
+    const el = screen
+      .getAllByText(concept)
+      .map((n) => n.closest<HTMLElement>(".sb-history-item"))
+      .find(Boolean);
+    expect(el).toBeTruthy();
+    return el!;
+  }));
 }
 
 function seededState(overrides: Partial<Record<string, unknown>> = {}) {
@@ -72,6 +87,11 @@ function seededState(overrides: Partial<Record<string, unknown>> = {}) {
   };
 }
 
+/** 원격 목록 mock 을 채운다(사이드바에 세션이 나타나게 한다). */
+function seedRemoteList(entries: SessionIndexEntry[]) {
+  vi.mocked(listSessionsRemote).mockResolvedValue(entries);
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.restoreAllMocks();
@@ -87,12 +107,7 @@ describe("AC 4 (낙관적): deleteSessionRemote 실패 시 로컬 즉시 제거 
       sessionKey("del-fail-1"),
       JSON.stringify(seededState()),
     );
-    upsertSessionMeta({
-      sessionId: "del-fail-1",
-      createdAt: 111,
-      conceptSummary: "삭제실패개념",
-      stage: "input",
-    });
+    seedRemoteList([{ sessionId: "del-fail-1", conceptSummary: "삭제실패개념", stage: "input", updatedAt: 111 }]);
 
     // 2. deleteSessionRemote → reject
     const networkError = new Error("Network Error");
@@ -100,19 +115,13 @@ describe("AC 4 (낙관적): deleteSessionRemote 실패 시 로컬 즉시 제거 
 
     // 3. spy 설정
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const removeMetaSpy = vi.spyOn(sessionIndex, "removeSessionMeta");
     const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => undefined);
 
     const user = userEvent.setup();
     renderApp(["/"]);
 
     // 4. 사이드바 목록에서 세션 항목 찾기
-    const item = (await waitFor(() =>
-      screen
-        .getAllByText("삭제실패개념")
-        .map((el) => el.closest(".sb-history-item"))
-        .find(Boolean),
-    )) as HTMLElement;
+    const item = await findHistoryItem("삭제실패개념");
 
     // 5. 삭제 버튼 클릭
     await user.click(within(item).getByLabelText("세션 삭제"));
@@ -125,19 +134,13 @@ describe("AC 4 (낙관적): deleteSessionRemote 실패 시 로컬 즉시 제거 
     // 7. console.error 정확히 1회
     expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
 
-    // 8. removeSessionMeta 호출됨 - 낙관적 로컬 즉시 제거
-    expect(removeMetaSpy).toHaveBeenCalledWith("del-fail-1");
-
-    // 9. localStorage 본문 즉시 제거
+    // 8. localStorage 본문 즉시 제거
     expect(localStorage.getItem(sessionKey("del-fail-1"))).toBeNull();
 
-    // 10. 메타 인덱스에서도 사라짐
-    expect(sessionIndex.listSessions().some((m) => m.sessionId === "del-fail-1")).toBe(false);
-
-    // 11. tombstone 유지 - 다음 접속 병합 시 재출현 차단
+    // 9. tombstone 유지 - 다음 접속 병합 시 재출현 차단
     expect(listTombstones().has("del-fail-1")).toBe(true);
 
-    // 12. 다른 UI 알림 없음
+    // 10. 다른 UI 알림 없음
     expect(alertSpy).not.toHaveBeenCalled();
   });
 
@@ -162,18 +165,10 @@ describe("AC 4 (낙관적): deleteSessionRemote 실패 시 로컬 즉시 제거 
         concept: "삭제실패항목",
       }),
     );
-    upsertSessionMeta({
-      sessionId: "active-ok",
-      createdAt: 200,
-      conceptSummary: "활성개념OK",
-      stage: "input",
-    });
-    upsertSessionMeta({
-      sessionId: "del-fail-2",
-      createdAt: 100,
-      conceptSummary: "삭제실패항목",
-      stage: "input",
-    });
+    seedRemoteList([
+      { sessionId: "active-ok", conceptSummary: "활성개념OK", stage: "input", updatedAt: 200 },
+      { sessionId: "del-fail-2", conceptSummary: "삭제실패항목", stage: "input", updatedAt: 100 },
+    ]);
 
     // deleteSessionRemote → reject (HTTP 500 시뮬레이션)
     const serverError = Object.assign(new Error("Internal Server Error"), { status: 500 });
@@ -185,9 +180,7 @@ describe("AC 4 (낙관적): deleteSessionRemote 실패 시 로컬 즉시 제거 
     renderApp(["/"]);
 
     // 삭제 시도할 세션 항목 찾기
-    const item = (await waitFor(() =>
-      screen.getByText("삭제실패항목").closest(".sb-history-item"),
-    )) as HTMLElement;
+    const item = await findHistoryItem("삭제실패항목");
 
     await user.click(within(item).getByLabelText("세션 삭제"));
 
@@ -204,7 +197,6 @@ describe("AC 4 (낙관적): deleteSessionRemote 실패 시 로컬 즉시 제거 
 
     // 로컬 데이터 즉시 제거 + tombstone 유지
     expect(localStorage.getItem(sessionKey("del-fail-2"))).toBeNull();
-    expect(sessionIndex.listSessions().some((m) => m.sessionId === "del-fail-2")).toBe(false);
     expect(listTombstones().has("del-fail-2")).toBe(true);
   });
 
@@ -219,29 +211,18 @@ describe("AC 4 (낙관적): deleteSessionRemote 실패 시 로컬 즉시 제거 
         concept: "403삭제실패",
       }),
     );
-    upsertSessionMeta({
-      sessionId: "del-fail-3",
-      createdAt: 300,
-      conceptSummary: "403삭제실패",
-      stage: "input",
-    });
+    seedRemoteList([{ sessionId: "del-fail-3", conceptSummary: "403삭제실패", stage: "input", updatedAt: 300 }]);
 
     // 403 에러
     const forbiddenError = Object.assign(new Error("Forbidden"), { status: 403 });
     vi.mocked(sessionApiModule.deleteSessionRemote).mockRejectedValue(forbiddenError);
 
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const removeMetaSpy = vi.spyOn(sessionIndex, "removeSessionMeta");
 
     const user = userEvent.setup();
     renderApp(["/"]);
 
-    const item = (await waitFor(() =>
-      screen
-        .getAllByText("403삭제실패")
-        .map((el) => el.closest(".sb-history-item"))
-        .find(Boolean),
-    )) as HTMLElement;
+    const item = await findHistoryItem("403삭제실패");
 
     await user.click(within(item).getByLabelText("세션 삭제"));
 
@@ -250,9 +231,7 @@ describe("AC 4 (낙관적): deleteSessionRemote 실패 시 로컬 즉시 제거 
     });
 
     // 낙관적 로컬 즉시 제거
-    expect(removeMetaSpy).toHaveBeenCalledWith("del-fail-3");
     expect(localStorage.getItem(sessionKey("del-fail-3"))).toBeNull();
-    expect(sessionIndex.listSessions().some((m) => m.sessionId === "del-fail-3")).toBe(false);
 
     // tombstone 유지
     expect(listTombstones().has("del-fail-3")).toBe(true);

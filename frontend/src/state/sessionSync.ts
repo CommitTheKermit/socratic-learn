@@ -26,24 +26,22 @@ const EMPTY_PREV = { fieldUpdatedAt: {} } as SessionState;
  * 3) remote 이고 내용이 실제로 바뀌었으면 saveSessionRemote 를 await 하지 않고 던진다.
  *    실패는 삼킨다(캐시값 유지, 사용자 비알림, 다음 저장 트리거에서 조용히 재시도).
  *
- * @param opts.index persistSession 인덱스 등록 여부(기본 true). input 단계 초안은 false.
- * @param opts.remote Firestore 동기화 여부. 기본값은 index 와 동일(input 초안은 원격에 올리지 않음).
+ * @param opts.remote Firestore 동기화 여부(기본 true). input 단계 초안은 false 로 원격에 올리지 않는다.
  * @returns 스탬프가 반영되어 캐시에 저장된 본문.
  */
 export function persistWithSync(
   snapshot: SessionState,
   storage: Storage = localStorage,
-  opts: { index?: boolean; remote?: boolean } = {},
+  opts: { remote?: boolean } = {},
 ): SessionState {
-  const index = opts.index ?? true;
-  const remote = opts.remote ?? index;
+  const remote = opts.remote ?? true;
 
   const cached = loadSession(snapshot.sessionId, storage);
   const nowIso = new Date().toISOString();
   const fieldUpdatedAt = stampFieldUpdatedAt(cached ?? EMPTY_PREV, snapshot, nowIso);
   const stamped: SessionState = { ...snapshot, fieldUpdatedAt };
 
-  persistSession(stamped, storage, { index });
+  persistSession(stamped, storage);
 
   const changed = !cached || serializeSessionState(cached) !== serializeSessionState(stamped);
   if (remote && changed) {
@@ -78,7 +76,7 @@ export async function fetchAndMerge(
   const before = cached ? serializeSessionState(cached) : null;
   if (before === serializeSessionState(merged)) return null;
 
-  persistSession(merged, storage, { index: merged.stage !== "input" });
+  persistSession(merged, storage);
   return merged;
 }
 
