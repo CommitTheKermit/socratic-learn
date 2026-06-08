@@ -1,5 +1,3 @@
-export const SAMPLE_CONCEPT = "코루틴이 왜 필요한지";
-
 export type ProbeChoiceQ = {
   id: "p1";
   kind: "choice";

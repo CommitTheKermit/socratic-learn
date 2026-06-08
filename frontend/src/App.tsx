@@ -6,7 +6,6 @@ import { Hero } from "./components/Hero";
 import { I } from "./components/icons";
 import {
   ACCENT_PRESETS,
-  SAMPLE_CONCEPT,
   type ProbeAnswers,
   type Stage,
 } from "./stages/data";
@@ -236,7 +235,7 @@ function AppWorkspace({
   const showAurora = true;
 
   const [concept, setConcept] = useState<string>(
-    () => loaded?.concept ?? (sessionId ? "" : readDraftConcept() || SAMPLE_CONCEPT),
+    () => loaded?.concept ?? (sessionId ? "" : readDraftConcept()),
   );
   const [materials, setMaterials] = useState<string>(() => loaded?.materials ?? "");
   const [probes, setProbes] = useState<ProbeAnswers>(() => loaded?.probes ?? {});
