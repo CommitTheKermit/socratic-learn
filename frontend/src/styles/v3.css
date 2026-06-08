@@ -1545,6 +1545,37 @@ body {
 }
 .qa-dunno:hover { color: var(--fg-mut); text-decoration-color: var(--fg-dim); }
 
+/* "모르겠어요" 표시 패널 (안내 카드) — 입력 필드를 치환한다 */
+.qa-pair.is-dunno { box-shadow: inset 0 0 0 1px var(--accent-soft); }
+.qa-dunno-panel {
+  display: flex; align-items: center; gap: 12px;
+  min-height: 96px; padding: 16px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px oklch(0.62 0.17 273 / 0.25);
+}
+.qa-dunno-ico {
+  flex: 0 0 auto; width: 28px; height: 28px;
+  display: grid; place-items: center; border-radius: 8px;
+  color: oklch(0.82 0.1 285);
+  background: oklch(0.62 0.17 273 / 0.22);
+}
+.qa-dunno-text { display: flex; flex-direction: column; gap: 3px; }
+.qa-dunno-text strong { font-size: 13.5px; font-weight: 600; color: var(--fg); }
+.qa-dunno-text span { font-size: 12.5px; line-height: 1.5; color: var(--fg-mut); }
+.qa-dunno-undo {
+  margin-left: auto;
+  display: inline-flex; align-items: center; gap: 5px;
+  border: none; background: none; cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 12.5px; color: var(--fg-dim);
+  text-decoration: underline; text-underline-offset: 3px;
+  text-decoration-color: var(--fg-faint);
+  transition: color .15s ease;
+}
+.qa-dunno-undo:hover { color: var(--fg-mut); }
+.qa-dunno-undo svg { opacity: 0.8; }
+
 /* ── Learn 가로/세로 방향 전환 ──────────────────────────────────────── */
 /* 헤더의 가로/세로 세그먼트 토글 */
 .lv-seg {

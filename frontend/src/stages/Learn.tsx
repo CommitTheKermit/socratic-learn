@@ -376,12 +376,14 @@ export function StageLearn({
           const isSkipped = !!skips[q.id];
           const ev = gradeFor(q.id);
           const locked = isEvaluated;
+          // 모르겠어요 표시(채점 전): 입력 필드를 안내 패널로 치환
+          const isDunno = isSkipped && !locked;
           return (
             <div
               key={q.id}
               className={
                 "qa-pair" +
-                (isSkipped ? " is-skipped" : "") +
+                (isDunno ? " is-dunno" : isSkipped ? " is-skipped" : "") +
                 (ev ? ` is-graded grade-${ev.grade}` : "")
               }
             >
@@ -392,35 +394,79 @@ export function StageLearn({
                   <span className={`grade-badge grade-${ev.grade}`}>{GRADE_LABEL[ev.grade]}</span>
                 )}
               </div>
-              <QaAnswer
-                value={val}
-                readOnly={locked}
-                onChange={(v) => {
-                  if (locked) return;
-                  setAnswers({ ...answers, [q.id]: v });
-                  if (isSkipped) setSkips({ ...skips, [q.id]: false });
-                }}
-                onBlur={() => onAnswerCommit?.()}
-              />
-              {ev && !isSkipped && (
-                <div className="qa-feedback">
-                  <span className="qa-feedback-label">AI 피드백</span>
-                  <p>{ev.feedback}</p>
-                </div>
-              )}
-              {!locked && (
-                <div className="qa-foot">
+              {isDunno ? (
+                <div className="qa-dunno-panel">
+                  <span className="qa-dunno-ico" aria-hidden>
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="15"
+                      height="15"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.9"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <circle cx="12" cy="12" r="9" />
+                      <path d="M9.1 9a2.9 2.9 0 0 1 5.6 1c0 1.9-2.8 2.5-2.8 2.5" />
+                      <line x1="12" y1="17" x2="12" y2="17" />
+                    </svg>
+                  </span>
+                  <div className="qa-dunno-text">
+                    <strong>모르겠다고 표시했어요</strong>
+                    <span>다음 학습에서 다시 만나요</span>
+                  </div>
                   <button
                     type="button"
-                    className="qa-dunno"
-                    onClick={() => {
-                      setAnswers({ ...answers, [q.id]: "모르겠어요" });
-                      if (isSkipped) setSkips({ ...skips, [q.id]: false });
-                    }}
+                    className="qa-dunno-undo"
+                    onClick={() => setSkips({ ...skips, [q.id]: false })}
                   >
-                    모르겠어요
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="13"
+                      height="13"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden
+                    >
+                      <path d="M9 14L4 9l5-5" />
+                      <path d="M4 9h11a5 5 0 0 1 0 10h-1" />
+                    </svg>
+                    되돌리기
                   </button>
                 </div>
+              ) : (
+                <>
+                  <QaAnswer
+                    value={val}
+                    readOnly={locked}
+                    onChange={(v) => {
+                      if (locked) return;
+                      setAnswers({ ...answers, [q.id]: v });
+                    }}
+                    onBlur={() => onAnswerCommit?.()}
+                  />
+                  {ev && !isSkipped && (
+                    <div className="qa-feedback">
+                      <span className="qa-feedback-label">AI 피드백</span>
+                      <p>{ev.feedback}</p>
+                    </div>
+                  )}
+                  {!locked && (
+                    <div className="qa-foot">
+                      <button
+                        type="button"
+                        className="qa-dunno"
+                        onClick={() => setSkips({ ...skips, [q.id]: true })}
+                      >
+                        모르겠어요
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           );
