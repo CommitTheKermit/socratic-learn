@@ -248,7 +248,7 @@ export function Sidebar({
         >
           <span className="sb-feedback-ico">{I.mail}</span>
           <span className="sb-feedback-text">
-            <span className="sb-feedback-title">피드백을 부탁드립니다!</span>
+            <span className="sb-feedback-title">피드백 부탁드립니다!</span>
             <span className="sb-feedback-mail">commit3921@gmail.com</span>
           </span>
         </a>
