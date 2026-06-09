@@ -58,25 +58,8 @@ function readDraftConcept(): string {
   }
 }
 
-/**
- * 루트("/") 진입 시: 마지막 활성 세션이 있으면 그 세션의 단계 URL 로 redirect 해
- * 재접속 시 진행 중이던 단계를 그대로 복원한다(이미 나온 결과는 재로딩하지 않음).
- * 활성 세션이 없으면 홈(개념 입력) 화면을 보여준다.
- */
-function HomeRedirect() {
-  const target = useMemo(() => {
-    let id: string | null = null;
-    try {
-      id = localStorage.getItem(ACTIVE_SESSION_KEY);
-    } catch {
-      id = null;
-    }
-    if (!id) return null;
-    const s = loadSession(id);
-    if (!s) return null;
-    return pathFor(id, s.stage, s.stepIdx);
-  }, []);
-  if (target && target !== "/") return <Navigate to={target} replace />;
+/** 루트("/") 진입 시 항상 홈(개념 입력) 화면을 보여준다. 마지막 세션으로의 자동 복원은 하지 않는다. */
+function Home() {
   return <AppShell stage="input" />;
 }
 
@@ -594,7 +577,7 @@ export default function App() {
   return (
     <SessionListProvider>
       <Routes>
-        <Route path="/" element={<HomeRedirect />} />
+        <Route path="/" element={<Home />} />
         <Route path="/s/:sessionId" element={<AppShell stage="input" />} />
         <Route path="/s/:sessionId/probe" element={<AppShell stage="probe" />} />
         <Route path="/s/:sessionId/learn/:stepIdx" element={<AppShell stage="learn" />} />

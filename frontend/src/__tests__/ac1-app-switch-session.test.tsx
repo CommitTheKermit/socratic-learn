@@ -109,8 +109,8 @@ describe("AC1: App switchSession 통합", () => {
       { sessionId: "s-target", conceptSummary: "타깃개념", stage: "done", updatedAt: 4242 },
     ]);
 
-    // 루트 진입 시 활성 세션(s-source, learn)으로 복원된다.
-    renderApp(["/"]);
+    // s-source(learn, stepIdx 3) 세션 URL 로 직접 진입한다(루트 자동 복원은 더 이상 없다).
+    renderApp(["/s/s-source/learn/3"]);
     await waitFor(() => {
       const active = document.querySelector(".sb-history-item.is-active");
       expect(active?.textContent).toContain("소스개념");

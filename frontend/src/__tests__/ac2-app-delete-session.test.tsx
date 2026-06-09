@@ -148,7 +148,7 @@ describe("낙관적 삭제: 로컬 즉시 제거 + tombstone, 원격은 뒤따�
 describe("AC2: App.tsx deleteSession", () => {
   test("활성 세션 삭제 시 본문 키 제거 후 홈(input)으로 이동한다", async () => {
     localStorage.setItem(ACTIVE_KEY, "active-1");
-    // 루트 진입 시 활성 세션(input)으로 복원된다.
+    // active-1(input) 세션 URL 로 직접 진입해 현재 보고 있는 세션으로 만든다.
     localStorage.setItem(
       sessionKey("active-1"),
       JSON.stringify(
@@ -160,9 +160,9 @@ describe("AC2: App.tsx deleteSession", () => {
     const removeItemSpy = vi.spyOn(Storage.prototype, "removeItem");
 
     const user = userEvent.setup();
-    renderApp(["/"]);
+    renderApp(["/s/active-1"]);
 
-    // input 단계로 복원된 활성 세션은 concept 이 메인 화면과 사이드바 양쪽에 표시되므로
+    // 현재 세션(active-1, input)의 concept 은 메인 화면과 사이드바 양쪽에 표시되므로
     // 사이드바 히스토리 항목으로 한정해 조회한다.
     const item = await findHistoryItem("활성개념");
     await user.click(within(item).getByLabelText("세션 삭제"));

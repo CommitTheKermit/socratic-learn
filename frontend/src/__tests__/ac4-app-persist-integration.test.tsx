@@ -57,20 +57,20 @@ beforeEach(() => {
   localStorage.clear();
 });
 
-describe("Sub-AC 4: 루트 재접속 시 활성 세션 복원 / 상태 변경 persist 통합", () => {
-  test("루트('/') 진입 시 활성 세션(input)을 그 세션 URL 로 복원해 concept 을 보여준다", async () => {
+describe("Sub-AC 4: 루트 재접속 동작 / 상태 변경 persist 통합", () => {
+  test("루트('/') 진입 시 활성 세션이 있어도 복원하지 않고 빈 입력 화면을 보여준다", async () => {
     localStorage.setItem(ACTIVE_KEY, "seed-1");
     localStorage.setItem(sessionKey("seed-1"), JSON.stringify(seededState()));
 
-    const loadSpy = vi.spyOn(persist, "loadSession");
     renderApp(["/"]);
 
-    expect(loadSpy).toHaveBeenCalledWith("seed-1");
+    // 루트는 항상 홈(input). 마지막 활성 세션의 concept 을 자동 복원하지 않는다.
+    expect(document.querySelector(".app")?.getAttribute("data-stage")).toBe("input");
     const textarea = (await screen.findByPlaceholderText(PLACEHOLDER)) as HTMLTextAreaElement;
-    await waitFor(() => expect(textarea.value).toBe("복원될 개념"));
+    expect(textarea.value).toBe("");
   });
 
-  test("활성 세션이 진행 단계(learn)면 그 단계로 복원한다(재로딩 없이 이어보기)", async () => {
+  test("활성 세션이 진행 단계(learn)여도 루트 진입 시 복원하지 않고 입력 화면을 보여준다", async () => {
     localStorage.setItem(ACTIVE_KEY, "seed-1");
     localStorage.setItem(
       sessionKey("seed-1"),
@@ -79,10 +79,9 @@ describe("Sub-AC 4: 루트 재접속 시 활성 세션 복원 / 상태 변경 pe
 
     renderApp(["/"]);
 
-    // 직전 learn 단계로 복원된다.
-    await waitFor(() =>
-      expect(document.querySelector(".app")?.getAttribute("data-stage")).toBe("learn"),
-    );
+    // 루트는 항상 input. learn 단계 세션이어도 자동으로 그 단계로 이동하지 않는다.
+    expect(document.querySelector(".app")?.getAttribute("data-stage")).toBe("input");
+    // 세션 본문 캐시 자체는 보존된다(사이드바에서 직접 열면 이어볼 수 있다).
     expect(persist.loadSession("seed-1")!.stage).toBe("learn");
   });
 
