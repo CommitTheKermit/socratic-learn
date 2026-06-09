@@ -26,8 +26,16 @@ function renderInline(text: string): ReactNode[] {
 type Block =
   | { kind: "p"; text: string }
   | { kind: "heading"; level: number; text: string }
+  | { kind: "list"; ordered: boolean; items: string[] }
   | { kind: "code"; lang: string; text: string }
   | { kind: "table"; header: string[]; rows: string[][] };
+
+// 리스트 항목(`- `/`* `/`+ ` 또는 `1. `). 기호 뒤 공백 필수. ordered 는 숫자 마커.
+function parseListItem(line: string): { ordered: boolean; text: string } | null {
+  const m = /^\s*([-*+]|\d{1,9}\.)\s+(.*\S)\s*$/.exec(line);
+  if (!m) return null;
+  return { ordered: /\d/.test(m[1]), text: m[2] };
+}
 
 function splitRow(line: string): string[] {
   let s = line.trim();
@@ -49,7 +57,8 @@ function isTableSeparator(line: string): boolean {
 }
 
 function parseBlocks(text: string): Block[] {
-  const lines = text.split("\n");
+  // em dash(—)/en dash(–) 는 항상 일반 hyphen(-) 으로 정규화.
+  const lines = text.replace(/[—–]/g, "-").split("\n");
   const blocks: Block[] = [];
   let code: { lang: string; lines: string[] } | null = null;
   let para: string[] = [];
@@ -95,6 +104,20 @@ function parseBlocks(text: string): Block[] {
       blocks.push({ kind: "heading", level: heading[1].length, text: heading[2] });
       continue;
     }
+    // 리스트: 연속한 항목 줄을 한 블록으로 묶는다. 종류는 첫 항목 마커로 결정.
+    const first = parseListItem(line);
+    if (first) {
+      flush();
+      const items = [first.text];
+      while (i + 1 < lines.length) {
+        const next = parseListItem(lines[i + 1]);
+        if (!next) break;
+        items.push(next.text);
+        i += 1;
+      }
+      blocks.push({ kind: "list", ordered: first.ordered, items });
+      continue;
+    }
     if (line.trim() === "") {
       flush();
       continue;
@@ -113,6 +136,8 @@ function parseBlocks(text: string): Block[] {
 function blockRawText(b: Block): string {
   if (b.kind === "code") return b.text;
   if (b.kind === "heading") return `${"#".repeat(b.level)} ${b.text}`;
+  if (b.kind === "list")
+    return b.items.map((it, idx) => (b.ordered ? `${idx + 1}. ${it}` : `- ${it}`)).join("\n");
   if (b.kind === "table")
     return [b.header.join(" | "), ...b.rows.map((r) => r.join(" | "))].join("\n");
   return b.text;
@@ -126,6 +151,16 @@ function renderBlock(b: Block, key: number): ReactNode {
       { key, className: "md-h" },
       renderInline(b.text).map((node, j) => <Fragment key={j}>{node}</Fragment>),
     );
+  }
+  if (b.kind === "list") {
+    const items = b.items.map((it, idx) => (
+      <li key={idx}>
+        {renderInline(it).map((node, k) => (
+          <Fragment key={k}>{node}</Fragment>
+        ))}
+      </li>
+    ));
+    return createElement(b.ordered ? "ol" : "ul", { key, className: "md-list" }, items);
   }
   if (b.kind === "code") {
     return (

@@ -1145,8 +1145,10 @@ body {
   text-wrap: pretty;
 }
 /* 스트리밍 중인 활성 문단은 pretty 의 줄 재배치를 끄고, 끝에 붙는 토큰이
-   앞 줄을 흔들지 않게 한다(앞 줄 고정, 새 토큰은 뒤로만 흐름). */
+   앞 줄을 흔들지 않게 한다(앞 줄 고정, 새 토큰은 뒤로만 흐름).
+   pre-wrap 으로 활성 리스트/표의 줄바꿈도 보존(settle 전 raw 표시용). */
 .md-body p.md-stream-p {
+  white-space: pre-wrap;
   text-wrap: wrap; /* fallback: greedy 라 append 에 앞 줄 불변 */
   text-wrap: stable; /* 지원 브라우저: 편집 지점 앞 줄을 고정 */
 }
@@ -1164,6 +1166,21 @@ body {
 .md-body h4.md-h { font-size: 15.5px; }
 .md-body h5.md-h,
 .md-body h6.md-h { font-size: 14px; color: var(--fg-mut); }
+.md-body .md-list {
+  margin: 0;
+  padding-left: 1.45em;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.md-body .md-list li {
+  font-size: 15.5px;
+  line-height: 1.75;
+  color: var(--fg);
+  letter-spacing: -0.005em;
+  text-wrap: pretty;
+}
+.md-body .md-list li::marker { color: var(--fg-mut); }
 .md-body strong {
   color: var(--fg);
   font-weight: 700;
