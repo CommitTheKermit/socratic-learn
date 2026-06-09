@@ -1144,6 +1144,12 @@ body {
   letter-spacing: -0.005em;
   text-wrap: pretty;
 }
+/* 스트리밍 중인 활성 문단은 pretty 의 줄 재배치를 끄고, 끝에 붙는 토큰이
+   앞 줄을 흔들지 않게 한다(앞 줄 고정, 새 토큰은 뒤로만 흐름). */
+.md-body p.md-stream-p {
+  text-wrap: wrap; /* fallback: greedy 라 append 에 앞 줄 불변 */
+  text-wrap: stable; /* 지원 브라우저: 편집 지점 앞 줄을 고정 */
+}
 .md-body strong {
   color: var(--fg);
   font-weight: 700;
