@@ -61,21 +61,7 @@ Firebase 프로젝트 `socratic-learn-web`(`.firebaserc`), region `us-central1`.
 - 대상: **functions + hosting** (필요 시 firestore rules). `firebase.json` 의 hosting public 은 `frontend/dist`, SPA rewrite `** -> /index.html`.
 - 앱 버전은 **`frontend/package.json` 의 `version` 한 곳**에만 있다(functions/root 엔 버전 없음). 배포할 때마다 버전을 올리되, 증가 단위는 SemVer(`MAJOR.MINOR.PATCH`) 기준으로 변경 성격에 따라 모델이 판단한다: 호환 깨짐 = major, 호환되는 기능 추가 = minor, 호환되는 버그 수정 = patch.
 - 절차: ① `cd functions && npm run build`(→`lib/`) ② `cd frontend && npm run build`(→`dist/`, `VITE_*` 빌드 시점 인라인) ③ 루트에서 `npx firebase deploy --only functions,hosting`.
-- 배포 후 release 커밋을 **아래 고정 포맷**으로 남긴다(요약 1-2줄로 끝내지 말 것). 본문은 직전 배포 이후의 git 내역에서 뽑아 채운다:
-
-  ```
-  chore(release): vX.Y.Z 배포
-
-  대상: <functions | hosting | firestore rules 중 배포한 것> / <A.B.C -> X.Y.Z> (<major|minor|patch>)
-
-  - <type(scope): 요약>   # 직전 배포 이후 커밋들을 한 줄씩
-  - ...
-
-  Hosting URL: https://socratic-learn-web.web.app
-  ```
-
-  - 제목은 항상 `chore(release): vX.Y.Z 배포` (버전엔 `v` 접두 고정, 대상/상세는 본문에). 과거의 `버전 X 로 올리고 배포`·`(hosting)` 같은 변형은 쓰지 않는다.
-  - 본문 변경 목록은 직전 release 이후 커밋에서 뽑는다. 직전 release 는 `git log --grep='chore(release)' --format=%H -n 1`(없으면 마지막 `version` 변경 커밋)로 찾고, 범위는 `git log <직전 release>..HEAD --oneline`. 각 커밋을 `- type(scope): 요약` 한 줄로 옮긴다(release/단순 bump 커밋은 제외).
+- 배포 후 release 커밋을 남긴다. **포맷/작성법은 `release-commit` 스킬을 따른다**(제목 `chore(release): vX.Y.Z 배포`, 본문 = 직전 release 이후 `git log` 기반 변경 목록 + 배포 대상 + 버전 증감). 이 프로젝트 고유값: 대상은 functions/hosting(필요 시 firestore rules) 중 배포한 것, 본문 맨 끝에 `Hosting URL: https://socratic-learn-web.web.app`.
 - `functions/.secret.local` 은 emulator 전용. 실배포 키는 Secret Manager(`ANTHROPIC_API_KEY`).
 
 ## 검증
