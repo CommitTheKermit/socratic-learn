@@ -1150,6 +1150,20 @@ body {
   text-wrap: wrap; /* fallback: greedy 라 append 에 앞 줄 불변 */
   text-wrap: stable; /* 지원 브라우저: 편집 지점 앞 줄을 고정 */
 }
+.md-body .md-h {
+  margin: 6px 0 0;
+  color: var(--fg);
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: -0.012em;
+  text-wrap: pretty;
+}
+.md-body h1.md-h { font-size: 22px; }
+.md-body h2.md-h { font-size: 19px; }
+.md-body h3.md-h { font-size: 17px; }
+.md-body h4.md-h { font-size: 15.5px; }
+.md-body h5.md-h,
+.md-body h6.md-h { font-size: 14px; color: var(--fg-mut); }
 .md-body strong {
   color: var(--fg);
   font-weight: 700;

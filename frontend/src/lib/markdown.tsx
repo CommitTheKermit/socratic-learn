@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import { createElement, Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 
 function renderInline(text: string): ReactNode[] {
   const parts: ReactNode[] = [];
@@ -25,6 +25,7 @@ function renderInline(text: string): ReactNode[] {
 
 type Block =
   | { kind: "p"; text: string }
+  | { kind: "heading"; level: number; text: string }
   | { kind: "code"; lang: string; text: string }
   | { kind: "table"; header: string[]; rows: string[][] };
 
@@ -87,6 +88,13 @@ function parseBlocks(text: string): Block[] {
       blocks.push({ kind: "table", header, rows });
       continue;
     }
+    // ATX 헤딩(# ~ ######). 기호 뒤 공백이 있어야 헤딩으로 본다(#tag 오인식 방지).
+    const heading = /^(#{1,6})\s+(.*\S)\s*$/.exec(line);
+    if (heading) {
+      flush();
+      blocks.push({ kind: "heading", level: heading[1].length, text: heading[2] });
+      continue;
+    }
     if (line.trim() === "") {
       flush();
       continue;
@@ -104,12 +112,21 @@ function parseBlocks(text: string): Block[] {
 // 활성(스트리밍 중인 마지막) 블록을 raw 텍스트로 환원한다. settle 시 renderBlock 으로 서식화된다.
 function blockRawText(b: Block): string {
   if (b.kind === "code") return b.text;
+  if (b.kind === "heading") return `${"#".repeat(b.level)} ${b.text}`;
   if (b.kind === "table")
     return [b.header.join(" | "), ...b.rows.map((r) => r.join(" | "))].join("\n");
   return b.text;
 }
 
 function renderBlock(b: Block, key: number): ReactNode {
+  if (b.kind === "heading") {
+    const level = Math.min(Math.max(b.level, 1), 6);
+    return createElement(
+      `h${level}`,
+      { key, className: "md-h" },
+      renderInline(b.text).map((node, j) => <Fragment key={j}>{node}</Fragment>),
+    );
+  }
   if (b.kind === "code") {
     return (
       <pre key={key} className="code-block">
