@@ -56,8 +56,9 @@ cd functions && npm run serve      # build + emulators:start --only functions (�
 
 ## 배포
 
-Firebase 프로젝트 `socratic-learn-web`(`.firebaserc`), region `us-central1`. 로그인 계정 `commit3921@gmail.com`. 배포는 **사용자가 명시적으로 요청할 때만** 수행한다(자동 배포 금지).
+Firebase 프로젝트 `socratic-learn-web`(`.firebaserc`), region `us-central1`. 로그인 계정 `commit3921@gmail.com`. 배포는 **사용자가 명시적으로 요청할 때만** 수행하며(자동 배포 금지), **기본 브랜치(`main`)에서만** 한다.
 
+- **브랜치/푸시 (배포 전 필수)**: 배포는 다른 브랜치에서 하지 않는다. 작업 브랜치(`feat/*` 등)는 먼저 기본 브랜치(`main`)로 **병합해 모은 뒤**, `main` 에서만 배포한다. 미푸시 커밋이 있으면 `git push` 로 원격에 올린 다음 배포한다. 즉 순서는 **작업 브랜치 커밋 → `main` 로 병합 → push → 빌드 → deploy → release 커밋 → push**. (구 `develop`/이전 Kotlin 트랙은 제품 라인이 아니므로 기준으로 쓰지 않는다.)
 - 대상: **functions + hosting** (필요 시 firestore rules). `firebase.json` 의 hosting public 은 `frontend/dist`, SPA rewrite `** -> /index.html`.
 - 앱 버전은 **`frontend/package.json` 의 `version` 한 곳**에만 있다(functions/root 엔 버전 없음). 배포할 때마다 버전을 올리되, 증가 단위는 SemVer(`MAJOR.MINOR.PATCH`) 기준으로 변경 성격에 따라 모델이 판단한다: 호환 깨짐 = major, 호환되는 기능 추가 = minor, 호환되는 버그 수정 = patch.
 - 절차: ① `cd functions && npm run build`(→`lib/`) ② `cd frontend && npm run build`(→`dist/`, `VITE_*` 빌드 시점 인라인) ③ 루트에서 `npx firebase deploy --only functions,hosting`.
