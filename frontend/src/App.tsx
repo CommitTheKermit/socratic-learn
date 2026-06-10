@@ -22,6 +22,8 @@ import { fetchAndMerge, persistWithSync } from "./state/sessionSync";
 import { useDebouncedPersist } from "./state/useDebouncedPersist";
 import { useAuth } from "./state/useAuth";
 import { hasSynced, markSynced } from "./state/fetchOncePerSession";
+import type { LearnMode } from "./api/contract";
+import { logEvent } from "./lib/analytics";
 
 type AccentVars = CSSProperties & {
   "--holo"?: string;
@@ -249,6 +251,19 @@ function AppWorkspace({
       void loadOutline(concept, estimatedLevel, mode);
     }
   }, [stage, estimatedLevel, concept, mode, loadOutline]);
+
+  // sl_session_start: learn 단계 진입 시 1회 계측(fire-and-forget, 예외 무시).
+  // AppWorkspace 는 단계 전환 시 재마운트되므로 빈 deps [] 가 "learn 진입 1회" 를 보장한다.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (stage !== "learn" || !sessionId) return;
+    logEvent("sl_session_start", {
+      session_id: sessionId,
+      concept,
+      mode: mode as LearnMode,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const buildSnapshot = (): SessionState => ({
     sessionId: sessionId ?? "",
