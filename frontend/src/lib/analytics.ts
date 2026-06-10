@@ -81,11 +81,24 @@ export interface SlEventMap {
 // 게이팅 + 래퍼 함수
 // ─────────────────────────────────────────────────────────
 
-/** production 빌드이고 emulator/E2E 가 아닐 때만 true */
-const isActive: boolean =
-  import.meta.env.PROD === true &&
-  !import.meta.env.VITE_AUTH_EMULATOR_URL &&
-  !import.meta.env.VITE_E2E_AUTO_SIGNIN;
+/**
+ * 계측 활성 여부를 반환한다.
+ *
+ * 세 조건을 AND 로 평가:
+ *   1. PROD 빌드(import.meta.env.PROD === true)
+ *   2. Auth emulator 비활성(!VITE_AUTH_EMULATOR_URL)
+ *   3. E2E 자동 로그인 비활성(!VITE_E2E_AUTO_SIGNIN)
+ *
+ * 호출 시점에 env 를 읽으므로 테스트에서 vi.stubEnv 로 각 조합을 쉽게 검증할 수 있다.
+ * 프로덕션 Vite 빌드 시 import.meta.env.* 는 인라인 리터럴로 치환된다.
+ */
+export function isInstrumentationEnabled(): boolean {
+  return (
+    import.meta.env.PROD === true &&
+    !import.meta.env.VITE_AUTH_EMULATOR_URL &&
+    !import.meta.env.VITE_E2E_AUTO_SIGNIN
+  );
+}
 
 /**
  * GA4 에 사용자 ID 를 등록한다(로그인/로그아웃 시 호출).
@@ -93,7 +106,7 @@ const isActive: boolean =
  * fire-and-forget - 예외를 UX 로 전파하지 않는다.
  */
 export function setAnalyticsUserId(uid: string | null): void {
-  if (!isActive || !analytics) return;
+  if (!isInstrumentationEnabled() || !analytics) return;
   try {
     // firebase/analytics setUserId 는 null 을 허용하지 않아 빈 문자열로 대신한다.
     firebaseSetUserId(analytics, uid ?? "");
@@ -117,7 +130,7 @@ export function logEvent<K extends keyof SlEventMap>(
   eventName: K,
   params: SlEventMap[K],
 ): void {
-  if (!isActive || !analytics) return;
+  if (!isInstrumentationEnabled() || !analytics) return;
   try {
     firebaseLogEvent(analytics, eventName, params as unknown as Record<string, unknown>);
   } catch {
@@ -134,7 +147,7 @@ export function logAnalyticsEvent(
   eventName: string,
   params?: Record<string, string | number | boolean | null | undefined>,
 ): void {
-  if (!isActive || !analytics) return;
+  if (!isInstrumentationEnabled() || !analytics) return;
   try {
     firebaseLogEvent(analytics, eventName, params);
   } catch {

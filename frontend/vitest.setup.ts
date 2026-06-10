@@ -37,6 +37,7 @@ vi.mock("./src/lib/analytics", () => ({
   setAnalyticsUserId: vi.fn(),
   logAnalyticsEvent: vi.fn(),
   logEvent: vi.fn(),
+  isInstrumentationEnabled: vi.fn(() => false),
 }));
 
 vi.mock("./src/state/useAuth", () => ({
