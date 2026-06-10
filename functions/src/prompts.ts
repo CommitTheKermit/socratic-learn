@@ -201,10 +201,10 @@ export const BRANCH_EVALUATION_SYSTEM = `당신은 소크라테스식 학습 튜
 [필드 정의]
 - evaluationText: string. 사용자 답변 전체에 대한 1-3문장 한국어 요약 평가. 이모지 금지.
 - isMerged: boolean. AI 추천 단계가 로드맵의 바로 다음 단계와 실질적으로 동일하면 true.
-- branchOptions: 배열. 각 원소는 다음 형태:
+- branchOptions: 배열. "로드맵 다음 단계로 이동" 옵션은 시스템이 실제 로드맵을 보고 결정론적으로 추가하므로 절대 생성하지 마세요. 당신은 아래 세 종류만 만듭니다:
     {
       "label": string,                            // 사용자에게 보여줄 짧은 한국어 라벨
-      "type": "roadmap_next" | "ai_recommended" | "additional" | "exit",
+      "type": "ai_recommended" | "additional" | "exit",
       "isRecommended": boolean,                   // 정확히 하나만 true 권장
       "stageContent": null | {
         "id": number,

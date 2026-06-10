@@ -56,7 +56,7 @@ const branchSchema = {
           label: { type: "string" },
           type: {
             type: "string",
-            enum: ["roadmap_next", "ai_recommended", "additional", "exit"],
+            enum: ["ai_recommended", "additional", "exit"],
           },
           isRecommended: { type: "boolean" },
           stageContent: { anyOf: [stageContentSchema, { type: "null" }] },

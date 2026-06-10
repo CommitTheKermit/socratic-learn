@@ -13,12 +13,14 @@ import * as analytics from "../lib/analytics";
 import { sessionKey } from "../state/sessionPersist";
 import App from "../App";
 
+// roadmap_next 는 LLM 이 만들지 않고 프론트가 steps/stepIdx 로 결정론적으로 추가한다.
+// 따라서 LLM mock 은 ai_recommended/exit 만 반환한다.
 const mockBranchOptions = [
   {
-    label: "다음 로드맵 - 일시중단 함수",
-    type: "roadmap_next",
+    label: "심화 - 일시중단 함수",
+    type: "ai_recommended",
     isRecommended: true,
-    stageContent: { id: 3, title: "일시중단 함수", desc: "suspend", body: "", questions: [] },
+    stageContent: { id: 3, title: "일시중단 함수", desc: "suspend", body: "본문", questions: [] },
   },
   {
     label: "여기서 학습을 마치기",
@@ -97,6 +99,13 @@ function seedLearnSession(sessionId: string) {
           body: "본문 1",
           questions: [{ id: "q1", q: "질문 1?" }],
         },
+        {
+          id: 2,
+          title: "단계 2",
+          desc: "설명 2",
+          body: "본문 2",
+          questions: [{ id: "q2", q: "질문 2?" }],
+        },
       ],
     }),
   );
@@ -123,14 +132,14 @@ describe("Sub-AC 4c: sl_branch_select 계측", () => {
     fireEvent.click(reviewBtn);
 
     // 분기 다이얼로그에서 옵션 클릭
-    const option = await screen.findByText("다음 로드맵 - 일시중단 함수");
+    const option = await screen.findByText("로드맵 다음 단계로 이동");
     fireEvent.click(option);
 
     await waitFor(() => {
       expect(analytics.logEvent).toHaveBeenCalledWith("sl_branch_select", {
         session_id: sessionId,
         step_idx: 0,
-        choice: "다음 로드맵 - 일시중단 함수",
+        choice: "로드맵 다음 단계로 이동",
       });
     });
   });
@@ -171,7 +180,7 @@ describe("Sub-AC 4c: sl_branch_select 계측", () => {
     const reviewBtn = await screen.findByText("평가 보기");
     fireEvent.click(reviewBtn);
 
-    const option = await screen.findByText("다음 로드맵 - 일시중단 함수");
+    const option = await screen.findByText("로드맵 다음 단계로 이동");
     fireEvent.click(option);
 
     await waitFor(() => {
@@ -181,7 +190,7 @@ describe("Sub-AC 4c: sl_branch_select 계측", () => {
       expect(branchCall?.[1]).toEqual({
         session_id: sessionId,
         step_idx: 0,
-        choice: "다음 로드맵 - 일시중단 함수",
+        choice: "로드맵 다음 단계로 이동",
       });
     });
   });

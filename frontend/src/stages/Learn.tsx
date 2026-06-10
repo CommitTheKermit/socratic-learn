@@ -21,6 +21,31 @@ function stripLeadingZero(label: string): string {
 }
 
 /**
+ * LLM 이 돌려준 분기 옵션을 결정론적으로 보정한다.
+ * "로드맵 다음 단계로 이동"(roadmap_next) 은 프론트가 가진 steps/stepIdx 가 진실 출처다.
+ * LLM 은 현재 stepIdx 를 모르고 다음 단계 내용도 지어내므로(존재 여부·내용 모두 hallucination),
+ * LLM 생성분은 버리고 여기서 실제 로드맵 기준으로 직접 만든다.
+ *  - 다음 단계가 있으면 실제 steps[stepIdx+1] 을 가리키는 옵션을 항상 첫 번째로 둔다.
+ *  - 마지막 단계면 옵션 자체를 빼고 LLM 이 만든 나머지(추천/추가/마무리)만 남긴다.
+ */
+function normalizeBranchOptions(
+  options: BranchOption[],
+  steps: Step[],
+  stepIdx: number,
+): BranchOption[] {
+  const rest = options.filter((o) => o.type !== "roadmap_next");
+  const nextStep = steps[stepIdx + 1];
+  if (!nextStep) return rest;
+  const roadmapNext: BranchOption = {
+    label: "로드맵 다음 단계로 이동",
+    type: "roadmap_next",
+    isRecommended: false,
+    stageContent: nextStep,
+  };
+  return [roadmapNext, ...rest];
+}
+
+/**
  * 확인 질문 답변 입력칸. 마운트 시 1회만 랜덤 placeholder 를 골라 고정한다.
  * 질문마다 독립 컴포넌트로 마운트되므로 입력칸마다 서로 다른 문구가 표시된다.
  */
@@ -677,7 +702,7 @@ export function StageLearn({
       <BranchDialog
         open={branchVisible && (branch.mode === "choosing" || branch.mode === "error")}
         evaluationText={branch.evaluationText}
-        options={branch.options}
+        options={normalizeBranchOptions(branch.options, steps, stepIdx)}
         onChoose={handleChoose}
         onClose={() => setBranchVisible(false)}
         error={
