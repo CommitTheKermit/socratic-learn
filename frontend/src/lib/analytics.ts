@@ -138,6 +138,64 @@ export function logEvent<K extends keyof SlEventMap>(
   }
 }
 
+// ─────────────────────────────────────────────────────────
+// createAnalyticsWrapper: enabled 기반 emit 팩토리
+// ─────────────────────────────────────────────────────────
+
+/**
+ * createAnalyticsWrapper 가 반환하는 래퍼 인터페이스.
+ * 계측 포인트는 이 타입을 통해 emit 한다(환경 분기 불필요).
+ */
+export interface AnalyticsWrapper {
+  logEvent<K extends keyof SlEventMap>(eventName: K, params: SlEventMap[K]): void;
+  setUserId(uid: string | null): void;
+}
+
+/**
+ * Analytics emit 팩토리.
+ *
+ * enabled=false → 모든 emit 메서드가 no-op(호출 횟수 0).
+ * enabled=true  → Firebase Analytics 로 실제 emit 위임.
+ *
+ * 게이팅 조건(isInstrumentationEnabled)은 이 팩토리 외부에서 결정.
+ * 팩토리 자체는 enabled 파라미터만 본다.
+ *
+ * @example
+ * const wrapper = createAnalyticsWrapper(isInstrumentationEnabled());
+ * wrapper.logEvent("sl_session_start", { session_id: "s1", concept: "TS", mode: "socratic" });
+ */
+export function createAnalyticsWrapper(enabled: boolean): AnalyticsWrapper {
+  if (!enabled) {
+    return {
+      logEvent: () => undefined,
+      setUserId: () => undefined,
+    };
+  }
+
+  return {
+    logEvent<K extends keyof SlEventMap>(eventName: K, params: SlEventMap[K]) {
+      if (!analytics) return;
+      try {
+        firebaseLogEvent(
+          analytics,
+          eventName,
+          params as unknown as Record<string, unknown>,
+        );
+      } catch {
+        // no-op
+      }
+    },
+    setUserId(uid: string | null) {
+      if (!analytics) return;
+      try {
+        firebaseSetUserId(analytics, uid ?? "");
+      } catch {
+        // no-op
+      }
+    },
+  };
+}
+
 /**
  * GA4 커스텀 이벤트 전송 기반 함수(non-typed fallback).
  * @deprecated 타입 안전한 logEvent 를 사용할 것.
