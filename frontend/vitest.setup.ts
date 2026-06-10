@@ -32,9 +32,11 @@ vi.mock("./src/lib/firebase", () => ({
 }));
 
 // analytics 래퍼를 no-op 으로 대체. 테스트에서 GA4 전송 없음.
+// logEvent 는 타입 안전 래퍼 - 타입 레벨 테스트에서 @ts-expect-error 로 검증하므로 포함.
 vi.mock("./src/lib/analytics", () => ({
   setAnalyticsUserId: vi.fn(),
   logAnalyticsEvent: vi.fn(),
+  logEvent: vi.fn(),
 }));
 
 vi.mock("./src/state/useAuth", () => ({
