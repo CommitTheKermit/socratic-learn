@@ -1,5 +1,5 @@
 import { onRequest } from "firebase-functions/v2/https";
-import { requireAuth, recordUsage } from "./auth";
+import { requireAuth, recordUsage, isTestMode } from "./auth";
 import { defineSecret } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import Anthropic from "@anthropic-ai/sdk";
@@ -39,6 +39,34 @@ const stepDetailSchema = {
   },
 } as const;
 
+// 테스트 모드용: 질문 1개로 축소
+const stepDetailSchemaTest = {
+  type: "object",
+  additionalProperties: false,
+  required: ["body", "questions"],
+  properties: {
+    body: {
+      type: "string",
+      description:
+        "본문 2-4문단. **굵게**, *기울임*, `인라인 코드`, 트리플 백틱 코드블록 허용. 헤더(#)/순서·글머리 리스트 금지. 비교가 필요하면 마크다운 비교표 또는 트리플 백틱 ASCII 다이어그램을 1회 허용. 마지막 줄에 \"아는 만큼만 짧게 써도 OK. 모르면 '모르겠어요' 라고 적어도 됩니다.\" 포함.",
+    },
+    questions: {
+      type: "array",
+      minItems: 1,
+      maxItems: 1,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["id", "q"],
+        properties: {
+          id: { type: "string", description: "단계번호-순번 형식 (예: 1-1)" },
+          q: { type: "string" },
+        },
+      },
+    },
+  },
+} as const;
+
 interface RoadmapOutlineItem {
   title: string;
   desc: string;
@@ -60,6 +88,8 @@ export const stepDetail = onRequest(
     const uid = await requireAuth(req, res);
     if (!uid) return;
     recordUsage(uid, "stepDetail");
+
+    const testMode = await isTestMode(uid);
 
     const { concept, level, outline, stepIdx } = (req.body ?? {}) as {
       concept?: string;
@@ -109,7 +139,8 @@ export const stepDetail = onRequest(
             ),
           },
         ],
-        output_config: { format: jsonSchemaOutputFormat(stepDetailSchema) },
+        // 테스트 모드: 질문 1개 스키마로 LLM 호출
+        output_config: { format: jsonSchemaOutputFormat(testMode ? stepDetailSchemaTest : stepDetailSchema) },
       });
       const parsed = resp.parsed_output as StepDetail | undefined;
       if (!parsed?.body || !parsed?.questions?.length) {

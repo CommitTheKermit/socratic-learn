@@ -1,5 +1,5 @@
 import { onRequest } from "firebase-functions/v2/https";
-import { requireAuth, recordUsage } from "./auth";
+import { requireAuth, recordUsage, isTestMode } from "./auth";
 import { defineSecret } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import Anthropic from "@anthropic-ai/sdk";
@@ -99,6 +99,8 @@ export const probe = onRequest(
     if (!uid) return;
     recordUsage(uid, "probe");
 
+    const testMode = await isTestMode(uid);
+
     const { concept, materials } = (req.body ?? {}) as {
       concept?: string;
       materials?: string;
@@ -123,7 +125,8 @@ export const probe = onRequest(
         res.status(502).json({ code: "INVALID_RESPONSE", message: "진단 질문 응답이 비어 있습니다." });
         return;
       }
-      res.json([parsed.p1, parsed.p2, parsed.p3]);
+      // 테스트 모드: p1만 반환
+      res.json(testMode ? [parsed.p1] : [parsed.p1, parsed.p2, parsed.p3]);
     } catch (e) {
       logger.error("probe function failed", e);
       const status = e instanceof Anthropic.APIError ? e.status ?? 502 : 500;

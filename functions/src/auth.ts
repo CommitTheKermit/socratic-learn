@@ -32,6 +32,20 @@ export async function requireAuth(req: Request, res: Response): Promise<string |
 }
 
 /**
+ * uid 가 testModeUsers 컬렉션에 존재하면 true 를 반환한다.
+ * 단일 Firestore read 로 판정하며, 오류 시 false 로 fallback (프로덕션 안전).
+ */
+export async function isTestMode(uid: string): Promise<boolean> {
+  try {
+    const snap = await getFirestore().collection("testModeUsers").doc(uid).get();
+    return snap.exists;
+  } catch (e) {
+    logger.warn("isTestMode check failed, defaulting to false", e);
+    return false;
+  }
+}
+
+/**
  * 사용량 1건을 Firestore usage 컬렉션에 기록한다(fire-and-forget).
  * 응답 지연을 피하려 await 하지 않으며, 실패는 로깅만 한다.
  */

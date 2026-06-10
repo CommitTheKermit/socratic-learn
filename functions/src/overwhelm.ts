@@ -1,5 +1,5 @@
 import { onRequest } from "firebase-functions/v2/https";
-import { requireAuth, recordUsage } from "./auth";
+import { requireAuth, recordUsage, isTestMode } from "./auth";
 import { defineSecret } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import Anthropic from "@anthropic-ai/sdk";
@@ -44,6 +44,8 @@ export const overwhelm = onRequest(
     if (!uid) return;
     recordUsage(uid, "overwhelm");
 
+    const testMode = await isTestMode(uid);
+
     const { concept, materials, probeSummary } = (req.body ?? {}) as {
       concept?: string;
       materials?: string;
@@ -52,6 +54,12 @@ export const overwhelm = onRequest(
 
     if (!concept || typeof probeSummary !== "string") {
       res.status(400).json({ code: "INVALID_REQUEST", message: "concept 와 probeSummary 가 필요합니다." });
+      return;
+    }
+
+    // 테스트 모드: LLM 호출 없이 즉시 shouldRetreat=false 반환
+    if (testMode) {
+      res.json({ shouldRetreat: false, reason: "테스트 모드: 후퇴 판단 생략", suggestedConcept: "" });
       return;
     }
 

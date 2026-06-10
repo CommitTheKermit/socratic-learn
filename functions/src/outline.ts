@@ -1,5 +1,5 @@
 import { onRequest } from "firebase-functions/v2/https";
-import { requireAuth, recordUsage } from "./auth";
+import { requireAuth, recordUsage, isTestMode } from "./auth";
 import { defineSecret } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import Anthropic from "@anthropic-ai/sdk";
@@ -34,6 +34,29 @@ const outlineSchema = {
   },
 } as const;
 
+// 테스트 모드용: 2단계로 축소
+const outlineSchemaTest = {
+  type: "object",
+  additionalProperties: false,
+  required: ["steps"],
+  properties: {
+    steps: {
+      type: "array",
+      minItems: 2,
+      maxItems: 2,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["title", "desc"],
+        properties: {
+          title: { type: "string", description: "단계 제목 (8-16자)" },
+          desc: { type: "string", description: "한 줄 부제 (20자 내외)" },
+        },
+      },
+    },
+  },
+} as const;
+
 interface RoadmapOutlineItem {
   title: string;
   desc: string;
@@ -50,6 +73,8 @@ export const outline = onRequest(
     const uid = await requireAuth(req, res);
     if (!uid) return;
     recordUsage(uid, "outline");
+
+    const testMode = await isTestMode(uid);
 
     const { concept, level } = (req.body ?? {}) as {
       concept?: string;
@@ -68,7 +93,8 @@ export const outline = onRequest(
         max_tokens: 3000,
         system: [{ type: "text", text: OUTLINE_SYSTEM, cache_control: { type: "ephemeral" } }],
         messages: [{ role: "user", content: outlineUserMessage(concept, level) }],
-        output_config: { format: jsonSchemaOutputFormat(outlineSchema) },
+        // 테스트 모드: 2단계 스키마로 LLM 호출
+        output_config: { format: jsonSchemaOutputFormat(testMode ? outlineSchemaTest : outlineSchema) },
       });
       const parsed = resp.parsed_output as { steps: RoadmapOutlineItem[] } | undefined;
       if (!parsed?.steps?.length) {
