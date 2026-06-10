@@ -194,7 +194,8 @@ function AppWorkspace({
     return () => document.removeEventListener("keydown", onKey);
   }, [pinned]);
 
-  const [depth, setDepth] = useState<string>(() => loaded?.depth ?? "0depth");
+  // depth 는 입력바 모드 드롭다운(Hero 로컬 상태)로 대체 예정. 현재는 영속 라운드트립용으로만 보존한다.
+  const [depth] = useState<string>(() => loaded?.depth ?? "0depth");
   const [accent] = useState<string[]>(ACCENT_PRESETS[0]);
   const showAurora = true;
 
@@ -503,8 +504,6 @@ function AppWorkspace({
         <div className="main-inner">
           {stage === "input" && (
             <Hero
-              depth={depth}
-              onDepth={setDepth}
               concept={concept}
               setConcept={setConcept}
               onStart={startLearning}

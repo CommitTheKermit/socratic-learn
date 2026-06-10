@@ -1,17 +1,17 @@
 import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
-import { DEPTHS, HOW_STEPS } from "../stages/data";
+import { HOW_STEPS } from "../stages/data";
+import { ModeMenu } from "./ModeMenu";
 import { I } from "./icons";
 
 interface Props {
-  depth: string;
-  onDepth: (v: string) => void;
   concept: string;
   setConcept: (v: string) => void;
   onStart: () => void;
 }
 
-export function Hero({ depth, onDepth, concept, setConcept, onStart }: Props) {
+export function Hero({ concept, setConcept, onStart }: Props) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  const [mode, setMode] = useState("socratic");
   const [guideOpen, setGuideOpen] = useState(true);
   const grow = (el: HTMLTextAreaElement | null) => {
     if (!el) return;
@@ -32,9 +32,7 @@ export function Hero({ depth, onDepth, concept, setConcept, onStart }: Props) {
       <p className="sub">한 줄로 입력하시면 도와드릴게요</p>
 
       <form className="input-bar has-lead" onSubmit={submit}>
-        <span className="in-lead plain" aria-hidden>
-          {I.sparkle}
-        </span>
+        <ModeMenu value={mode} onChange={setMode} />
         <textarea
           ref={ref}
           rows={1}

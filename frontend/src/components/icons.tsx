@@ -89,6 +89,15 @@ export const I = {
       }
     />
   ),
+  check: (
+    <Ico
+      d={
+        <>
+          <path d="M20 6 9 17l-5-5" />
+        </>
+      }
+    />
+  ),
   figma: (
     <Ico
       size={14}
