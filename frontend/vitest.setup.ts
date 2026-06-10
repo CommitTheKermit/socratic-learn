@@ -31,6 +31,12 @@ vi.mock("./src/lib/firebase", () => ({
   analytics: null,
 }));
 
+// analytics 래퍼를 no-op 으로 대체. 테스트에서 GA4 전송 없음.
+vi.mock("./src/lib/analytics", () => ({
+  setAnalyticsUserId: vi.fn(),
+  logAnalyticsEvent: vi.fn(),
+}));
+
 vi.mock("./src/state/useAuth", () => ({
   useAuth: () => ({
     user: { uid: "test-uid", displayName: "테스터", email: "test@example.com" },
