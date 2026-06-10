@@ -268,16 +268,38 @@ export function StageLearn({
   }
 
   const goPrev = () => {
-    if (stepIdx === 0) onPrev();
-    else setStepIdx(stepIdx - 1);
+    if (stepIdx === 0) {
+      onPrev();
+    } else {
+      if (sessionId) {
+        logEvent("sl_step_navigate", {
+          session_id: sessionId,
+          from_idx: stepIdx,
+          to_idx: stepIdx - 1,
+          direction: "back",
+        });
+      }
+      setStepIdx(stepIdx - 1);
+    }
   };
   const goNext = () => {
     if (!isEvaluated) {
       showToast("답변 제출이 필요합니다");
       return;
     }
-    if (stepIdx >= steps.length - 1) onDone();
-    else setStepIdx(stepIdx + 1);
+    if (stepIdx >= steps.length - 1) {
+      onDone();
+    } else {
+      if (sessionId) {
+        logEvent("sl_step_navigate", {
+          session_id: sessionId,
+          from_idx: stepIdx,
+          to_idx: stepIdx + 1,
+          direction: "next",
+        });
+      }
+      setStepIdx(stepIdx + 1);
+    }
   };
   const skipStep = () => {
     if (isEvaluated) return;
