@@ -4,14 +4,15 @@ import { ModeMenu } from "./ModeMenu";
 import { I } from "./icons";
 
 interface Props {
+  mode: string;
+  onMode: (v: string) => void;
   concept: string;
   setConcept: (v: string) => void;
   onStart: () => void;
 }
 
-export function Hero({ concept, setConcept, onStart }: Props) {
+export function Hero({ mode, onMode, concept, setConcept, onStart }: Props) {
   const ref = useRef<HTMLTextAreaElement>(null);
-  const [mode, setMode] = useState("socratic");
   const [guideOpen, setGuideOpen] = useState(true);
   const grow = (el: HTMLTextAreaElement | null) => {
     if (!el) return;
@@ -32,7 +33,7 @@ export function Hero({ concept, setConcept, onStart }: Props) {
       <p className="sub">한 줄로 입력하시면 도와드릴게요</p>
 
       <form className="input-bar has-lead" onSubmit={submit}>
-        <ModeMenu value={mode} onChange={setMode} />
+        <ModeMenu value={mode} onChange={onMode} />
         <textarea
           ref={ref}
           rows={1}

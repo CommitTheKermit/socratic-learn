@@ -51,9 +51,10 @@ export const outline = onRequest(
     if (!uid) return;
     recordUsage(uid, "outline");
 
-    const { concept, level } = (req.body ?? {}) as {
+    const { concept, level, mode } = (req.body ?? {}) as {
       concept?: string;
       level?: number;
+      mode?: string;
     };
 
     if (!concept || typeof level !== "number") {
@@ -67,7 +68,7 @@ export const outline = onRequest(
         model: CLAUDE_MODEL,
         max_tokens: 3000,
         system: [{ type: "text", text: OUTLINE_SYSTEM, cache_control: { type: "ephemeral" } }],
-        messages: [{ role: "user", content: outlineUserMessage(concept, level) }],
+        messages: [{ role: "user", content: outlineUserMessage(concept, level, mode) }],
         output_config: { format: jsonSchemaOutputFormat(outlineSchema) },
       });
       const parsed = resp.parsed_output as { steps: RoadmapOutlineItem[] } | undefined;

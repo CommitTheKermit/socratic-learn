@@ -50,6 +50,8 @@ function QaAnswer({
 interface Props {
   concept: string;
   level: number | null;
+  /** 답변 모드. "light" 면 분기 시스템을 끄고(평가만) 바로 다음으로 진행한다. */
+  mode: string;
   stepIdx: number;
   setStepIdx: (n: number) => void;
   answers: Record<string, string>;
@@ -88,6 +90,7 @@ const IcoCols = () => (
 export function StageLearn({
   concept,
   level,
+  mode,
   stepIdx,
   setStepIdx,
   answers,
@@ -135,6 +138,8 @@ export function StageLearn({
     return String(count).padStart(2, "0");
   };
   const safeLevel = level ?? 2;
+  // "가볍게" 모드는 분기 시스템을 끄고 평가만 한 뒤 바로 다음 개념으로 진행한다.
+  const branchEnabled = mode !== "light";
   const step = steps[stepIdx];
   const detailStatus = stepDetailStatus[stepIdx] ?? "idle";
   const detailError = stepDetailErrors[stepIdx] ?? null;
@@ -161,9 +166,9 @@ export function StageLearn({
       step &&
       (detailStatus === "idle" || (detailStatus === "ready" && !step.body))
     ) {
-      void loadStepDetail(concept, safeLevel, stepIdx);
+      void loadStepDetail(concept, safeLevel, stepIdx, mode);
     }
-  }, [outlineStatus, stepIdx, step, detailStatus, concept, safeLevel, loadStepDetail]);
+  }, [outlineStatus, stepIdx, step, detailStatus, concept, safeLevel, mode, loadStepDetail]);
 
   // stepIdx 가 바뀌면 분기 가시 상태도 닫는다.
   useEffect(() => {
@@ -272,8 +277,10 @@ export function StageLearn({
   };
   const submitAnswers = () => {
     if (!step || isEvaluating || isEvaluated) return;
-    void submitEvaluation(concept, safeLevel, stepIdx, answers, skips);
-    // 동시에 분기 평가도 백그라운드로 시작. 사용자는 "평가 보기" 버튼으로 다이얼로그를 연다.
+    void submitEvaluation(concept, safeLevel, stepIdx, answers, skips, mode);
+    // "가볍게" 모드는 분기 없이 평가만 하고 끝. (사용자는 푸터의 "다음 개념" 으로 진행)
+    if (!branchEnabled) return;
+    // 그 외 모드는 분기 평가도 백그라운드로 시작. 사용자는 "평가 보기" 버튼으로 다이얼로그를 연다.
     const roadmapOutlineText = steps
       .map((s, i) => `${i + 1}. ${s.title} - ${s.desc}`)
       .join("\n");
@@ -289,11 +296,11 @@ export function StageLearn({
     });
   };
 
-  // 두 호출의 합산 로딩/완료 상태
-  const branchLoading = branch.mode === "loading";
-  const branchReady = branch.mode === "choosing" || branch.mode === "error";
+  // 두 호출의 합산 로딩/완료 상태. light 모드는 분기 호출이 없으므로 평가만으로 완료를 판정한다.
+  const branchLoading = branchEnabled && branch.mode === "loading";
+  const branchReady = branchEnabled && (branch.mode === "choosing" || branch.mode === "error");
   const fullLoading = isEvaluating || branchLoading;
-  const fullReady = isEvaluated && branchReady;
+  const fullReady = branchEnabled ? isEvaluated && branchReady : isEvaluated;
 
   const detailLoading = detailStatus === "loading" || detailStatus === "idle";
   const detailErrored = detailStatus === "error";
@@ -304,15 +311,18 @@ export function StageLearn({
     evalResult?.evaluations.find((e) => e.id === qid);
 
   // 가로/세로 두 방향이 공유하는 조각들 (래퍼만 방향별로 달라진다).
+  // light 모드는 평가 완료 후 "평가 보기"(분기 다이얼로그)가 없으므로 버튼을 숨기고 푸터로 진행한다.
   const submitButton = fullReady ? (
-    <button
-      className="lv-btn-holo lv-submit"
-      type="button"
-      onClick={() => setBranchVisible(true)}
-    >
-      <span className="lv-submit-icon" aria-hidden>{I.brand}</span>
-      평가 보기
-    </button>
+    branchEnabled ? (
+      <button
+        className="lv-btn-holo lv-submit"
+        type="button"
+        onClick={() => setBranchVisible(true)}
+      >
+        <span className="lv-submit-icon" aria-hidden>{I.brand}</span>
+        평가 보기
+      </button>
+    ) : null
   ) : (
     <button
       className={"lv-btn-holo lv-submit" + (fullLoading ? " is-loading" : "")}
@@ -340,7 +350,7 @@ export function StageLearn({
           <button
             className="btn-ghost"
             type="button"
-            onClick={() => loadStepDetail(concept, safeLevel, stepIdx)}
+            onClick={() => loadStepDetail(concept, safeLevel, stepIdx, mode)}
           >
             다시 시도
           </button>
@@ -360,7 +370,7 @@ export function StageLearn({
           <button
             className="btn-ghost"
             type="button"
-            onClick={() => submitEvaluation(concept, safeLevel, stepIdx, answers, skips)}
+            onClick={() => submitEvaluation(concept, safeLevel, stepIdx, answers, skips, mode)}
           >
             다시 시도
           </button>
@@ -543,7 +553,7 @@ export function StageLearn({
                 <span className="count">{detailReady ? `${step.questions.length}문항` : "..."}</span>
               </div>
               {questionsList}
-              {detailReady && (
+              {detailReady && submitButton && (
                 <div className="lv2-right-sticky-bottom">{submitButton}</div>
               )}
             </div>
@@ -577,7 +587,7 @@ export function StageLearn({
                 <span className="count">{detailReady ? `${step.questions.length}문항` : "..."}</span>
               </div>
               <div className="lvv-qlist">{questionsList}</div>
-              {detailReady && (
+              {detailReady && submitButton && (
                 <div className="lvv-submit-row">{submitButton}</div>
               )}
             </section>

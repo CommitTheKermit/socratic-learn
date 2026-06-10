@@ -61,11 +61,12 @@ export const stepDetail = onRequest(
     if (!uid) return;
     recordUsage(uid, "stepDetail");
 
-    const { concept, level, outline, stepIdx } = (req.body ?? {}) as {
+    const { concept, level, outline, stepIdx, mode } = (req.body ?? {}) as {
       concept?: string;
       level?: number;
       outline?: RoadmapOutlineItem[];
       stepIdx?: number;
+      mode?: string;
     };
 
     if (
@@ -106,6 +107,7 @@ export const stepDetail = onRequest(
               stepIdx + 1,
               cur.title,
               cur.desc,
+              mode,
             ),
           },
         ],

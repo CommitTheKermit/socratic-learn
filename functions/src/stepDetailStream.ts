@@ -34,11 +34,12 @@ export const stepDetailStream = onRequest(
     if (!uid) return;
     recordUsage(uid, "stepDetailStream");
 
-    const { concept, level, outline, stepIdx } = (req.body ?? {}) as {
+    const { concept, level, outline, stepIdx, mode } = (req.body ?? {}) as {
       concept?: string;
       level?: number;
       outline?: RoadmapOutlineItem[];
       stepIdx?: number;
+      mode?: string;
     };
 
     if (
@@ -98,6 +99,7 @@ export const stepDetailStream = onRequest(
               stepIdx + 1,
               cur.title,
               cur.desc,
+              mode,
             ),
           },
         ],

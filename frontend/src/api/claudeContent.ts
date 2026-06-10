@@ -15,13 +15,14 @@ export class ClaudeContentError extends Error {
 export async function generateProbeQuestions(
   concept: string,
   materials?: string,
+  mode?: string,
 ): Promise<ProbeQuestion[]> {
   let res: Response;
   try {
     res = await fetch(`${API_BASE_URL}${ApiPaths.PROBE}`, {
       method: "POST",
       headers: await authHeaders(),
-      body: JSON.stringify({ concept, materials }),
+      body: JSON.stringify({ concept, materials, mode }),
     });
   } catch (e) {
     throw new ClaudeContentError("CLAUDE_API_ERROR", (e as Error)?.message ?? "네트워크 오류");
@@ -84,13 +85,14 @@ export interface RoadmapOutlineItem {
 export async function generateRoadmapOutline(
   concept: string,
   level: number,
+  mode?: string,
 ): Promise<RoadmapOutlineItem[]> {
   let res: Response;
   try {
     res = await fetch(`${API_BASE_URL}${ApiPaths.OUTLINE}`, {
       method: "POST",
       headers: await authHeaders(),
-      body: JSON.stringify({ concept, level }),
+      body: JSON.stringify({ concept, level, mode }),
     });
   } catch (e) {
     throw new ClaudeContentError("CLAUDE_API_ERROR", (e as Error)?.message ?? "네트워크 오류");
@@ -121,13 +123,14 @@ export async function generateStepDetail(
   level: number,
   outline: RoadmapOutlineItem[],
   stepIdx: number,
+  mode?: string,
 ): Promise<StepDetail> {
   let res: Response;
   try {
     res = await fetch(`${API_BASE_URL}${ApiPaths.STEP_DETAIL}`, {
       method: "POST",
       headers: await authHeaders(),
-      body: JSON.stringify({ concept, level, outline, stepIdx }),
+      body: JSON.stringify({ concept, level, outline, stepIdx, mode }),
     });
   } catch (e) {
     throw new ClaudeContentError("CLAUDE_API_ERROR", (e as Error)?.message ?? "네트워크 오류");
@@ -173,6 +176,7 @@ export async function generateAnswerEvaluation(
   stepDesc: string,
   stepBody: string,
   questions: EvalQuestionInput[],
+  mode?: string,
 ): Promise<StepEvaluation> {
   if (questions.length === 0) {
     return { evaluations: [] };
@@ -182,7 +186,7 @@ export async function generateAnswerEvaluation(
     res = await fetch(`${API_BASE_URL}${ApiPaths.ANSWER_EVAL}`, {
       method: "POST",
       headers: await authHeaders(),
-      body: JSON.stringify({ concept, level, stepTitle, stepDesc, stepBody, questions }),
+      body: JSON.stringify({ concept, level, stepTitle, stepDesc, stepBody, questions, mode }),
     });
   } catch (e) {
     throw new ClaudeContentError("CLAUDE_API_ERROR", (e as Error)?.message ?? "네트워크 오류");

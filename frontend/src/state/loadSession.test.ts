@@ -34,7 +34,7 @@ function fullState(): SessionState {
     createdAt: 1717000000000,
     conceptSummary: "코루틴이 왜 필요한지",
     stage: "learn",
-    depth: "1depth",
+    mode: "1depth",
     concept: "코루틴이 왜 필요한지",
     materials: "참고 자료 텍스트",
     probes: { p1: 2, p2: ["thread", "suspend"], p3: "비동기 처리" },
@@ -92,7 +92,7 @@ describe("loadSession - 누락 값 폴백", () => {
     expect(restored).not.toBeNull();
     expect(restored!.sessionId).toBe("partial");
     expect(restored!.stage).toBe("input"); // 기본 stage 폴백
-    expect(restored!.depth).toBe("0depth"); // 기본 depth 폴백
+    expect(restored!.mode).toBe("socratic"); // 기본 mode 폴백
     expect(restored!.stepIdx).toBe(0);
     expect(restored!.estimatedLevel).toBeNull();
     expect(restored!.probes).toEqual({});
@@ -148,7 +148,7 @@ describe("loadSession - 손상 값 폴백", () => {
     expect(restored).not.toBeNull();
     expect(restored!.sessionId).toBe("");
     expect(restored!.stage).toBe("input");
-    expect(restored!.depth).toBe("0depth");
+    expect(restored!.mode).toBe("socratic");
     expect(restored!.estimatedLevel).toBeNull();
   });
 

@@ -75,7 +75,7 @@ function seededState(overrides: Partial<Record<string, unknown>> = {}) {
     createdAt: 111,
     conceptSummary: "삭제실패개념",
     stage: "input",
-    depth: "2depth",
+    mode: "2depth",
     concept: "삭제실패개념",
     materials: "",
     probes: {},

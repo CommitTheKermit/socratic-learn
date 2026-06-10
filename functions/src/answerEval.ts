@@ -59,13 +59,14 @@ export const answerEval = onRequest(
     if (!uid) return;
     recordUsage(uid, "answerEval");
 
-    const { concept, level, stepTitle, stepDesc, stepBody, questions } = (req.body ?? {}) as {
+    const { concept, level, stepTitle, stepDesc, stepBody, questions, mode } = (req.body ?? {}) as {
       concept?: string;
       level?: number;
       stepTitle?: string;
       stepDesc?: string;
       stepBody?: string;
       questions?: EvalQuestionInput[];
+      mode?: string;
     };
 
     if (
@@ -102,7 +103,7 @@ export const answerEval = onRequest(
         messages: [
           {
             role: "user",
-            content: evalUserMessage(concept, level, stepTitle, stepDesc, stepBody, qaText),
+            content: evalUserMessage(concept, level, stepTitle, stepDesc, stepBody, qaText, mode),
           },
         ],
         output_config: { format: jsonSchemaOutputFormat(evalSchema) },

@@ -39,7 +39,7 @@ function seededState(overrides: Partial<Record<string, unknown>> = {}) {
     createdAt: 111,
     conceptSummary: "복원될 개념",
     stage: "input",
-    depth: "2depth",
+    mode: "2depth",
     concept: "복원될 개념",
     materials: "",
     probes: {},
@@ -123,6 +123,6 @@ describe("Sub-AC 4: 루트 재접속 동작 / 상태 변경 persist 통합", () 
     await user.type(textarea, "수정됨");
 
     await waitFor(() => expect(persist.loadSession("seed-1")!.concept).toBe("수정됨"));
-    expect(persist.loadSession("seed-1")!.depth).toBe("2depth"); // 복원된 다른 필드는 유지
+    expect(persist.loadSession("seed-1")!.mode).toBe("2depth"); // 복원된 다른 필드는 유지
   });
 });

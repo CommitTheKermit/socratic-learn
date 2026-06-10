@@ -14,7 +14,7 @@ import type { FieldUpdatedAt, SessionState } from "./sessionState";
 export const MERGEABLE_FIELDS = [
   "conceptSummary",
   "stage",
-  "depth",
+  "mode",
   "concept",
   "materials",
   "probes",
@@ -143,7 +143,7 @@ export function mergeSessions(
     // 아래 mergeable 필드들은 루프에서 덮어쓴다. 타입 충족을 위한 초기값.
     conceptSummary: a.conceptSummary,
     stage: a.stage,
-    depth: a.depth,
+    mode: a.mode,
     concept: a.concept,
     materials: a.materials,
     probes: a.probes,

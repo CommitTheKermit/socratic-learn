@@ -1,6 +1,44 @@
 // 프론트엔드 frontend/src/api/prompts.ts 에서 Firebase Functions 로 이전 중인 프롬프트.
 // 슬라이스 단위로 옮겨오며, 모든 함수 이전이 끝나면 프론트의 prompts.ts 는 정리된다.
 
+// ── 답변 모드(가볍게/소크라틱/깊게)별 프롬프트 디렉티브 ──────────────
+// frontend ANSWER_MODES 의 id 와 동일. 알 수 없는 값/누락은 socratic(기본)으로 본다.
+// socratic 은 기존 동작이므로 빈 문자열(디렉티브 없음).
+export type PromptMode = "light" | "socratic" | "deep";
+const asMode = (m?: string): PromptMode => (m === "light" || m === "deep" ? m : "socratic");
+
+const PROBE_MODE_DIRECTIVE: Record<PromptMode, string> = {
+  light:
+    "\n\n[모드: 가볍게] p3 는 부담 없이 답할 수 있는 친근한 한 줄 질문으로 다듬으세요. 너무 깊게 캐묻지 않습니다.",
+  socratic: "",
+  deep:
+    "\n\n[모드: 깊게] p3 는 단순 정의가 아니라 '왜 필요한지/언제 깨지는지/한계'를 캐묻는 더 날카로운 한 줄 질문으로 만드세요. p2 의 오답(correct:false) 선택지도 더 그럴듯하게(헷갈리게) 구성하세요.",
+};
+
+const OUTLINE_MODE_DIRECTIVE: Record<PromptMode, string> = {
+  light:
+    "\n\n[모드: 가볍게] 곁가지를 덜어내고 가장 본질적인 흐름만 담으세요. 각 단계 부제는 핵심만 짧게.",
+  socratic: "",
+  deep:
+    "\n\n[모드: 깊게] 표면 정의에 머물지 말고 내부 메커니즘/원리까지 파고드는 단계 구성으로 하세요. 'why' 와 경계조건을 다루는 단계를 포함하세요.",
+};
+
+const STEP_MODE_DIRECTIVE: Record<PromptMode, string> = {
+  light:
+    "\n\n[모드: 가볍게] body 는 2문단 내외로 짧게, 핵심 메커니즘만 다루세요. 확인 질문은 3개로 줄이고 기본 이해 확인 위주로.",
+  socratic: "",
+  deep:
+    "\n\n[모드: 깊게] body 는 내부 동작/원리까지 깊이 설명하세요. 확인 질문은 응용·반례·원리 캐묻기 중심으로 더 어렵게(최대 5개) 구성하세요.",
+};
+
+const EVAL_MODE_DIRECTIVE: Record<PromptMode, string> = {
+  light:
+    "\n\n[모드: 가볍게] 방향이 맞으면 너그럽게 인정하세요(작은 누락은 almost 로 긍정적으로). 격려하는 어조로 작성합니다.",
+  socratic: "",
+  deep:
+    "\n\n[모드: 깊게] 매우 엄격하게 채점하세요. correct 는 핵심 메커니즘을 빠짐없이 정확히 짚은 경우에만 부여하고, 조금이라도 모호하거나 빈틈이 있으면 almost/partial 로 내리세요. 어조는 직설적·비판적으로 약점을 분명히 지적하되, 인신공격이나 모욕은 절대 하지 마세요.",
+};
+
 export const OVERWHELM_SYSTEM = `당신은 소크라테스식 학습 튜터입니다. 사용자가 입력한 학습 개념과 진단 결과(특히 친숙도)를 보고, 이 개념을 지금 바로 학습하는 것이 너무 큰 도약인지 판단합니다.
 
 판단 기준:
@@ -33,12 +71,16 @@ export const PROBE_SYSTEM = `당신은 소크라테스식 학습 튜터입니다
 - p2 의 6개 옵션 중 3-4개는 개념과 실제 관련 있는 단어(correct:true), 나머지는 비슷해 보이지만 무관한 단어(correct:false). 자료가 있으면 그 자료에 실제로 등장한 용어를 correct 쪽에 1-2개 포함시키세요. value 는 영문 슬러그, label 은 한글/원어.
 - p3 는 개념이 해결하려는 문제 또는 핵심 아이디어를 한 줄로 적도록 유도하세요. placeholder 는 "모르면 비워두셔도 괜찮아요" 풍의 안내.`;
 
-export const probeUserMessage = (concept: string, materials?: string): string => {
+export const probeUserMessage = (
+  concept: string,
+  materials?: string,
+  mode?: string,
+): string => {
   const base = `학습 개념: ${concept}`;
   const mat = materials?.trim()
     ? `\n\n사용자가 함께 제출한 자료:\n"""\n${materials.trim()}\n"""`
     : "";
-  return `${base}${mat}\n\n이 개념에 대한 진단 질문(p1, p2, p3) 을 생성해 주세요.`;
+  return `${base}${mat}\n\n이 개념에 대한 진단 질문(p1, p2, p3) 을 생성해 주세요.${PROBE_MODE_DIRECTIVE[asMode(mode)]}`;
 };
 
 // 학습 로드맵 outline 생성 (generateRoadmapOutline). frontend/src/api/prompts.ts 에서 이전.
@@ -65,8 +107,12 @@ export const OUTLINE_SYSTEM = `당신은 소크라테스식 학습 튜터입니�
 - 수준이 낮으면 기초 정의부터, 수준이 높으면 빠르게 핵심 원리로 진입합니다.
 - 단계 순서는 인과/의존 관계가 자연스럽게 이어지도록 배열하세요.`;
 
-export const outlineUserMessage = (concept: string, level: number): string =>
-  `학습 개념: ${concept}\n사용자 사전 수준: L${level} (0=처음, 4=설명 가능)\n\n로드맵 outline 을 생성해 주세요.`;
+export const outlineUserMessage = (
+  concept: string,
+  level: number,
+  mode?: string,
+): string =>
+  `학습 개념: ${concept}\n사용자 사전 수준: L${level} (0=처음, 4=설명 가능)\n\n로드맵 outline 을 생성해 주세요.${OUTLINE_MODE_DIRECTIVE[asMode(mode)]}`;
 
 // 한 단계 본문/확인 질문 상세 생성 (generateStepDetail). frontend/src/api/prompts.ts 에서 이전.
 export const STEP_DETAIL_SYSTEM = `당신은 소크라테스식 학습 튜터입니다. 주어진 학습 로드맵 안에서 "한 단계 = 한 개념" 원칙으로 개념 설명과 확인 질문을 작성합니다. 진도를 우선하지 마세요. 한 단계에 두 개념을 욱여넣지 마세요.
@@ -106,8 +152,9 @@ export const stepDetailUserMessage = (
   stepNumber: number,
   stepTitle: string,
   stepDesc: string,
+  mode?: string,
 ): string =>
-  `학습 개념: ${concept}\n사용자 사전 수준: L${level}\n\n전체 로드맵:\n${outlineText}\n\n이번 단계(${stepNumber}. ${stepTitle} - ${stepDesc}) 의 본문과 확인 질문을 작성해 주세요. id 의 단계번호는 ${stepNumber} 를 사용하세요.`;
+  `학습 개념: ${concept}\n사용자 사전 수준: L${level}\n\n전체 로드맵:\n${outlineText}\n\n이번 단계(${stepNumber}. ${stepTitle} - ${stepDesc}) 의 본문과 확인 질문을 작성해 주세요. id 의 단계번호는 ${stepNumber} 를 사용하세요.${STEP_MODE_DIRECTIVE[asMode(mode)]}`;
 
 // 답변 평가 (generateAnswerEvaluation). frontend/src/api/prompts.ts 에서 이전.
 export const EVAL_SYSTEM = `당신은 소크라테스식 학습 튜터입니다. 한 학습 단계의 확인 질문에 대한 사용자 답변을 평가하고, 다음 사이클로 어디를 보강하면 좋을지 짚어줍니다.
@@ -138,8 +185,9 @@ export const evalUserMessage = (
   stepDesc: string,
   stepBody: string,
   qaText: string,
+  mode?: string,
 ): string =>
-  `학습 개념: ${concept}\n사용자 수준: L${level}\n\n현재 단계: ${stepTitle} - ${stepDesc}\n단계 본문 요약:\n${stepBody}\n\n평가할 질문/답변:\n${qaText}\n\n각 질문에 대해 grade 와 feedback 을 작성해 주세요. id 는 입력과 동일하게 유지하세요.`;
+  `학습 개념: ${concept}\n사용자 수준: L${level}\n\n현재 단계: ${stepTitle} - ${stepDesc}\n단계 본문 요약:\n${stepBody}\n\n평가할 질문/답변:\n${qaText}\n\n각 질문에 대해 grade 와 feedback 을 작성해 주세요. id 는 입력과 동일하게 유지하세요.${EVAL_MODE_DIRECTIVE[asMode(mode)]}`;
 
 // 분기 평가: 평가 + 추천(branchOptions) + 동등성(isMerged) 단일 JSON (generateBranchEvaluation).
 // frontend/src/api/prompts.ts 에서 이전. structured output(messages.parse) 으로 강제하므로

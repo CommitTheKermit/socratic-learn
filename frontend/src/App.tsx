@@ -194,8 +194,9 @@ function AppWorkspace({
     return () => document.removeEventListener("keydown", onKey);
   }, [pinned]);
 
-  // depth 는 입력바 모드 드롭다운(Hero 로컬 상태)로 대체 예정. 현재는 영속 라운드트립용으로만 보존한다.
-  const [depth] = useState<string>(() => loaded?.depth ?? "0depth");
+  // 답변 모드. 입력바 드롭다운에서 고르고 세션에 영속화되어 probe/outline/stepDetail/eval 프롬프트
+  // 강도와 분기 on/off 를 정한다. (probe 단계 진입 전에 확정되므로 세션 발급 시점에 스냅샷에 담긴다.)
+  const [mode, setMode] = useState<string>(() => loaded?.mode ?? "socratic");
   const [accent] = useState<string[]>(ACCENT_PRESETS[0]);
   const showAurora = true;
 
@@ -230,9 +231,9 @@ function AppWorkspace({
   // probe 단계 진입 시 아직 문항이 없으면(idle) 1회 로드한다. 복원된 세션은 "ready" 로 시작하므로 재호출되지 않는다.
   useEffect(() => {
     if (stage === "probe" && probeStatus === "idle") {
-      void loadProbe(concept, materials);
+      void loadProbe(concept, materials, mode);
     }
-  }, [stage, probeStatus, concept, materials, loadProbe]);
+  }, [stage, probeStatus, concept, materials, mode, loadProbe]);
 
   // 복원된 steps 가 있으면 그 레벨을 이미 로드한 것으로 간주해 learn 진입 시 outline 을 재생성하지 않는다.
   const lastLoadedLevelRef = useRef<number | null>(
@@ -245,16 +246,16 @@ function AppWorkspace({
       lastLoadedLevelRef.current !== estimatedLevel
     ) {
       lastLoadedLevelRef.current = estimatedLevel;
-      void loadOutline(concept, estimatedLevel);
+      void loadOutline(concept, estimatedLevel, mode);
     }
-  }, [stage, estimatedLevel, concept, loadOutline]);
+  }, [stage, estimatedLevel, concept, mode, loadOutline]);
 
   const buildSnapshot = (): SessionState => ({
     sessionId: sessionId ?? "",
     createdAt: createdAtRef.current,
     conceptSummary: concept,
     stage,
-    depth,
+    mode,
     concept,
     materials,
     probes,
@@ -310,7 +311,7 @@ function AppWorkspace({
   }, [
     sessionId,
     stage,
-    depth,
+    mode,
     concept,
     materials,
     probes,
@@ -369,7 +370,7 @@ function AppWorkspace({
       createdAt: Date.now(),
       conceptSummary: concept,
       stage: "probe",
-      depth,
+      mode,
       concept,
       materials: "",
       probes: {},
@@ -504,6 +505,8 @@ function AppWorkspace({
         <div className="main-inner">
           {stage === "input" && (
             <Hero
+              mode={mode}
+              onMode={setMode}
               concept={concept}
               setConcept={setConcept}
               onStart={startLearning}
@@ -528,6 +531,7 @@ function AppWorkspace({
             <StageLearn
               concept={concept}
               level={estimatedLevel}
+              mode={mode}
               stepIdx={stepIdx}
               setStepIdx={setStepIdx}
               answers={answers}
@@ -540,7 +544,7 @@ function AppWorkspace({
               onRetry={() => {
                 if (estimatedLevel != null) {
                   lastLoadedLevelRef.current = null;
-                  void loadOutline(concept, estimatedLevel);
+                  void loadOutline(concept, estimatedLevel, mode);
                 }
               }}
             />

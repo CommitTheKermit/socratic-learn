@@ -39,7 +39,7 @@ function makeState(id: string, concept: string, over: Partial<SessionState> = {}
     createdAt: 4242,
     conceptSummary: concept,
     stage: "done",
-    depth: "intermediate",
+    mode: "intermediate",
     concept,
     materials: "자료들",
     probes: { "0": "이해" },

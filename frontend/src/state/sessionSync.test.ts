@@ -42,7 +42,7 @@ function baseState(over: Partial<SessionState> = {}): SessionState {
     createdAt: 1717000000000,
     conceptSummary: "코루틴",
     stage: "learn",
-    depth: "0depth",
+    mode: "0depth",
     concept: "코루틴",
     materials: "",
     probes: {},

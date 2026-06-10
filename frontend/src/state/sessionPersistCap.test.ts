@@ -54,7 +54,7 @@ function state(id: string, createdAt: number, over: Partial<SessionState> = {}):
     createdAt,
     conceptSummary: `c-${id}`,
     stage: "input",
-    depth: "0depth",
+    mode: "0depth",
     concept: "",
     materials: "",
     probes: {},
