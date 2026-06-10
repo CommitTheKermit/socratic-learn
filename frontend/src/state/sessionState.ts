@@ -20,7 +20,8 @@ export interface SessionState {
   createdAt: number;
   conceptSummary: string;
   stage: Stage;
-  depth: string;
+  /** 답변 모드(light/socratic/deep). 학습 강도(질문 난이도·분기·채점·설명 깊이)를 정한다. */
+  mode: string;
   concept: string;
   materials: string;
   probes: ProbeAnswers;
@@ -185,7 +186,7 @@ export function serializeSessionState(state: SessionState): string {
     createdAt: state.createdAt,
     conceptSummary: state.conceptSummary,
     stage: state.stage,
-    depth: state.depth,
+    mode: state.mode,
     concept: state.concept,
     materials: state.materials,
     probes: state.probes,
@@ -230,7 +231,8 @@ export function deserializeSessionState(json: string): SessionState {
     createdAt: asNumber(o.createdAt),
     conceptSummary: asString(o.conceptSummary),
     stage: asStage(o.stage),
-    depth: asString(o.depth, "0depth"),
+    // 구 세션엔 mode 가 없으므로(과거 depth 필드와 무관) 기본 socratic 으로 복원한다.
+    mode: asString(o.mode, "socratic"),
     concept: asString(o.concept),
     materials: asString(o.materials),
     probes: asProbes(o.probes),

@@ -101,9 +101,10 @@ export const probe = onRequest(
 
     const testMode = await isTestMode(uid);
 
-    const { concept, materials } = (req.body ?? {}) as {
+    const { concept, materials, mode } = (req.body ?? {}) as {
       concept?: string;
       materials?: string;
+      mode?: string;
     };
 
     if (!concept) {
@@ -117,7 +118,7 @@ export const probe = onRequest(
         model: CLAUDE_MODEL,
         max_tokens: 3000,
         system: [{ type: "text", text: PROBE_SYSTEM, cache_control: { type: "ephemeral" } }],
-        messages: [{ role: "user", content: probeUserMessage(concept, materials) }],
+        messages: [{ role: "user", content: probeUserMessage(concept, materials, mode) }],
         output_config: { format: jsonSchemaOutputFormat(probeSchema) },
       });
       const parsed = resp.parsed_output as ProbeQuestions | undefined;

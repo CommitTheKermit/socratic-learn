@@ -9,7 +9,7 @@ function snap(partial: Partial<SessionState> = {}): SessionState {
     createdAt: 1,
     conceptSummary: "",
     stage: "input",
-    depth: "0depth",
+    mode: "0depth",
     concept: "",
     materials: "",
     probes: {},

@@ -69,7 +69,7 @@ function makeSessionState(id: string, concept: string, overrides: Partial<Record
     createdAt: 100,
     conceptSummary: concept,
     stage: "input",
-    depth: "2depth",
+    mode: "2depth",
     concept,
     materials: "",
     probes: {},

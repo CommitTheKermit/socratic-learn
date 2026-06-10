@@ -62,7 +62,7 @@ function makeSession(id: string, overrides: Partial<SessionState> = {}): Session
     createdAt: 1234567890,
     conceptSummary: "테스트 개념",
     stage: "probe",
-    depth: "0depth",
+    mode: "0depth",
     concept: "테스트 개념",
     materials: "",
     probes: {},

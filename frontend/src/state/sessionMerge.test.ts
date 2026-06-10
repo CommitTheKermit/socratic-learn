@@ -8,7 +8,7 @@ function baseState(over: Partial<SessionState> = {}): SessionState {
     createdAt: 1717000000000,
     conceptSummary: "코루틴",
     stage: "learn",
-    depth: "1depth",
+    mode: "1depth",
     concept: "코루틴",
     materials: "자료",
     probes: { p1: 2, p2: ["thread"], p3: "비동기" },

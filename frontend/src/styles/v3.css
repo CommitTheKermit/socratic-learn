@@ -13,6 +13,7 @@ textarea, input { font: inherit; color: inherit; }
   --bg-elev-2:   oklch(0.195 0.007 270);
   --line:        oklch(1 0 0 / 0.07);
   --line-2:      oklch(1 0 0 / 0.04);
+  --line-3:      oklch(1 0 0 / 0.12);
 
   --fg:          oklch(0.97 0 0);
   --fg-mut:      oklch(0.97 0 0 / 0.58);
@@ -22,6 +23,12 @@ textarea, input { font: inherit; color: inherit; }
   --accent:      oklch(0.62 0.17 273);
   --accent-fg:   oklch(0.98 0 0);
   --accent-soft: oklch(0.62 0.17 273 / 0.18);
+
+  /* 답변 모드별 액센트 — 선택 모드가 --accent-pick 으로 흐른다 (드롭다운 텍스트·학습 시작 버튼) */
+  --mode-light:    #A8FFC9;   /* 가볍게 · 민트 */
+  --mode-socratic: #FFB3D9;   /* 소크라틱 · 핑크 */
+  --mode-deep:     #C8B6FF;   /* 깊게 · 라벤더 */
+  --accent-pick:   var(--mode-socratic);
 
   /* Ethereal Pulse — holographic signature gradient */
   --holo: linear-gradient(135deg,
@@ -570,7 +577,7 @@ body {
   letter-spacing: -0.005em;
 }
 
-/* Input bar (depth select + textarea + capture btn) */
+/* Input bar (mode dropdown + textarea + capture btn) */
 .input-bar {
   margin-top: 14px;
   width: 100%;
@@ -597,24 +604,6 @@ body {
 }
 .in-lead svg { display: block; }
 .in-lead.plain { color: var(--fg-dim); }
-.depth-select {
-  position: relative;
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 0 12px 0 14px;
-  border-radius: 999px;
-  color: var(--fg);
-  font-size: 13px;
-  height: 40px;
-  font-family: var(--font-mono);
-}
-.depth-select:hover { background: var(--line-2); }
-.depth-select select {
-  position: absolute; inset: 0; opacity: 0;
-  cursor: pointer;
-  background: transparent;
-  border: 0;
-}
-.depth-select .chev { width: 12px; height: 12px; opacity: 0.6; }
 
 .input-bar textarea {
   resize: none;
@@ -642,13 +631,13 @@ body {
   padding: 0 20px;
   height: 40px;
   border-radius: 999px;
-  background: #A8FFC9;                /* 기본: 민트 솔리드 */
+  background: var(--accent-pick);    /* 선택 모드 색 (기본: 소크라틱 핑크) */
   color: var(--holo-on);
   font-size: 13px;
   font-weight: 700;
   letter-spacing: -0.005em;
   white-space: nowrap;
-  box-shadow: 0 8px 24px -10px rgba(168, 255, 201, 0.45),
+  box-shadow: 0 8px 24px -10px color-mix(in srgb, var(--accent-pick) 55%, transparent),
               0 0 0 1px rgba(255, 255, 255, 0.06) inset;
   transition: transform .15s ease, box-shadow .25s ease;
 }
@@ -680,6 +669,74 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
   .btn-capture::before { animation: none; }
+}
+
+/* ── 답변 모드 드롭다운 (입력바 왼쪽 · 미니멀 알약) ─────────────────── */
+.mode-dd { position: relative; align-self: center; }
+.mode-trigger {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 36px; padding: 0 11px 0 13px;
+  border-radius: 999px; white-space: nowrap;
+  color: var(--fg); font-size: 13px;
+  border: 1px solid var(--line-3);
+  background: oklch(1 0 0 / 0.04);
+  transition: background .15s ease, border-color .15s ease;
+}
+.mode-trigger:hover {
+  background: oklch(1 0 0 / 0.08);
+  border-color: oklch(1 0 0 / 0.2);
+}
+.mode-trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.mode-name { font-weight: 600; letter-spacing: -0.01em; }
+.mode-chev {
+  display: grid; place-items: center;
+  width: 14px; height: 14px; opacity: 0.5;
+  transition: transform .2s ease;
+}
+.mode-dd.is-open .mode-chev { transform: rotate(180deg); }
+
+.mode-menu {
+  position: absolute; top: calc(100% + 8px); left: 0;
+  z-index: 30; min-width: 272px;
+  padding: 6px;
+  background: var(--bg-elev-1);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 1px 0 oklch(1 0 0 / 0.05) inset,
+              0 30px 70px -24px oklch(0 0 0 / 0.8);
+  animation: modeIn .16s ease both;
+}
+@keyframes modeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+.mode-opt {
+  width: 100%; display: grid;
+  grid-template-columns: 1fr auto; align-items: center; gap: 10px;
+  padding: 10px 11px; border-radius: 10px; text-align: left;
+  transition: background .12s ease;
+}
+.mode-opt:hover, .mode-opt.is-active { background: var(--bg-elev-2); }
+.mode-opt-body { min-width: 0; }
+.mode-opt-label { display: block; font-size: 13.5px; font-weight: 650; letter-spacing: -0.01em; }
+.mode-opt-desc {
+  display: block; margin-top: 3px;
+  font-size: 12px; line-height: 1.45; color: var(--fg-mut); text-wrap: pretty;
+}
+.mode-opt.is-selected .mode-opt-label { color: var(--accent-pick); }
+.mode-check {
+  display: grid; place-items: center;
+  width: 16px; height: 16px; color: var(--accent-pick); opacity: 0;
+}
+.mode-opt.is-selected .mode-check { opacity: 1; }
+
+/* 좁은 폭: 모드 트리거가 입력바 위 줄로 빠지도록 */
+@media (max-width: 560px) {
+  .input-bar.has-lead { grid-template-columns: 1fr; gap: 6px; }
+  .input-bar.has-lead .mode-dd { justify-self: start; }
+  .input-bar.has-lead textarea { grid-column: 1; }
+  .input-bar.has-lead .btn-capture { grid-column: 1; justify-self: stretch; justify-content: center; }
+  .mode-menu { min-width: min(272px, 78vw); }
 }
 
 /* ── Hero guide (입력바 아래 접이식 · 가로 4-스텝, 뉴트럴) ──────────── */

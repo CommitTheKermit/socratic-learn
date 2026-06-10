@@ -36,11 +36,12 @@ export const stepDetailStream = onRequest(
 
     const testMode = await isTestMode(uid);
 
-    const { concept, level, outline, stepIdx } = (req.body ?? {}) as {
+    const { concept, level, outline, stepIdx, mode } = (req.body ?? {}) as {
       concept?: string;
       level?: number;
       outline?: RoadmapOutlineItem[];
       stepIdx?: number;
+      mode?: string;
     };
 
     if (
@@ -100,6 +101,7 @@ export const stepDetailStream = onRequest(
               stepIdx + 1,
               cur.title,
               cur.desc,
+              mode,
             ),
           },
         ],

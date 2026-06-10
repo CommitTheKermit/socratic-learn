@@ -22,6 +22,8 @@ import { fetchAndMerge, persistWithSync } from "./state/sessionSync";
 import { useDebouncedPersist } from "./state/useDebouncedPersist";
 import { useAuth } from "./state/useAuth";
 import { hasSynced, markSynced } from "./state/fetchOncePerSession";
+import type { LearnMode } from "./api/contract";
+import { logEvent } from "./lib/analytics";
 
 type AccentVars = CSSProperties & {
   "--holo"?: string;
@@ -58,25 +60,8 @@ function readDraftConcept(): string {
   }
 }
 
-/**
- * 루트("/") 진입 시: 마지막 활성 세션이 있으면 그 세션의 단계 URL 로 redirect 해
- * 재접속 시 진행 중이던 단계를 그대로 복원한다(이미 나온 결과는 재로딩하지 않음).
- * 활성 세션이 없으면 홈(개념 입력) 화면을 보여준다.
- */
-function HomeRedirect() {
-  const target = useMemo(() => {
-    let id: string | null = null;
-    try {
-      id = localStorage.getItem(ACTIVE_SESSION_KEY);
-    } catch {
-      id = null;
-    }
-    if (!id) return null;
-    const s = loadSession(id);
-    if (!s) return null;
-    return pathFor(id, s.stage, s.stepIdx);
-  }, []);
-  if (target && target !== "/") return <Navigate to={target} replace />;
+/** 루트("/") 진입 시 항상 홈(개념 입력) 화면을 보여준다. 마지막 세션으로의 자동 복원은 하지 않는다. */
+function Home() {
   return <AppShell stage="input" />;
 }
 
@@ -211,7 +196,9 @@ function AppWorkspace({
     return () => document.removeEventListener("keydown", onKey);
   }, [pinned]);
 
-  const [depth, setDepth] = useState<string>(() => loaded?.depth ?? "0depth");
+  // 답변 모드. 입력바 드롭다운에서 고르고 세션에 영속화되어 probe/outline/stepDetail/eval 프롬프트
+  // 강도와 분기 on/off 를 정한다. (probe 단계 진입 전에 확정되므로 세션 발급 시점에 스냅샷에 담긴다.)
+  const [mode, setMode] = useState<string>(() => loaded?.mode ?? "socratic");
   const [accent] = useState<string[]>(ACCENT_PRESETS[0]);
   const showAurora = true;
 
@@ -246,9 +233,9 @@ function AppWorkspace({
   // probe 단계 진입 시 아직 문항이 없으면(idle) 1회 로드한다. 복원된 세션은 "ready" 로 시작하므로 재호출되지 않는다.
   useEffect(() => {
     if (stage === "probe" && probeStatus === "idle") {
-      void loadProbe(concept, materials);
+      void loadProbe(concept, materials, mode);
     }
-  }, [stage, probeStatus, concept, materials, loadProbe]);
+  }, [stage, probeStatus, concept, materials, mode, loadProbe]);
 
   // 복원된 steps 가 있으면 그 레벨을 이미 로드한 것으로 간주해 learn 진입 시 outline 을 재생성하지 않는다.
   const lastLoadedLevelRef = useRef<number | null>(
@@ -261,16 +248,42 @@ function AppWorkspace({
       lastLoadedLevelRef.current !== estimatedLevel
     ) {
       lastLoadedLevelRef.current = estimatedLevel;
-      void loadOutline(concept, estimatedLevel);
+      void loadOutline(concept, estimatedLevel, mode);
     }
-  }, [stage, estimatedLevel, concept, loadOutline]);
+  }, [stage, estimatedLevel, concept, mode, loadOutline]);
+
+  // sl_session_start: learn 단계 진입 시 1회 계측(fire-and-forget, 예외 무시).
+  // AppWorkspace 는 단계 전환 시 재마운트되므로 빈 deps [] 가 "learn 진입 1회" 를 보장한다.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (stage !== "learn" || !sessionId) return;
+    logEvent("sl_session_start", {
+      session_id: sessionId,
+      concept,
+      mode: mode as LearnMode,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // sl_stage_enter: 모든 단계(probe/learn/done/input) 진입 시 1회 계측.
+  // 단계별로 다른 Route element → AppWorkspace 재마운트 → 빈 deps [] 가 "진입 1회" 를 보장한다.
+  // sessionId 없는 홈("/")은 세션 단위 분석 대상이 아니라 건너뛴다.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!sessionId) return;
+    logEvent("sl_stage_enter", {
+      session_id: sessionId,
+      stage,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const buildSnapshot = (): SessionState => ({
     sessionId: sessionId ?? "",
     createdAt: createdAtRef.current,
     conceptSummary: concept,
     stage,
-    depth,
+    mode,
     concept,
     materials,
     probes,
@@ -326,7 +339,7 @@ function AppWorkspace({
   }, [
     sessionId,
     stage,
-    depth,
+    mode,
     concept,
     materials,
     probes,
@@ -385,7 +398,7 @@ function AppWorkspace({
       createdAt: Date.now(),
       conceptSummary: concept,
       stage: "probe",
-      depth,
+      mode,
       concept,
       materials: "",
       probes: {},
@@ -520,8 +533,8 @@ function AppWorkspace({
         <div className="main-inner">
           {stage === "input" && (
             <Hero
-              depth={depth}
-              onDepth={setDepth}
+              mode={mode}
+              onMode={setMode}
               concept={concept}
               setConcept={setConcept}
               onStart={startLearning}
@@ -546,6 +559,8 @@ function AppWorkspace({
             <StageLearn
               concept={concept}
               level={estimatedLevel}
+              mode={mode}
+              sessionId={sessionId}
               stepIdx={stepIdx}
               setStepIdx={setStepIdx}
               answers={answers}
@@ -558,7 +573,7 @@ function AppWorkspace({
               onRetry={() => {
                 if (estimatedLevel != null) {
                   lastLoadedLevelRef.current = null;
-                  void loadOutline(concept, estimatedLevel);
+                  void loadOutline(concept, estimatedLevel, mode);
                 }
               }}
             />
@@ -594,7 +609,7 @@ export default function App() {
   return (
     <SessionListProvider>
       <Routes>
-        <Route path="/" element={<HomeRedirect />} />
+        <Route path="/" element={<Home />} />
         <Route path="/s/:sessionId" element={<AppShell stage="input" />} />
         <Route path="/s/:sessionId/probe" element={<AppShell stage="probe" />} />
         <Route path="/s/:sessionId/learn/:stepIdx" element={<AppShell stage="learn" />} />

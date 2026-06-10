@@ -54,14 +54,19 @@ export interface OverwhelmDecision {
   suggestedConcept: string;
 }
 
+/** 답변 모드. 학습 강도(질문 난이도·분기·채점·설명 깊이)를 정한다. frontend ANSWER_MODES id 와 동일. */
+export type LearnMode = "light" | "socratic" | "deep";
+
 export interface ProbeRequest {
   concept: string;
   materials?: string;
+  mode?: LearnMode;
 }
 
 export interface OutlineRequest {
   concept: string;
   level: number;
+  mode?: LearnMode;
 }
 
 export interface StepDetailRequest {
@@ -69,6 +74,7 @@ export interface StepDetailRequest {
   level: number;
   outline: { title: string; desc: string }[];
   stepIdx: number;
+  mode?: LearnMode;
 }
 
 export interface AnswerEvalRequest {
@@ -78,6 +84,7 @@ export interface AnswerEvalRequest {
   stepDesc: string;
   stepBody: string;
   questions: { id: string; q: string; answer: string }[];
+  mode?: LearnMode;
 }
 
 export interface BranchEvalRequest {

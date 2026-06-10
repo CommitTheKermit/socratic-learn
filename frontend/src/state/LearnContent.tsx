@@ -20,6 +20,7 @@ import {
   type StepEvaluation,
 } from "../api/claudeContent";
 import { streamStepDetail, type StreamHandle } from "../api/stepDetailStream";
+import type { LearnMode } from "../api/contract";
 import { buildRoadmapStages } from "./roadmap";
 
 // "streaming": body 토큰이 점진적으로 들어오는 중(questions 는 아직 없음). complete 시 "ready".
@@ -31,16 +32,16 @@ interface LearnContentValue {
   probeStatus: LoadStatus;
   probeError: ErrInfo | null;
   probeFromFallback: boolean;
-  loadProbe: (concept: string, materials?: string) => Promise<void>;
+  loadProbe: (concept: string, materials?: string, mode?: string) => Promise<void>;
 
   steps: Step[];
   outlineStatus: LoadStatus;
   outlineError: ErrInfo | null;
-  loadOutline: (concept: string, level: number) => Promise<void>;
+  loadOutline: (concept: string, level: number, mode?: string) => Promise<void>;
 
   stepDetailStatus: Record<number, LoadStatus>;
   stepDetailErrors: Record<number, ErrInfo | null>;
-  loadStepDetail: (concept: string, level: number, stepIdx: number) => Promise<void>;
+  loadStepDetail: (concept: string, level: number, stepIdx: number, mode?: string) => Promise<void>;
 
   stepEvaluations: Record<number, StepEvaluation>;
   stepEvalStatus: Record<number, LoadStatus>;
@@ -51,6 +52,7 @@ interface LearnContentValue {
     stepIdx: number,
     answers: Record<string, string>,
     skips: Record<string, boolean>,
+    mode?: string,
   ) => Promise<void>;
 
   /**
@@ -160,12 +162,12 @@ export function LearnContentProvider({
   // 언마운트(세션 전환으로 Provider 가 key 재마운트되는 경우 포함) 시 진행 중 스트림을 정리한다.
   useEffect(() => () => abortStepStreams(), [abortStepStreams]);
 
-  const loadProbe = useCallback(async (concept: string, materials?: string) => {
+  const loadProbe = useCallback(async (concept: string, materials?: string, mode?: string) => {
     setProbeStatus("loading");
     setProbeError(null);
     setProbeFromFallback(false);
     try {
-      const qs = await generateProbeQuestions(concept, materials);
+      const qs = await generateProbeQuestions(concept, materials, mode);
       setProbeQuestions(qs);
       setProbeStatus("ready");
     } catch (e) {
@@ -176,7 +178,7 @@ export function LearnContentProvider({
     }
   }, []);
 
-  const loadOutline = useCallback(async (concept: string, level: number) => {
+  const loadOutline = useCallback(async (concept: string, level: number, mode?: string) => {
     setOutlineStatus("loading");
     setOutlineError(null);
     setSteps([]);
@@ -185,7 +187,7 @@ export function LearnContentProvider({
     inflightRef.current.clear();
     abortStepStreams();
     try {
-      const outline = await generateRoadmapOutline(concept, level);
+      const outline = await generateRoadmapOutline(concept, level, mode);
       const placeholders: Step[] = buildRoadmapStages(outline);
       setSteps(placeholders);
       setOutlineStatus("ready");
@@ -196,7 +198,7 @@ export function LearnContentProvider({
   }, [abortStepStreams, setSteps]);
 
   const loadStepDetail = useCallback(
-    async (concept: string, level: number, stepIdx: number) => {
+    async (concept: string, level: number, stepIdx: number, mode?: string) => {
       if (inflightRef.current.has(stepIdx)) return;
       inflightRef.current.add(stepIdx);
       // 이 스트림이 속한 세대. 이후 reset/loadOutline 으로 epoch 가 바뀌면(= 세션 전환)
@@ -212,7 +214,7 @@ export function LearnContentProvider({
       let acc = "";
       let settled = false;
       const handle = streamStepDetail(
-        { concept, level, outline, stepIdx },
+        { concept, level, outline, stepIdx, mode: mode as LearnMode | undefined },
         {
           onDelta: (text) => {
             if (isStale()) return;
@@ -266,6 +268,7 @@ export function LearnContentProvider({
       stepIdx: number,
       answers: Record<string, string>,
       skips: Record<string, boolean>,
+      mode?: string,
     ) => {
       if (evalInflightRef.current.has(stepIdx)) return;
       const step = stepsRef.current[stepIdx];
@@ -284,6 +287,7 @@ export function LearnContentProvider({
           step.desc,
           step.body,
           items,
+          mode,
         );
         setStepEvaluations((m) => ({ ...m, [stepIdx]: evalResult }));
         setStepEvalStatus((m) => ({ ...m, [stepIdx]: "ready" }));

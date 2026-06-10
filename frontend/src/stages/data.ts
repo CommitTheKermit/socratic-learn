@@ -200,10 +200,19 @@ export const STAGE_LABELS: Record<Stage, string> = {
   done: "완료",
 };
 
-export const DEPTHS = [
-  { value: "0depth", label: "0depth", hint: "한 줄로 핵심만" },
-  { value: "1depth", label: "1depth", hint: "맥락과 흐름까지" },
-  { value: "2depth", label: "2depth", hint: "깊은 원리까지" },
+// 답변 모드 — 입력바 왼쪽 드롭다운. 선택 모드가 학습 강도(질문 수·분기·채점)를 정한다.
+// (모드값을 probe/eval 로직이 소비하는 부분은 별도 단계. 현재는 UI/선택까지.)
+export interface AnswerMode {
+  id: string;
+  name: string;
+  cvar: string; // 모드별 액센트 CSS 변수 (--accent-pick 로 흐름)
+  desc: string;
+}
+
+export const ANSWER_MODES: AnswerMode[] = [
+  { id: "light", name: "가볍게", cvar: "--mode-light", desc: "핵심만 빠르게. 질문 2~3개, 분기 없이 쭉 진행" },
+  { id: "socratic", name: "소크라틱", cvar: "--mode-socratic", desc: "균형 있게. 질문 4~5개, 갈래 분기 포함" },
+  { id: "deep", name: "깊게", cvar: "--mode-deep", desc: "끝까지 파고들기. 질문 5개+, 더 혹독한 점검과 추궁" },
 ];
 
 // 메인 가이드 — 학습 4단계 흐름 (입력바 아래 접이식)

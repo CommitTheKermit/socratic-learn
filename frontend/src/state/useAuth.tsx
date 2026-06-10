@@ -7,6 +7,7 @@ import {
   type User,
 } from "firebase/auth";
 import { auth, githubProvider } from "../lib/firebase";
+import { setAnalyticsUserId } from "../lib/analytics";
 
 export interface AuthContextValue {
   /** 로그인된 Firebase 사용자. 비로그인 시 null. */
@@ -30,6 +31,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setLoading(false);
+      // GA4 사용자 단위 분석: 로그인 시 uid 등록, 로그아웃 시 null.
+      // fire-and-forget - analytics 실패가 UX 에 전파되지 않음.
+      setAnalyticsUserId(u?.uid ?? null);
     });
     return unsub;
   }, []);

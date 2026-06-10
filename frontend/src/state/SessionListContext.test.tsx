@@ -32,7 +32,7 @@ function makeState(over: Partial<SessionState> = {}): SessionState {
     createdAt: 100,
     conceptSummary: "개념1",
     stage: "probe",
-    depth: "0depth",
+    mode: "0depth",
     concept: "개념1",
     materials: "",
     probes: {},

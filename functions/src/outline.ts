@@ -76,9 +76,10 @@ export const outline = onRequest(
 
     const testMode = await isTestMode(uid);
 
-    const { concept, level } = (req.body ?? {}) as {
+    const { concept, level, mode } = (req.body ?? {}) as {
       concept?: string;
       level?: number;
+      mode?: string;
     };
 
     if (!concept || typeof level !== "number") {
@@ -92,7 +93,7 @@ export const outline = onRequest(
         model: CLAUDE_MODEL,
         max_tokens: 3000,
         system: [{ type: "text", text: OUTLINE_SYSTEM, cache_control: { type: "ephemeral" } }],
-        messages: [{ role: "user", content: outlineUserMessage(concept, level) }],
+        messages: [{ role: "user", content: outlineUserMessage(concept, level, mode) }],
         // 테스트 모드: 2단계 스키마로 LLM 호출
         output_config: { format: jsonSchemaOutputFormat(testMode ? outlineSchemaTest : outlineSchema) },
       });

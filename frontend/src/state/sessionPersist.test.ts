@@ -38,7 +38,7 @@ function fullState(): SessionState {
     createdAt: 1717000000000,
     conceptSummary: "코루틴이 왜 필요한지",
     stage: "learn",
-    depth: "1depth",
+    mode: "1depth",
     concept: "코루틴이 왜 필요한지",
     materials: "참고 자료 텍스트",
     probes: { p1: 2, p2: ["thread", "suspend"], p3: "비동기 처리" },

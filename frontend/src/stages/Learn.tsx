@@ -9,6 +9,7 @@ import type { Grade } from "../api/claudeContent";
 import { BranchDialog } from "../components/branch/BranchDialog";
 import { useBranchPhase } from "../state/useBranchPhase";
 import type { BranchOption } from "../api/contract";
+import { logEvent } from "../lib/analytics";
 
 interface InsertedMeta {
   parentDisplayBase: string; // e.g. "1" or "1-1"
@@ -17,6 +18,31 @@ interface InsertedMeta {
 
 function stripLeadingZero(label: string): string {
   return label.replace(/^0+(?=\d)/, "");
+}
+
+/**
+ * LLM 이 돌려준 분기 옵션을 결정론적으로 보정한다.
+ * "로드맵 다음 단계로 이동"(roadmap_next) 은 프론트가 가진 steps/stepIdx 가 진실 출처다.
+ * LLM 은 현재 stepIdx 를 모르고 다음 단계 내용도 지어내므로(존재 여부·내용 모두 hallucination),
+ * LLM 생성분은 버리고 여기서 실제 로드맵 기준으로 직접 만든다.
+ *  - 다음 단계가 있으면 실제 steps[stepIdx+1] 을 가리키는 옵션을 항상 첫 번째로 둔다.
+ *  - 마지막 단계면 옵션 자체를 빼고 LLM 이 만든 나머지(추천/추가/마무리)만 남긴다.
+ */
+function normalizeBranchOptions(
+  options: BranchOption[],
+  steps: Step[],
+  stepIdx: number,
+): BranchOption[] {
+  const rest = options.filter((o) => o.type !== "roadmap_next");
+  const nextStep = steps[stepIdx + 1];
+  if (!nextStep) return rest;
+  const roadmapNext: BranchOption = {
+    label: "로드맵 다음 단계로 이동",
+    type: "roadmap_next",
+    isRecommended: false,
+    stageContent: nextStep,
+  };
+  return [roadmapNext, ...rest];
 }
 
 /**
@@ -50,6 +76,9 @@ function QaAnswer({
 interface Props {
   concept: string;
   level: number | null;
+  /** 답변 모드. "light" 면 분기 시스템을 끄고(평가만) 바로 다음으로 진행한다. */
+  mode: string;
+  sessionId?: string;
   stepIdx: number;
   setStepIdx: (n: number) => void;
   answers: Record<string, string>;
@@ -88,6 +117,8 @@ const IcoCols = () => (
 export function StageLearn({
   concept,
   level,
+  mode,
+  sessionId,
   stepIdx,
   setStepIdx,
   answers,
@@ -135,6 +166,8 @@ export function StageLearn({
     return String(count).padStart(2, "0");
   };
   const safeLevel = level ?? 2;
+  // "가볍게" 모드는 분기 시스템을 끄고 평가만 한 뒤 바로 다음 개념으로 진행한다.
+  const branchEnabled = mode !== "light";
   const step = steps[stepIdx];
   const detailStatus = stepDetailStatus[stepIdx] ?? "idle";
   const detailError = stepDetailErrors[stepIdx] ?? null;
@@ -161,9 +194,9 @@ export function StageLearn({
       step &&
       (detailStatus === "idle" || (detailStatus === "ready" && !step.body))
     ) {
-      void loadStepDetail(concept, safeLevel, stepIdx);
+      void loadStepDetail(concept, safeLevel, stepIdx, mode);
     }
-  }, [outlineStatus, stepIdx, step, detailStatus, concept, safeLevel, loadStepDetail]);
+  }, [outlineStatus, stepIdx, step, detailStatus, concept, safeLevel, mode, loadStepDetail]);
 
   // stepIdx 가 바뀌면 분기 가시 상태도 닫는다.
   useEffect(() => {
@@ -172,7 +205,22 @@ export function StageLearn({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stepIdx]);
 
+  // sl_step_enter: 스텝 진입/이동 시 계측(fire-and-forget).
+  // stepIdx 변경마다 1회 emit. sessionId 없으면 no-op.
+  useEffect(() => {
+    if (!sessionId) return;
+    logEvent("sl_step_enter", { session_id: sessionId, step_idx: stepIdx });
+  }, [sessionId, stepIdx]);
+
   const handleChoose = (option: BranchOption) => {
+    // sl_branch_select 계측: 분기 옵션 선택 즉시 emit (fire-and-forget).
+    if (sessionId) {
+      logEvent("sl_branch_select", {
+        session_id: sessionId,
+        step_idx: stepIdx,
+        choice: option.label,
+      });
+    }
     const nextState = branch.chooseBranch(option, {
       roadmapStages: steps,
       currentStageIndex: stepIdx,
@@ -253,16 +301,38 @@ export function StageLearn({
   }
 
   const goPrev = () => {
-    if (stepIdx === 0) onPrev();
-    else setStepIdx(stepIdx - 1);
+    if (stepIdx === 0) {
+      onPrev();
+    } else {
+      if (sessionId) {
+        logEvent("sl_step_navigate", {
+          session_id: sessionId,
+          from_idx: stepIdx,
+          to_idx: stepIdx - 1,
+          direction: "back",
+        });
+      }
+      setStepIdx(stepIdx - 1);
+    }
   };
   const goNext = () => {
     if (!isEvaluated) {
       showToast("답변 제출이 필요합니다");
       return;
     }
-    if (stepIdx >= steps.length - 1) onDone();
-    else setStepIdx(stepIdx + 1);
+    if (stepIdx >= steps.length - 1) {
+      onDone();
+    } else {
+      if (sessionId) {
+        logEvent("sl_step_navigate", {
+          session_id: sessionId,
+          from_idx: stepIdx,
+          to_idx: stepIdx + 1,
+          direction: "next",
+        });
+      }
+      setStepIdx(stepIdx + 1);
+    }
   };
   const skipStep = () => {
     if (isEvaluated) return;
@@ -272,8 +342,16 @@ export function StageLearn({
   };
   const submitAnswers = () => {
     if (!step || isEvaluating || isEvaluated) return;
-    void submitEvaluation(concept, safeLevel, stepIdx, answers, skips);
-    // 동시에 분기 평가도 백그라운드로 시작. 사용자는 "평가 보기" 버튼으로 다이얼로그를 연다.
+    // 계측: 제출되는 각 질문(스킵 제외)마다 sl_answer_submit emit (fire-and-forget)
+    if (sessionId) {
+      for (const q of step.questions.filter((q) => !skips[q.id])) {
+        logEvent("sl_answer_submit", { session_id: sessionId, step_idx: stepIdx, question_id: q.id });
+      }
+    }
+    void submitEvaluation(concept, safeLevel, stepIdx, answers, skips, mode);
+    // "가볍게" 모드는 분기 없이 평가만 하고 끝. (사용자는 푸터의 "다음 개념" 으로 진행)
+    if (!branchEnabled) return;
+    // 그 외 모드는 분기 평가도 백그라운드로 시작. 사용자는 "평가 보기" 버튼으로 다이얼로그를 연다.
     const roadmapOutlineText = steps
       .map((s, i) => `${i + 1}. ${s.title} - ${s.desc}`)
       .join("\n");
@@ -289,11 +367,11 @@ export function StageLearn({
     });
   };
 
-  // 두 호출의 합산 로딩/완료 상태
-  const branchLoading = branch.mode === "loading";
-  const branchReady = branch.mode === "choosing" || branch.mode === "error";
+  // 두 호출의 합산 로딩/완료 상태. light 모드는 분기 호출이 없으므로 평가만으로 완료를 판정한다.
+  const branchLoading = branchEnabled && branch.mode === "loading";
+  const branchReady = branchEnabled && (branch.mode === "choosing" || branch.mode === "error");
   const fullLoading = isEvaluating || branchLoading;
-  const fullReady = isEvaluated && branchReady;
+  const fullReady = branchEnabled ? isEvaluated && branchReady : isEvaluated;
 
   const detailLoading = detailStatus === "loading" || detailStatus === "idle";
   const detailErrored = detailStatus === "error";
@@ -304,15 +382,18 @@ export function StageLearn({
     evalResult?.evaluations.find((e) => e.id === qid);
 
   // 가로/세로 두 방향이 공유하는 조각들 (래퍼만 방향별로 달라진다).
+  // light 모드는 평가 완료 후 "평가 보기"(분기 다이얼로그)가 없으므로 버튼을 숨기고 푸터로 진행한다.
   const submitButton = fullReady ? (
-    <button
-      className="lv-btn-holo lv-submit"
-      type="button"
-      onClick={() => setBranchVisible(true)}
-    >
-      <span className="lv-submit-icon" aria-hidden>{I.brand}</span>
-      평가 보기
-    </button>
+    branchEnabled ? (
+      <button
+        className="lv-btn-holo lv-submit"
+        type="button"
+        onClick={() => setBranchVisible(true)}
+      >
+        <span className="lv-submit-icon" aria-hidden>{I.brand}</span>
+        평가 보기
+      </button>
+    ) : null
   ) : (
     <button
       className={"lv-btn-holo lv-submit" + (fullLoading ? " is-loading" : "")}
@@ -340,7 +421,7 @@ export function StageLearn({
           <button
             className="btn-ghost"
             type="button"
-            onClick={() => loadStepDetail(concept, safeLevel, stepIdx)}
+            onClick={() => loadStepDetail(concept, safeLevel, stepIdx, mode)}
           >
             다시 시도
           </button>
@@ -360,7 +441,7 @@ export function StageLearn({
           <button
             className="btn-ghost"
             type="button"
-            onClick={() => submitEvaluation(concept, safeLevel, stepIdx, answers, skips)}
+            onClick={() => submitEvaluation(concept, safeLevel, stepIdx, answers, skips, mode)}
           >
             다시 시도
           </button>
@@ -449,7 +530,16 @@ export function StageLearn({
                       if (locked) return;
                       setAnswers({ ...answers, [q.id]: v });
                     }}
-                    onBlur={() => onAnswerCommit?.()}
+                    onBlur={() => {
+                      onAnswerCommit?.();
+                      if (sessionId && val && !locked) {
+                        logEvent("sl_answer_edit", {
+                          session_id: sessionId,
+                          step_idx: stepIdx,
+                          question_id: q.id,
+                        });
+                      }
+                    }}
                   />
                   {ev && !isSkipped && (
                     <div className="qa-feedback">
@@ -543,7 +633,7 @@ export function StageLearn({
                 <span className="count">{detailReady ? `${step.questions.length}문항` : "..."}</span>
               </div>
               {questionsList}
-              {detailReady && (
+              {detailReady && submitButton && (
                 <div className="lv2-right-sticky-bottom">{submitButton}</div>
               )}
             </div>
@@ -577,7 +667,7 @@ export function StageLearn({
                 <span className="count">{detailReady ? `${step.questions.length}문항` : "..."}</span>
               </div>
               <div className="lvv-qlist">{questionsList}</div>
-              {detailReady && (
+              {detailReady && submitButton && (
                 <div className="lvv-submit-row">{submitButton}</div>
               )}
             </section>
@@ -612,7 +702,7 @@ export function StageLearn({
       <BranchDialog
         open={branchVisible && (branch.mode === "choosing" || branch.mode === "error")}
         evaluationText={branch.evaluationText}
-        options={branch.options}
+        options={normalizeBranchOptions(branch.options, steps, stepIdx)}
         onChoose={handleChoose}
         onClose={() => setBranchVisible(false)}
         error={
