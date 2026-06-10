@@ -497,7 +497,16 @@ export function StageLearn({
                       if (locked) return;
                       setAnswers({ ...answers, [q.id]: v });
                     }}
-                    onBlur={() => onAnswerCommit?.()}
+                    onBlur={() => {
+                      onAnswerCommit?.();
+                      if (sessionId && val && !locked) {
+                        logEvent("sl_answer_edit", {
+                          session_id: sessionId,
+                          step_idx: stepIdx,
+                          question_id: q.id,
+                        });
+                      }
+                    }}
                   />
                   {ev && !isSkipped && (
                     <div className="qa-feedback">
