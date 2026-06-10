@@ -309,6 +309,12 @@ export function StageLearn({
   };
   const submitAnswers = () => {
     if (!step || isEvaluating || isEvaluated) return;
+    // 계측: 제출되는 각 질문(스킵 제외)마다 sl_answer_submit emit (fire-and-forget)
+    if (sessionId) {
+      for (const q of step.questions.filter((q) => !skips[q.id])) {
+        logEvent("sl_answer_submit", { session_id: sessionId, step_idx: stepIdx, question_id: q.id });
+      }
+    }
     void submitEvaluation(concept, safeLevel, stepIdx, answers, skips, mode);
     // "가볍게" 모드는 분기 없이 평가만 하고 끝. (사용자는 푸터의 "다음 개념" 으로 진행)
     if (!branchEnabled) return;
