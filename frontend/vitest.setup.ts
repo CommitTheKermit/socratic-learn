@@ -28,6 +28,7 @@ vi.mock("./src/lib/firebase", () => ({
   auth: { currentUser: null },
   app: {},
   githubProvider: {},
+  analytics: null,
 }));
 
 vi.mock("./src/state/useAuth", () => ({
