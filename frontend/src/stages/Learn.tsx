@@ -9,6 +9,7 @@ import type { Grade } from "../api/claudeContent";
 import { BranchDialog } from "../components/branch/BranchDialog";
 import { useBranchPhase } from "../state/useBranchPhase";
 import type { BranchOption } from "../api/contract";
+import { logEvent } from "../lib/analytics";
 
 interface InsertedMeta {
   parentDisplayBase: string; // e.g. "1" or "1-1"
@@ -52,6 +53,7 @@ interface Props {
   level: number | null;
   /** 답변 모드. "light" 면 분기 시스템을 끄고(평가만) 바로 다음으로 진행한다. */
   mode: string;
+  sessionId?: string;
   stepIdx: number;
   setStepIdx: (n: number) => void;
   answers: Record<string, string>;
@@ -91,6 +93,7 @@ export function StageLearn({
   concept,
   level,
   mode,
+  sessionId,
   stepIdx,
   setStepIdx,
   answers,
@@ -176,6 +179,13 @@ export function StageLearn({
     branch.closeBranch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stepIdx]);
+
+  // sl_step_enter: 스텝 진입/이동 시 계측(fire-and-forget).
+  // stepIdx 변경마다 1회 emit. sessionId 없으면 no-op.
+  useEffect(() => {
+    if (!sessionId) return;
+    logEvent("sl_step_enter", { session_id: sessionId, step_idx: stepIdx });
+  }, [sessionId, stepIdx]);
 
   const handleChoose = (option: BranchOption) => {
     const nextState = branch.chooseBranch(option, {

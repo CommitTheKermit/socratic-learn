@@ -560,6 +560,7 @@ function AppWorkspace({
               concept={concept}
               level={estimatedLevel}
               mode={mode}
+              sessionId={sessionId}
               stepIdx={stepIdx}
               setStepIdx={setStepIdx}
               answers={answers}
