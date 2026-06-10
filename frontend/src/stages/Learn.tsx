@@ -188,6 +188,14 @@ export function StageLearn({
   }, [sessionId, stepIdx]);
 
   const handleChoose = (option: BranchOption) => {
+    // sl_branch_select 계측: 분기 옵션 선택 즉시 emit (fire-and-forget).
+    if (sessionId) {
+      logEvent("sl_branch_select", {
+        session_id: sessionId,
+        step_idx: stepIdx,
+        choice: option.label,
+      });
+    }
     const nextState = branch.chooseBranch(option, {
       roadmapStages: steps,
       currentStageIndex: stepIdx,
