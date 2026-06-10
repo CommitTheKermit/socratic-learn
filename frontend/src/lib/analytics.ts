@@ -101,6 +101,27 @@ export function isInstrumentationEnabled(): boolean {
 }
 
 /**
+ * Analytics 계측 활성 여부를 반환한다(isInstrumentationEnabled 의 보완 함수).
+ *
+ * 세 조건 중 하나라도 해당하면 false(no-op):
+ *   1. DEV 빌드(import.meta.env.DEV === true)
+ *   2. VITE_API_BASE_URL 이 localhost 또는 127.0.0.1 을 포함(로컬 에뮬레이터 환경)
+ *   3. E2E 자동 로그인 활성(VITE_E2E_AUTO_SIGNIN === 'true')
+ *
+ * 위 세 조건이 모두 false 일 때만 true 를 반환한다.
+ * 호출 시점에 env 를 읽으므로 테스트에서 vi.stubEnv 로 각 조합을 검증할 수 있다.
+ */
+export function isAnalyticsEnabled(): boolean {
+  const apiBaseUrl: string = import.meta.env.VITE_API_BASE_URL ?? "";
+  return (
+    !import.meta.env.DEV &&
+    !apiBaseUrl.includes("localhost") &&
+    !apiBaseUrl.includes("127.0.0.1") &&
+    import.meta.env.VITE_E2E_AUTO_SIGNIN !== "true"
+  );
+}
+
+/**
  * GA4 에 사용자 ID 를 등록한다(로그인/로그아웃 시 호출).
  * 로그아웃 시에는 null 을 전달한다.
  * fire-and-forget - 예외를 UX 로 전파하지 않는다.
