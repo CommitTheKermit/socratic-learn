@@ -265,6 +265,19 @@ function AppWorkspace({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // sl_stage_enter: 모든 단계(probe/learn/done/input) 진입 시 1회 계측.
+  // 단계별로 다른 Route element → AppWorkspace 재마운트 → 빈 deps [] 가 "진입 1회" 를 보장한다.
+  // sessionId 없는 홈("/")은 세션 단위 분석 대상이 아니라 건너뛴다.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!sessionId) return;
+    logEvent("sl_stage_enter", {
+      session_id: sessionId,
+      stage,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const buildSnapshot = (): SessionState => ({
     sessionId: sessionId ?? "",
     createdAt: createdAtRef.current,
