@@ -1,5 +1,5 @@
 import { onRequest } from "firebase-functions/v2/https";
-import { requireAuth, recordUsage } from "./auth";
+import { requireAuth, recordUsage, isTestMode } from "./auth";
 import { defineSecret } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import Anthropic from "@anthropic-ai/sdk";
@@ -33,6 +33,8 @@ export const stepDetailStream = onRequest(
     const uid = await requireAuth(req, res);
     if (!uid) return;
     recordUsage(uid, "stepDetailStream");
+
+    const testMode = await isTestMode(uid);
 
     const { concept, level, outline, stepIdx } = (req.body ?? {}) as {
       concept?: string;
@@ -140,6 +142,8 @@ export const stepDetailStream = onRequest(
           logger.warn("stepDetailStream questions JSON 파싱 실패", { jsonText });
         }
       }
+      // 테스트 모드: 확인 질문을 2개로 제한(LLM 은 그대로 생성, 표시만 축소)
+      if (testMode && questions.length > 2) questions = questions.slice(0, 2);
       send("complete", { body: bodyText.trim(), questions });
       res.end();
     } catch (e) {

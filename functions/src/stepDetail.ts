@@ -39,7 +39,7 @@ const stepDetailSchema = {
   },
 } as const;
 
-// 테스트 모드용: 질문 1개로 축소
+// 테스트 모드용: 질문 2개로 축소
 const stepDetailSchemaTest = {
   type: "object",
   additionalProperties: false,
@@ -52,8 +52,8 @@ const stepDetailSchemaTest = {
     },
     questions: {
       type: "array",
-      minItems: 1,
-      maxItems: 1,
+      minItems: 2,
+      maxItems: 2,
       items: {
         type: "object",
         additionalProperties: false,
@@ -139,7 +139,7 @@ export const stepDetail = onRequest(
             ),
           },
         ],
-        // 테스트 모드: 질문 1개 스키마로 LLM 호출
+        // 테스트 모드: 질문 2개 스키마로 LLM 호출
         output_config: { format: jsonSchemaOutputFormat(testMode ? stepDetailSchemaTest : stepDetailSchema) },
       });
       const parsed = resp.parsed_output as StepDetail | undefined;
