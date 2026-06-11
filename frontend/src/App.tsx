@@ -581,10 +581,7 @@ function AppWorkspace({
 
           {stage === "done" && (
             <StageDone
-              concept={concept}
               level={estimatedLevel}
-              answers={answers}
-              skips={skips}
               onPrev={() => goStage("learn", Math.max(0, steps.length - 1))}
               onRestart={newSession}
             />
