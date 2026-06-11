@@ -2,6 +2,7 @@ import { onRequest } from "firebase-functions/v2/https";
 import { getFirestore } from "firebase-admin/firestore";
 import * as logger from "firebase-functions/logger";
 import { requireAuth, recordUsage } from "./auth";
+import { CORS_ORIGINS } from "./cors";
 
 function itemsCol(uid: string) {
   return getFirestore().collection("sessions").doc(uid).collection("items");
@@ -17,7 +18,7 @@ function itemsCol(uid: string) {
  * - 삭제 성공 → 200 { ok: true }
  */
 export const sessionDelete = onRequest(
-  { cors: true, region: "us-central1" },
+  { cors: CORS_ORIGINS, region: "us-central1" },
   async (req, res) => {
     if (req.method !== "POST") {
       res.status(405).json({ code: "METHOD_NOT_ALLOWED", message: "POST only" });

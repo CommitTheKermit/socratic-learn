@@ -1,5 +1,7 @@
 import { onRequest } from "firebase-functions/v2/https";
 import { requireAuth, recordUsage } from "./auth";
+import { checkRateLimit, rateLimitMessage } from "./rateLimit";
+import { CORS_ORIGINS } from "./cors";
 import { defineSecret } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import Anthropic from "@anthropic-ai/sdk";
@@ -73,7 +75,7 @@ interface EvalQuestionInput {
 }
 
 export const branchEval = onRequest(
-  { secrets: [ANTHROPIC_API_KEY], cors: true, region: "us-central1" },
+  { secrets: [ANTHROPIC_API_KEY], cors: CORS_ORIGINS, region: "us-central1" },
   async (req, res) => {
     if (req.method !== "POST") {
       res.status(405).json({ code: "METHOD_NOT_ALLOWED", message: "POST only" });
@@ -83,6 +85,12 @@ export const branchEval = onRequest(
     const uid = await requireAuth(req, res);
     if (!uid) return;
     recordUsage(uid, "branchEval");
+
+    const rl = await checkRateLimit(uid);
+    if (!rl.allowed) {
+      res.status(429).json({ code: "RATE_LIMITED", message: rateLimitMessage(rl.reason!) });
+      return;
+    }
 
     const { concept, level, stepTitle, stepDesc, stepBody, questions, roadmapOutlineText } =
       (req.body ?? {}) as {

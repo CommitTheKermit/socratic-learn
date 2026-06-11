@@ -1,5 +1,7 @@
 import { onRequest } from "firebase-functions/v2/https";
 import { requireAuth, recordUsage, isTestMode } from "./auth";
+import { checkRateLimit, rateLimitMessage } from "./rateLimit";
+import { CORS_ORIGINS } from "./cors";
 import { defineSecret } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import Anthropic from "@anthropic-ai/sdk";
@@ -23,7 +25,7 @@ interface RoadmapOutlineItem {
 // 마커(STEP_DETAIL_STREAM_MARKER) 뒤 questions JSON 은 complete 이벤트로 한 번에 보낸다.
 // SSE: status → delta* → complete | error.
 export const stepDetailStream = onRequest(
-  { secrets: [ANTHROPIC_API_KEY], cors: true, region: "us-central1" },
+  { secrets: [ANTHROPIC_API_KEY], cors: CORS_ORIGINS, region: "us-central1" },
   async (req, res) => {
     if (req.method !== "POST") {
       res.status(405).json({ code: "METHOD_NOT_ALLOWED", message: "POST only" });
@@ -33,6 +35,13 @@ export const stepDetailStream = onRequest(
     const uid = await requireAuth(req, res);
     if (!uid) return;
     recordUsage(uid, "stepDetailStream");
+
+    // SSE 헤더를 세우기 전에 평범한 JSON 429 로 응답한다(프론트 stream 클라이언트가 non-ok 분기에서 처리).
+    const rl = await checkRateLimit(uid);
+    if (!rl.allowed) {
+      res.status(429).json({ code: "RATE_LIMITED", message: rateLimitMessage(rl.reason!) });
+      return;
+    }
 
     const testMode = await isTestMode(uid);
 
