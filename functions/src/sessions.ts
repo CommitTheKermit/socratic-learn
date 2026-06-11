@@ -2,6 +2,7 @@ import { onRequest } from "firebase-functions/v2/https";
 import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
 import * as logger from "firebase-functions/logger";
 import { requireAuth, recordUsage } from "./auth";
+import { CORS_ORIGINS } from "./cors";
 
 // 학습 세션 Firestore 영속화 엔드포인트(Anthropic 미사용 → ANTHROPIC_API_KEY secret 불필요).
 // 저장 모델: Firestore = 진실의 출처, 본문 병합은 클라이언트 코어(mergeSessions)가 수행한다.
@@ -31,7 +32,7 @@ function toMillis(v: unknown): number {
  * body: { state: SessionState }. state.sessionId 로 문서 키를 정한다.
  */
 export const sessionSave = onRequest(
-  { cors: true, region: "us-central1" },
+  { cors: CORS_ORIGINS, region: "us-central1" },
   async (req, res) => {
     if (req.method !== "POST") {
       res.status(405).json({ code: "METHOD_NOT_ALLOWED", message: "POST only" });
@@ -73,7 +74,7 @@ export const sessionSave = onRequest(
  * 응답: { sessions: SessionIndexEntry[] }.
  */
 export const sessionList = onRequest(
-  { cors: true, region: "us-central1" },
+  { cors: CORS_ORIGINS, region: "us-central1" },
   async (req, res) => {
     if (req.method !== "GET") {
       res.status(405).json({ code: "METHOD_NOT_ALLOWED", message: "GET only" });
@@ -110,7 +111,7 @@ export const sessionList = onRequest(
  * 응답: { state: SessionState | null }(없으면 null).
  */
 export const sessionGet = onRequest(
-  { cors: true, region: "us-central1" },
+  { cors: CORS_ORIGINS, region: "us-central1" },
   async (req, res) => {
     if (req.method !== "GET") {
       res.status(405).json({ code: "METHOD_NOT_ALLOWED", message: "GET only" });

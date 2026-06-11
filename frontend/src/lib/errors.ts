@@ -6,6 +6,9 @@ export function describeErrorCode(code: string, fallback: string): string {
       return fallback || "Claude 응답을 해석하지 못했어요. 다시 시도해 주세요.";
     case "CLAUDE_API_ERROR":
       return "Claude API 호출 중 문제가 발생했어요. 잠시 후 다시 시도해 주세요.";
+    case "RATE_LIMITED":
+      // 서버가 사유(일일/버스트)에 맞는 메시지를 보내므로 그대로 노출하고, 없을 때만 기본값.
+      return fallback || "요청 한도에 도달했어요. 잠시 후 다시 시도해 주세요.";
     case "INTERNAL_ERROR":
       return "서버 내부 오류가 발생했어요. 잠시 후 다시 시도해 주세요.";
     case "INVALID_CONCEPT":
