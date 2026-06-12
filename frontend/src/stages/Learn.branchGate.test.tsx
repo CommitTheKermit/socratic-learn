@@ -216,6 +216,61 @@ describe("AC4: 분기 완료 후 다음 개념 버튼 활성화", () => {
   });
 });
 
+// ─── Sub-AC 2b: handleChoose(stageContent) - insertStepAt 먼저, setStepIdx 이후 ──
+describe("Sub-AC 2b: handleChoose(stageContent) - insertStepAt 먼저 호출 후 setStepIdx", () => {
+  test("stageContent 분기 선택 시 insertStepAt(stepIdx+1, stageContent) 가 먼저 호출되고 setStepIdx(stepIdx+1) 가 이후 호출된다", () => {
+    const callOrder: string[] = [];
+    const insertStepAt = vi.fn((_idx: number) => {
+      callOrder.push("insertStepAt");
+      return 99;
+    });
+    const setStepIdx = vi.fn((_n: number) => {
+      callOrder.push("setStepIdx");
+    });
+
+    const branchStageContent: Step = {
+      id: 10,
+      title: "추천 단계",
+      desc: "AI 추천 단계",
+      body: "body",
+      questions: [],
+    };
+
+    mockLearnContent = makeLearnContent({
+      stepEvalStatus: { 0: "ready" },
+      stepEvaluations: { 0: { evaluations: [] } },
+      insertStepAt,
+    });
+    mockBranchPhase = makeBranchPhase({
+      mode: "choosing",
+      evaluationText: "평가 완료",
+      options: [
+        {
+          label: "AI 추천 단계로 이동",
+          type: "ai_recommended",
+          isRecommended: true,
+          stageContent: branchStageContent,
+        },
+      ],
+    });
+
+    renderLearn({ mode: "branch", stepIdx: 0, setStepIdx });
+
+    // "평가 보기" 클릭 - 다이얼로그 오픈
+    fireEvent.click(screen.getByRole("button", { name: /평가 보기/ }));
+
+    // "AI 추천 단계로 이동" 클릭
+    fireEvent.click(screen.getByRole("button", { name: /AI 추천 단계로 이동/ }));
+
+    // insertStepAt 이 (1, branchStageContent) 로 호출되었는지 확인
+    expect(insertStepAt).toHaveBeenCalledWith(1, branchStageContent);
+    // setStepIdx 가 (1) 로 호출되었는지 확인
+    expect(setStepIdx).toHaveBeenCalledWith(1);
+    // 호출 순서: insertStepAt 먼저, setStepIdx 이후
+    expect(callOrder).toEqual(["insertStepAt", "setStepIdx"]);
+  });
+});
+
 // ─── AC5: 마지막 단계 학습 마치기는 분기 모드에서도 비차단 ─────────────────
 describe("AC5: 마지막 단계 학습 마치기 비차단", () => {
   test("branch mode 마지막 단계에서 학습 마치기 버튼에 aria-disabled 가 없다", () => {
