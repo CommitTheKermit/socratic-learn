@@ -201,3 +201,28 @@ describe("Markdown 인라인 수식 렌더링 (AC 1)", () => {
     expect(container.querySelector(".katex")).toBeNull();
   });
 });
+
+// ─── AC 5: 오류 폴백 - 잘못된 LaTeX 예외 전파 없음 ──────────────────────────
+
+describe("오류 폴백 (AC 5) - '$\\frac{$' 잘못된 LaTeX 예외 전파 없음", () => {
+  it("parseSegments: '$\\\\frac{$' → 두 번째 $ 가 닫기로 인식, inlineMath(latex='\\\\frac{') 파싱", () => {
+    const segs = parseSegments("$\\frac{$");
+    const mathSeg = segs.find((s) => s.type === "inlineMath");
+    expect(mathSeg).toBeDefined();
+    expect((mathSeg as { type: "inlineMath"; latex: string }).latex).toBe("\\frac{");
+  });
+
+  it("renderMath: 잘못된 LaTeX '\\\\frac{' → 예외 없이 문자열 반환 (throwOnError: false)", () => {
+    expect(() => renderMath("\\frac{", false)).not.toThrow();
+    const result = renderMath("\\frac{", false);
+    expect(typeof result).toBe("string");
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  it("Markdown: '$\\\\frac{$' → 예외 전파 없이 폴백 출력 (컴포넌트 렌더됨)", () => {
+    expect(() => render(<Markdown text={"$\\frac{$"} />)).not.toThrow();
+    const { container } = render(<Markdown text={"$\\frac{$"} />);
+    expect(container).toBeDefined();
+    expect(container.innerHTML.length).toBeGreaterThan(0);
+  });
+});
