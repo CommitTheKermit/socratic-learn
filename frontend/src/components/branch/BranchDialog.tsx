@@ -182,10 +182,10 @@ function ChooseMode({
                 </span>
                 <span className="bd-body-col">
                   <span className="bd-label">
-                    {opt.label}
+                    <MathText text={opt.label} />
                     {opt.isRecommended && <span className="bd-rec">추천</span>}
                   </span>
-                  <span className="bd-preview">{previewOf(opt)}</span>
+                  <span className="bd-preview"><MathText text={previewOf(opt)} /></span>
                 </span>
                 <span className="bd-chev"><IconChev /></span>
               </button>
