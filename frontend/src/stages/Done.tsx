@@ -1,5 +1,6 @@
 import { LEVEL_LABELS } from "./data";
 import { useLearnContent } from "../state/LearnContent";
+import { MathText } from "../lib/mathText";
 
 interface Props {
   level: number | null;
@@ -79,8 +80,8 @@ export function StageDone({ level, onPrev, onRestart }: Props) {
                   <Check />
                 </span>
                 <span className="done2-rc-main">
-                  <span className="done2-rc-title">{s.title}</span>
-                  <span className="done2-rc-take">{s.desc}</span>
+                  <span className="done2-rc-title"><MathText text={s.title} /></span>
+                  <span className="done2-rc-take"><MathText text={s.desc} /></span>
                 </span>
               </div>
             ))}

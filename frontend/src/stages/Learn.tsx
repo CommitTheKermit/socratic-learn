@@ -8,6 +8,7 @@ import { I } from "../components/icons";
 import type { Grade } from "../api/claudeContent";
 import { BranchDialog } from "../components/branch/BranchDialog";
 import { useBranchPhase } from "../state/useBranchPhase";
+import { MathText } from "../lib/mathText";
 import type { BranchOption } from "../api/contract";
 import { logEvent } from "../lib/analytics";
 
@@ -61,12 +62,19 @@ function QaAnswer({
   onBlur: () => void;
 }) {
   const [placeholder] = useState(pickRandomPlaceholder);
+  if (readOnly) {
+    // 평가 완료 후 학생 입력 에코: 수식 렌더링을 위해 div 로 표시한다.
+    return (
+      <div className="qa-answer qa-answer--echo">
+        <MathText text={value || ""} />
+      </div>
+    );
+  }
   return (
     <textarea
       className="qa-answer"
       placeholder={placeholder}
       value={value}
-      readOnly={readOnly}
       onChange={(e) => onChange(e.target.value)}
       onBlur={onBlur}
     />
@@ -472,7 +480,7 @@ export function StageLearn({
             >
               <div className="qa-head">
                 <span className="qa-num">Q{i + 1}</span>
-                <span className="qa-question">{q.q}</span>
+                <span className="qa-question"><MathText text={q.q} /></span>
                 {ev && !isSkipped && (
                   <span className={`grade-badge grade-${ev.grade}`}>{GRADE_LABEL[ev.grade]}</span>
                 )}
@@ -544,7 +552,7 @@ export function StageLearn({
                   {ev && !isSkipped && (
                     <div className="qa-feedback">
                       <span className="qa-feedback-label">AI 피드백</span>
-                      <p>{ev.feedback}</p>
+                      <p><MathText text={ev.feedback} /></p>
                     </div>
                   )}
                   {!locked && (

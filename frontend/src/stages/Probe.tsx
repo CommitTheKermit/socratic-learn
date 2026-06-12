@@ -9,6 +9,7 @@ import {
 import { useLearnContent } from "../state/LearnContent";
 import { describeErrorCode } from "../lib/errors";
 import { detectOverwhelm, type OverwhelmDecision } from "../api/claudeContent";
+import { MathText } from "../lib/mathText";
 
 interface Props {
   concept: string;
@@ -36,7 +37,7 @@ function ChoiceRow({
   return (
     <div className={"probe-row" + (highlightRequired ? " is-required-missing" : "")}>
       <div className="probe-q">
-        {p.q} <span className="probe-badge probe-badge--required">필수</span>
+        <MathText text={p.q} /> <span className="probe-badge probe-badge--required">필수</span>
       </div>
       {p.sub && <div className="probe-sub">{p.sub}</div>}
       {highlightRequired && (
@@ -72,7 +73,7 @@ function MultiRow({
   return (
     <div className="probe-row">
       <div className="probe-q">
-        {p.q} <span className="probe-badge">선택</span>
+        <MathText text={p.q} /> <span className="probe-badge">선택</span>
       </div>
       <div className="probe-sub">{p.sub ?? "건너뛰셔도 괜찮아요."}</div>
       <div className="probe-chips">
@@ -103,7 +104,7 @@ function TextRow({
   return (
     <div className="probe-row">
       <div className="probe-q">
-        {p.q} <span className="probe-badge">선택</span>
+        <MathText text={p.q} /> <span className="probe-badge">선택</span>
       </div>
       <div className="probe-sub">건너뛰셔도 괜찮아요.</div>
       <textarea

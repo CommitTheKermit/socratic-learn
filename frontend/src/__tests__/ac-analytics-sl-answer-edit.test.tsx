@@ -174,13 +174,13 @@ describe("Sub-AC 4b: sl_answer_edit 계측", () => {
     expect(editCalls).toHaveLength(0);
   });
 
-  test("평가 완료 후 잠긴(locked) textarea blur 시 sl_answer_edit 이 호출되지 않음", async () => {
+  test("평가 완료 후 잠긴(locked) 에코 div blur 시 sl_answer_edit 이 호출되지 않음", async () => {
     const sessionId = "s-edit-locked";
     seedLearnSessionWithQuestions(sessionId, {
       stepIdx: 0,
       questions: [{ id: "q1", q: "질문 1?" }],
       answers: { q1: "이미 제출한 답변" },
-      // stepEvaluations 가 있으면 isEvaluated=true(locked), textarea readOnly 됨
+      // stepEvaluations 가 있으면 isEvaluated=true(locked), 에코 div 로 전환됨
       stepEvaluations: {
         0: { evaluations: [{ id: "q1", grade: "correct", feedback: "좋아요" }] },
       },
@@ -188,10 +188,11 @@ describe("Sub-AC 4b: sl_answer_edit 계측", () => {
 
     renderApp([`/s/${sessionId}/learn/0`]);
 
-    // 답변 값으로 textarea 를 찾아 readOnly 확인 후 blur
-    const textarea = await screen.findByDisplayValue("이미 제출한 답변");
-    expect(textarea).toHaveAttribute("readonly");
-    fireEvent.blur(textarea);
+    // 평가 완료 후에는 textarea 대신 수식 렌더 div(qa-answer--echo)로 표시됨
+    const echoEl = await screen.findByText("이미 제출한 답변");
+    expect(echoEl.closest(".qa-answer--echo")).not.toBeNull();
+    expect(document.querySelector("textarea.qa-answer")).toBeNull();
+    fireEvent.blur(echoEl);
 
     const calls = (analytics.logEvent as ReturnType<typeof vi.fn>).mock.calls;
     const editCalls = calls.filter(([name]) => name === "sl_answer_edit");
