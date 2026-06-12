@@ -396,3 +396,91 @@ describe("AC5: 마지막 단계 학습 마치기 비차단", () => {
     expect(onDone).toHaveBeenCalled();
   });
 });
+
+// ─── AC4(칩): 분기 모드 단계 칩 전진 차단 / 복습·분기완료 칩 허용 ─────────────
+describe("AC4(칩): 분기 모드 단계 칩 전진 게이팅", () => {
+  test("미분기 현재 단계에서 아직 도달 안 한 뒤 단계 칩 클릭 시 setStepIdx 미호출 + 토스트", () => {
+    mockLearnContent = makeLearnContent({
+      stepEvalStatus: { 0: "ready" },
+      stepEvaluations: { 0: { evaluations: [] } },
+    });
+    mockBranchPhase = makeBranchPhase({ mode: "choosing" });
+
+    const setStepIdx = vi.fn();
+    renderLearn({ mode: "branch", stepIdx: 0, setStepIdx });
+
+    // 뒤 단계(index 1, "스레드 비용") 칩 클릭 - 현재 단계 미분기라 차단되어야 함
+    fireEvent.click(screen.getByRole("button", { name: /스레드 비용/ }));
+
+    expect(setStepIdx).not.toHaveBeenCalled();
+    expect(screen.getByRole("status")).toBeInTheDocument();
+  });
+
+  test("미분기 현재 단계에서 뒤 단계 칩에 aria-disabled=true 가 부여된다", () => {
+    mockLearnContent = makeLearnContent({
+      stepEvalStatus: { 0: "ready" },
+      stepEvaluations: { 0: { evaluations: [] } },
+    });
+    mockBranchPhase = makeBranchPhase({ mode: "choosing" });
+
+    renderLearn({ mode: "branch", stepIdx: 0 });
+
+    expect(screen.getByRole("button", { name: /스레드 비용/ })).toHaveAttribute("aria-disabled", "true");
+  });
+
+  test("현재 이하(복습) 단계 칩 클릭 시 setStepIdx(i) 가 정상 호출된다", () => {
+    mockLearnContent = makeLearnContent({
+      stepEvalStatus: { 1: "ready" },
+      stepEvaluations: { 1: { evaluations: [] } },
+    });
+    mockBranchPhase = makeBranchPhase({ mode: "choosing" });
+
+    const setStepIdx = vi.fn();
+    renderLearn({ mode: "branch", stepIdx: 1, setStepIdx });
+
+    // 앞 단계(index 0, "동시성 기초") 칩 클릭 - i <= stepIdx 라 허용
+    fireEvent.click(screen.getByRole("button", { name: /동시성 기초/ }));
+
+    expect(setStepIdx).toHaveBeenCalledWith(0);
+  });
+
+  test("이미 분기를 끝낸 현재 단계에서는 뒤 단계 칩 이동이 허용된다", () => {
+    mockLearnContent = makeLearnContent({
+      stepEvalStatus: { 0: "ready" },
+      stepEvaluations: { 0: { evaluations: [] } },
+    });
+    mockBranchPhase = makeBranchPhase({
+      mode: "choosing",
+      options: [],
+      evaluationText: "평가 완료",
+    });
+
+    const setStepIdx = vi.fn();
+    renderLearn({ mode: "branch", stepIdx: 0, setStepIdx });
+
+    // 분기 선택으로 현재 단계(id=1)를 분기 완료 처리
+    fireEvent.click(screen.getByRole("button", { name: /평가 보기/ }));
+    fireEvent.click(screen.getByRole("button", { name: /로드맵 다음 단계로 이동/ }));
+    setStepIdx.mockClear();
+
+    // 분기 완료 후 뒤 단계 칩 클릭 - 허용되어야 함
+    fireEvent.click(screen.getByRole("button", { name: /코루틴 기초/ }));
+
+    expect(setStepIdx).toHaveBeenCalledWith(2);
+  });
+
+  test("light 모드에서는 뒤 단계 칩 이동이 자유롭다", () => {
+    mockLearnContent = makeLearnContent({
+      stepEvalStatus: { 0: "ready" },
+      stepEvaluations: { 0: { evaluations: [] } },
+    });
+    mockBranchPhase = makeBranchPhase({ mode: "closed" });
+
+    const setStepIdx = vi.fn();
+    renderLearn({ mode: "light", stepIdx: 0, setStepIdx });
+
+    fireEvent.click(screen.getByRole("button", { name: /스레드 비용/ }));
+
+    expect(setStepIdx).toHaveBeenCalledWith(1);
+  });
+});
