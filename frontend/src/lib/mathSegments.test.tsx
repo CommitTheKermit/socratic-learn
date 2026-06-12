@@ -63,6 +63,16 @@ describe("parseSegments - 가격 표기 폴백", () => {
     expect(segs).toHaveLength(1);
     expect(segs[0].type).toBe("plain");
   });
+
+  it("'$5와 $10' → inlineMath/blockMath 세그먼트 0건, 전체 plain 유지", () => {
+    const segs = parseSegments("$5와 $10");
+    const mathSegs = segs.filter(
+      (s) => s.type === "inlineMath" || s.type === "blockMath"
+    );
+    expect(mathSegs).toHaveLength(0);
+    const allText = segs.map((s) => (s as { text?: string }).text ?? "").join("");
+    expect(allText).toBe("$5와 $10");
+  });
 });
 
 describe("parseSegments - 미완성 델리미터 폴백 (스트리밍 안전)", () => {
@@ -126,6 +136,13 @@ describe("Markdown 인라인 수식 렌더링 (AC 1)", () => {
     const { container } = render(<Markdown text="가격은 $5 이다" />);
     expect(container.querySelector(".katex")).toBeNull();
     expect(container.textContent).toContain("$5");
+  });
+
+  it("'$5와 $10' → 수식 렌더 0건, 원문 그대로 출력 (AC 3)", () => {
+    const { container } = render(<Markdown text="$5와 $10" />);
+    expect(container.querySelector(".katex")).toBeNull();
+    expect(container.textContent).toContain("$5");
+    expect(container.textContent).toContain("$10");
   });
 
   it("닫히지 않은 $E=mc^2 → 원문 텍스트 유지", () => {
