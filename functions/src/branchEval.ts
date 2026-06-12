@@ -5,7 +5,7 @@ import { CORS_ORIGINS } from "./cors";
 import { defineSecret } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import Anthropic from "@anthropic-ai/sdk";
-import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
+import { parseStructured } from "./llm";
 import { buildBranchEvaluationPrompt } from "./prompts";
 
 // Secret Manager 로 주입되는 Anthropic 키. 브라우저에는 절대 노출되지 않는다.
@@ -134,15 +134,14 @@ export const branchEval = onRequest(
     });
 
     try {
-      const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY.value() });
-      const resp = await client.messages.parse({
+      const parsed = await parseStructured({
+        apiKey: ANTHROPIC_API_KEY.value(),
         model: CLAUDE_MODEL,
-        max_tokens: 3000,
-        system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
-        messages: [{ role: "user", content: user }],
-        output_config: { format: jsonSchemaOutputFormat(branchSchema) },
+        maxTokens: 3000,
+        system,
+        user,
+        schema: branchSchema,
       });
-      const parsed = resp.parsed_output;
       if (!parsed) {
         // 기존 ParseFailure 계약 유지: 형식 해석 실패는 200 + {parseError}.
         res.json({ parseError: "응답을 분기 형식으로 해석하지 못했습니다." });

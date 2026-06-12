@@ -5,7 +5,7 @@ import { CORS_ORIGINS } from "./cors";
 import { defineSecret } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import Anthropic from "@anthropic-ai/sdk";
-import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
+import { parseStructured } from "./llm";
 import { OUTLINE_SYSTEM, outlineUserMessage } from "./prompts";
 
 // Secret Manager 로 주입되는 Anthropic 키. 브라우저에는 절대 노출되지 않는다.
@@ -96,16 +96,15 @@ export const outline = onRequest(
     }
 
     try {
-      const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY.value() });
-      const resp = await client.messages.parse({
+      const parsed = (await parseStructured({
+        apiKey: ANTHROPIC_API_KEY.value(),
         model: CLAUDE_MODEL,
-        max_tokens: 3000,
-        system: [{ type: "text", text: OUTLINE_SYSTEM, cache_control: { type: "ephemeral" } }],
-        messages: [{ role: "user", content: outlineUserMessage(concept, level, mode) }],
+        maxTokens: 3000,
+        system: OUTLINE_SYSTEM,
+        user: outlineUserMessage(concept, level, mode),
         // 테스트 모드: 2단계 스키마로 LLM 호출
-        output_config: { format: jsonSchemaOutputFormat(testMode ? outlineSchemaTest : outlineSchema) },
-      });
-      const parsed = resp.parsed_output as { steps: RoadmapOutlineItem[] } | undefined;
+        schema: testMode ? outlineSchemaTest : outlineSchema,
+      })) as { steps: RoadmapOutlineItem[] } | undefined;
       if (!parsed?.steps?.length) {
         res.status(502).json({ code: "INVALID_RESPONSE", message: "로드맵 응답이 비어 있습니다." });
         return;

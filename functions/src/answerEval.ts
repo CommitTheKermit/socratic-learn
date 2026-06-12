@@ -5,7 +5,7 @@ import { CORS_ORIGINS } from "./cors";
 import { defineSecret } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import Anthropic from "@anthropic-ai/sdk";
-import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
+import { parseStructured } from "./llm";
 import { EVAL_SYSTEM, evalUserMessage } from "./prompts";
 
 // Secret Manager 로 주입되는 Anthropic 키. 브라우저에는 절대 노출되지 않는다.
@@ -103,20 +103,14 @@ export const answerEval = onRequest(
       .join("\n");
 
     try {
-      const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY.value() });
-      const resp = await client.messages.parse({
+      const parsed = (await parseStructured({
+        apiKey: ANTHROPIC_API_KEY.value(),
         model: CLAUDE_MODEL,
-        max_tokens: 3000,
-        system: [{ type: "text", text: EVAL_SYSTEM, cache_control: { type: "ephemeral" } }],
-        messages: [
-          {
-            role: "user",
-            content: evalUserMessage(concept, level, stepTitle, stepDesc, stepBody, qaText, mode),
-          },
-        ],
-        output_config: { format: jsonSchemaOutputFormat(evalSchema) },
-      });
-      const parsed = resp.parsed_output as StepEvaluation | undefined;
+        maxTokens: 3000,
+        system: EVAL_SYSTEM,
+        user: evalUserMessage(concept, level, stepTitle, stepDesc, stepBody, qaText, mode),
+        schema: evalSchema,
+      })) as StepEvaluation | undefined;
       if (!parsed?.evaluations) {
         res.status(502).json({ code: "INVALID_RESPONSE", message: "평가 응답이 비어 있습니다." });
         return;

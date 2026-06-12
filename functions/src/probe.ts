@@ -5,7 +5,7 @@ import { CORS_ORIGINS } from "./cors";
 import { defineSecret } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import Anthropic from "@anthropic-ai/sdk";
-import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
+import { parseStructured } from "./llm";
 import { PROBE_SYSTEM, probeUserMessage } from "./prompts";
 
 // Secret Manager 로 주입되는 Anthropic 키. 브라우저에는 절대 노출되지 않는다.
@@ -121,15 +121,14 @@ export const probe = onRequest(
     }
 
     try {
-      const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY.value() });
-      const resp = await client.messages.parse({
+      const parsed = (await parseStructured({
+        apiKey: ANTHROPIC_API_KEY.value(),
         model: CLAUDE_MODEL,
-        max_tokens: 3000,
-        system: [{ type: "text", text: PROBE_SYSTEM, cache_control: { type: "ephemeral" } }],
-        messages: [{ role: "user", content: probeUserMessage(concept, materials, mode) }],
-        output_config: { format: jsonSchemaOutputFormat(probeSchema) },
-      });
-      const parsed = resp.parsed_output as ProbeQuestions | undefined;
+        maxTokens: 3000,
+        system: PROBE_SYSTEM,
+        user: probeUserMessage(concept, materials, mode),
+        schema: probeSchema,
+      })) as ProbeQuestions | undefined;
       if (!parsed?.p1 || !parsed?.p2 || !parsed?.p3) {
         res.status(502).json({ code: "INVALID_RESPONSE", message: "진단 질문 응답이 비어 있습니다." });
         return;
