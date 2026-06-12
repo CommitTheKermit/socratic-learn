@@ -271,6 +271,99 @@ describe("Sub-AC 2b: handleChoose(stageContent) - insertStepAt 먼저 호출 후
   });
 });
 
+// ─── Sub-AC 2c: handleChoose(exit) - onDone() 만 호출, setStepIdx/insertStepAt 호출 안 됨 ──
+describe("Sub-AC 2c: handleChoose(exit) - onDone() 호출, setStepIdx/insertStepAt 미호출", () => {
+  test("exit 타입 선택 시 onDone 이 호출된다", () => {
+    const insertStepAt = vi.fn(() => 99);
+    mockLearnContent = makeLearnContent({
+      stepEvalStatus: { 0: "ready" },
+      stepEvaluations: { 0: { evaluations: [] } },
+      insertStepAt,
+    });
+    mockBranchPhase = makeBranchPhase({
+      mode: "choosing",
+      evaluationText: "평가 완료",
+      options: [
+        {
+          label: "학습 마치기",
+          type: "exit",
+          isRecommended: false,
+          stageContent: null,
+        },
+      ],
+    });
+
+    const setStepIdx = vi.fn();
+    const onDone = vi.fn();
+    renderLearn({ mode: "branch", stepIdx: 0, setStepIdx, onDone });
+
+    // "평가 보기" 클릭 - 다이얼로그 오픈
+    fireEvent.click(screen.getByRole("button", { name: /평가 보기/ }));
+
+    // "학습 마치기" (exit 타입) 클릭
+    fireEvent.click(screen.getByRole("button", { name: /학습 마치기/ }));
+
+    expect(onDone).toHaveBeenCalled();
+  });
+
+  test("exit 타입 선택 시 setStepIdx 는 호출되지 않는다", () => {
+    const insertStepAt = vi.fn(() => 99);
+    mockLearnContent = makeLearnContent({
+      stepEvalStatus: { 0: "ready" },
+      stepEvaluations: { 0: { evaluations: [] } },
+      insertStepAt,
+    });
+    mockBranchPhase = makeBranchPhase({
+      mode: "choosing",
+      evaluationText: "평가 완료",
+      options: [
+        {
+          label: "학습 마치기",
+          type: "exit",
+          isRecommended: false,
+          stageContent: null,
+        },
+      ],
+    });
+
+    const setStepIdx = vi.fn();
+    renderLearn({ mode: "branch", stepIdx: 0, setStepIdx });
+
+    fireEvent.click(screen.getByRole("button", { name: /평가 보기/ }));
+    fireEvent.click(screen.getByRole("button", { name: /학습 마치기/ }));
+
+    expect(setStepIdx).not.toHaveBeenCalled();
+  });
+
+  test("exit 타입 선택 시 insertStepAt 은 호출되지 않는다", () => {
+    const insertStepAt = vi.fn(() => 99);
+    mockLearnContent = makeLearnContent({
+      stepEvalStatus: { 0: "ready" },
+      stepEvaluations: { 0: { evaluations: [] } },
+      insertStepAt,
+    });
+    mockBranchPhase = makeBranchPhase({
+      mode: "choosing",
+      evaluationText: "평가 완료",
+      options: [
+        {
+          label: "학습 마치기",
+          type: "exit",
+          isRecommended: false,
+          stageContent: null,
+        },
+      ],
+    });
+
+    renderLearn({ mode: "branch", stepIdx: 0 });
+
+    fireEvent.click(screen.getByRole("button", { name: /평가 보기/ }));
+    fireEvent.click(screen.getByRole("button", { name: /학습 마치기/ }));
+
+    expect(insertStepAt).not.toHaveBeenCalled();
+  });
+});
+
 // ─── AC5: 마지막 단계 학습 마치기는 분기 모드에서도 비차단 ─────────────────
 describe("AC5: 마지막 단계 학습 마치기 비차단", () => {
   test("branch mode 마지막 단계에서 학습 마치기 버튼에 aria-disabled 가 없다", () => {
