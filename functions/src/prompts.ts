@@ -7,6 +7,17 @@
 export type PromptMode = "light" | "socratic" | "deep";
 const asMode = (m?: string): PromptMode => (m === "light" || m === "deep" ? m : "socratic");
 
+// ── 수식 표기 디렉티브 (조건부 LaTeX 출력) ──────────────────────────
+// 프론트는 $...$ / $$...$$ 델리미터를 KaTeX 로 렌더한다(frontend/src/lib/mathSegments.ts).
+// 수학 기호가 필요한 개념에서만 LaTeX 를 쓰고, 아니면 쓰지 않도록 "조건부"로 지시한다.
+// 가격 표기($5 등)는 프론트에서 수식으로 보지 않으므로 충돌하지 않는다.
+export const MATH_DIRECTIVE = `
+
+[수식 표기]
+- 수식·수학 기호가 필요할 때만 LaTeX 로 작성하세요. 인라인은 \`$...$\`, 독립된 줄의 블록은 \`$$...$$\` 로 감쌉니다. 예: $E=mc^2$, $$\\frac{a}{b}$$.
+- 수식이 필요 없는 개념이면 LaTeX 를 쓰지 말고 평범한 텍스트로 쓰세요. 일반 문장에 불필요하게 \`$\` 를 넣지 마세요.
+- 분수·지수·첨자·그리스 문자·합/적분 등은 유니코드로 흉내내지 말고 LaTeX 로 표기하세요(예: x^2 은 $x^2$, 루트2 는 $\\sqrt{2}$).`;
+
 const PROBE_MODE_DIRECTIVE: Record<PromptMode, string> = {
   light:
     "\n\n[모드: 가볍게] p3 는 부담 없이 답할 수 있는 친근한 한 줄 질문으로 다듬으세요. 너무 깊게 캐묻지 않습니다.",
@@ -69,7 +80,7 @@ export const PROBE_SYSTEM = `당신은 소크라테스식 학습 튜터입니다
 - 사용자가 함께 제출한 "자료(PR 리뷰/코드/문서 등)" 가 있으면, 그 안에서 학습 개념과 직접 연관된 용어/패턴/오해 가능 지점을 우선 활용해 질문을 구성하세요. 자료가 없으면 일반 개념 기준으로 작성합니다.
 - p1 의 4개 선택지 label 은 친숙도 순서를 유지(value 0=전혀 모름 → 3=직접 다뤄봄)하되 개념에 맞춰 자연스럽게 다듬으세요.
 - p2 의 6개 옵션 중 3-4개는 개념과 실제 관련 있는 단어(correct:true), 나머지는 비슷해 보이지만 무관한 단어(correct:false). 자료가 있으면 그 자료에 실제로 등장한 용어를 correct 쪽에 1-2개 포함시키세요. value 는 영문 슬러그, label 은 한글/원어.
-- p3 는 개념이 해결하려는 문제 또는 핵심 아이디어를 한 줄로 적도록 유도하세요. placeholder 는 "모르면 비워두셔도 괜찮아요" 풍의 안내.`;
+- p3 는 개념이 해결하려는 문제 또는 핵심 아이디어를 한 줄로 적도록 유도하세요. placeholder 는 "모르면 비워두셔도 괜찮아요" 풍의 안내.` + MATH_DIRECTIVE;
 
 export const probeUserMessage = (
   concept: string,
@@ -143,7 +154,7 @@ export const STEP_DETAIL_SYSTEM = `당신은 소크라테스식 학습 튜터입
   3) 본인 언어: "왜 그런지 본인 말로", "친구에게 두 문장으로 설명"
   4) 반례 만들기: "X 가 아닌 예를 들어보세요"
 - 질문 문장은 짧고 명료하게. 정답을 본문에서 그대로 베끼면 답할 수 있는 질문은 피하세요.
-- 힌트는 제공하지 마세요. (스키마에 hint 필드가 없습니다.)`;
+- 힌트는 제공하지 마세요. (스키마에 hint 필드가 없습니다.)` + MATH_DIRECTIVE;
 
 export const stepDetailUserMessage = (
   concept: string,
@@ -176,7 +187,7 @@ export const EVAL_SYSTEM = `당신은 소크라테스식 학습 튜터입니다.
   (2) 정확한 한 줄 교정 또는 본문 어느 부분을 다시 보면 되는지.
 - wrong 인 경우 절대 부드럽게 넘기지 말 것. "정반대로 이해하셨네요. 실제로는 ..." 같이 명시적으로 짚고 한 줄로 바로잡으세요.
 - 빈 답변/모르겠어요 답변은 wrong 으로 처리하되 비난 없이 핵심을 한 줄로 알려주세요.
-- 정답이 본문에 있다고 본문을 다시 인용하지 말고, 본인 언어로 정확하게 한 번 더 표현해주세요.`;
+- 정답이 본문에 있다고 본문을 다시 인용하지 말고, 본인 언어로 정확하게 한 번 더 표현해주세요.` + MATH_DIRECTIVE;
 
 export const evalUserMessage = (
   concept: string,
@@ -215,7 +226,7 @@ export const BRANCH_EVALUATION_SYSTEM = `당신은 소크라테스식 학습 튜
       }
     }
 - type 이 "exit" 인 옵션의 stageContent 는 반드시 null.
-- 그 외 type 의 stageContent 는 객체이며 id/title/desc/body 는 비어있지 않은 값.`;
+- 그 외 type 의 stageContent 는 객체이며 id/title/desc/body 는 비어있지 않은 값.` + MATH_DIRECTIVE;
 
 export interface BranchEvaluationUserParams {
   concept: string;
@@ -300,4 +311,4 @@ export const STEP_DETAIL_STREAM_SYSTEM = `당신은 소크라테스식 학습 �
   3) 본인 언어: "왜 그런지 본인 말로", "친구에게 두 문장으로 설명"
   4) 반례 만들기: "X 가 아닌 예를 들어보세요"
 - 질문 문장은 짧고 명료하게. 정답을 본문에서 그대로 베끼면 답할 수 있는 질문은 피하세요.
-- 힌트는 제공하지 마세요.`;
+- 힌트는 제공하지 마세요.` + MATH_DIRECTIVE;

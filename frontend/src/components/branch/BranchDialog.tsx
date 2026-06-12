@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { BranchOption } from "../../api/contract";
+import { MathText } from "../../lib/mathText";
 import "./branch.css";
 
 interface BranchDialogProps {
@@ -20,23 +21,6 @@ export interface BranchErrorPayload {
 }
 
 const TYPE_PREVIEW_EXIT = "여기까지의 학습을 정리하고 마치기";
-
-function renderInlineMd(text: string) {
-  const parts: (string | JSX.Element)[] = [];
-  const re = /(\*\*[^*]+\*\*|\*[^*]+\*)/g;
-  let last = 0;
-  let key = 0;
-  let match: RegExpExecArray | null;
-  while ((match = re.exec(text))) {
-    if (match.index > last) parts.push(text.slice(last, match.index));
-    const seg = match[0];
-    if (seg.startsWith("**")) parts.push(<strong key={`b${key++}`}>{seg.slice(2, -2)}</strong>);
-    else parts.push(<em key={`i${key++}`}>{seg.slice(1, -1)}</em>);
-    last = re.lastIndex;
-  }
-  if (last < text.length) parts.push(text.slice(last));
-  return parts;
-}
 
 function IconArrow() {
   return (
@@ -173,7 +157,7 @@ function ChooseMode({
       <div className="bd-body">
         <div className="bd-eval">
           <div className="bd-eval-eyebrow">평가 결과</div>
-          <p className="bd-eval-body">{renderInlineMd(evaluationText)}</p>
+          <p className="bd-eval-body"><MathText text={evaluationText} /></p>
         </div>
         <div className="bd-section-head">
           <span className="h">다음 학습 분기</span>
@@ -198,10 +182,10 @@ function ChooseMode({
                 </span>
                 <span className="bd-body-col">
                   <span className="bd-label">
-                    {opt.label}
+                    <MathText text={opt.label} />
                     {opt.isRecommended && <span className="bd-rec">추천</span>}
                   </span>
-                  <span className="bd-preview">{previewOf(opt)}</span>
+                  <span className="bd-preview"><MathText text={previewOf(opt)} /></span>
                 </span>
                 <span className="bd-chev"><IconChev /></span>
               </button>

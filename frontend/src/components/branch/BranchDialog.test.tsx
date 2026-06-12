@@ -175,3 +175,110 @@ describe("BranchDialog - error mode (다이얼로그 안에서 표현)", () => {
     expect(onExit).toHaveBeenCalledTimes(1);
   });
 });
+
+// ─── Sub-AC 2: 수식 포함 선택지 - MathSegments 분기 확인 ─────────────────────
+describe("BranchDialog - 수식 포함 선택지 MathSegments 렌더링", () => {
+  const mathOptions: BranchOption[] = [
+    {
+      label: "에너지 $E=mc^2$ 개념",
+      type: "ai_recommended",
+      isRecommended: true,
+      stageContent: { id: 50, title: "에너지", desc: "공식 이해", body: "", questions: [] },
+    },
+    {
+      label: "**bold** 없이 $x^2$ 만 수식",
+      type: "additional",
+      isRecommended: false,
+      stageContent: { id: 51, title: "제곱", desc: "설명", body: "", questions: [] },
+    },
+  ];
+
+  test("수식 포함 label 이 KaTeX 로 렌더된다 (MathSegments 경유)", () => {
+    const { container } = render(
+      <BranchDialog
+        open={true}
+        evaluationText=""
+        options={mathOptions}
+        onChoose={() => {}}
+        onClose={() => {}}
+      />
+    );
+    // .bd-label 안에 KaTeX 마크업이 존재 = parseSegments 로 분기됐음을 의미
+    const labels = container.querySelectorAll(".bd-label");
+    const mathLabel = Array.from(labels).find(el =>
+      el.querySelector(".katex") !== null
+    );
+    expect(mathLabel).not.toBeUndefined();
+  });
+
+  test("label 의 수식이 KaTeX 인라인으로 치환되고 주변 텍스트는 보존된다", () => {
+    const { container } = render(
+      <BranchDialog
+        open={true}
+        evaluationText=""
+        options={[mathOptions[0]]}
+        onChoose={() => {}}
+        onClose={() => {}}
+      />
+    );
+    expect(container.querySelector(".katex")).not.toBeNull();
+    expect(container.textContent).toContain("에너지");
+    expect(container.textContent).toContain("개념");
+  });
+
+  test("label 의 **bold** 는 마크다운으로 해석되지 않고 문자 그대로 표시된다", () => {
+    const { container } = render(
+      <BranchDialog
+        open={true}
+        evaluationText=""
+        options={[mathOptions[1]]}
+        onChoose={() => {}}
+        onClose={() => {}}
+      />
+    );
+    // MathSegments 파싱: $x^2$ 만 KaTeX 처리됨
+    expect(container.querySelector(".katex")).not.toBeNull();
+    // **bold** 는 <strong> 으로 변환되지 않음 (마크다운 미해석)
+    expect(container.querySelector("strong")).toBeNull();
+    // 원문 asterisk 유지
+    expect(container.textContent).toContain("**bold**");
+  });
+
+  test("수식 없는 label 은 KaTeX 없이 원문 그대로 표시된다", () => {
+    const { container } = render(
+      <BranchDialog
+        open={true}
+        evaluationText=""
+        options={options}
+        onChoose={() => {}}
+        onClose={() => {}}
+      />
+    );
+    const plainLabel = Array.from(container.querySelectorAll(".bd-label"))
+      .find(el => el.textContent?.includes("스레드 비용 보강"));
+    expect(plainLabel).not.toBeUndefined();
+    // 수식 없으므로 해당 label 안에 katex 없음
+    expect(plainLabel?.querySelector(".katex")).toBeNull();
+  });
+
+  test("블록 수식 '$$E=mc^2$$' 포함 label 도 KaTeX display 로 렌더된다", () => {
+    const blockMathOption: BranchOption[] = [
+      {
+        label: "$$E=mc^2$$",
+        type: "additional",
+        isRecommended: false,
+        stageContent: { id: 52, title: "블록", desc: "수식", body: "", questions: [] },
+      },
+    ];
+    const { container } = render(
+      <BranchDialog
+        open={true}
+        evaluationText=""
+        options={blockMathOption}
+        onChoose={() => {}}
+        onClose={() => {}}
+      />
+    );
+    expect(container.querySelector(".katex-display")).not.toBeNull();
+  });
+});
