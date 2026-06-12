@@ -50,11 +50,14 @@ function renderApp(entries: string[]) {
 /**
  * 로드맵이 이미 복원된(steps 포함) learn 세션을 시드한다.
  * steps + stepEvaluations 가 있으면 LearnContentProvider 가 즉시 "ready" 상태로 초기화된다.
+ *
+ * @param mode - 학습 모드 (기본 "socratic"). "light" 이면 분기 게이트 없이 다음 버튼으로 진행.
  */
 function seedLearnSessionWithSteps(
   sessionId: string,
   stepIdx = 0,
   withEvalAt?: number,
+  mode = "socratic",
 ) {
   const steps = [
     {
@@ -90,7 +93,7 @@ function seedLearnSessionWithSteps(
       createdAt: 1000,
       conceptSummary: "TypeScript 기초",
       stage: "learn",
-      mode: "socratic",
+      mode,
       concept: "TypeScript 기초",
       materials: "",
       probes: {},
@@ -131,8 +134,9 @@ describe("Sub-AC 3b: sl_step_navigate 계측", () => {
 
   test("다음 버튼 클릭 시 sl_step_navigate(direction:'next')가 호출됨", async () => {
     const sessionId = "s-nav-next";
-    // stepIdx=0, 평가 완료 상태(isEvaluated=true) 로 시드
-    seedLearnSessionWithSteps(sessionId, 0, 0);
+    // light 모드로 시드: 분기 게이트 없이 평가 후 다음 버튼으로 직접 진행 가능.
+    // 분기 모드(socratic)에서는 평가 후 분기 다이얼로그를 거쳐야 하므로 goNext 가 호출되지 않는다.
+    seedLearnSessionWithSteps(sessionId, 0, 0, "light");
 
     renderApp([`/s/${sessionId}/learn/0`]);
 

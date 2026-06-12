@@ -154,6 +154,8 @@ export function StageLearn({
   const branch = useBranchPhase();
   const [insertedMeta, setInsertedMeta] = useState<Map<number, InsertedMeta>>(new Map());
   const [branchVisible, setBranchVisible] = useState(false);
+  // 분기 옵션 선택이 완료된 step.id 집합. handleChoose 로만 추가된다.
+  const [branchedStepIds, setBranchedStepIds] = useState<Set<number>>(new Set());
   // 레이아웃 방향: 기본 세로(접이식 설명 ▸ 질문). 저장값 의존 없이 항상 세로로 시작.
   const [orient, setOrient] = useState<Orient>("vertical");
   // 세로 모드에서 개념 설명 카드 접힘 여부 (기본 펼침).
@@ -184,6 +186,14 @@ export function StageLearn({
   const evalResult = stepEvaluations[stepIdx];
   const isEvaluated = evalStatus === "ready" && !!evalResult;
   const isEvaluating = evalStatus === "loading";
+  // 분기 게이트: 분기 모드에서 평가가 끝났지만 아직 분기 선택을 하지 않은 비마지막 단계.
+  // 이 조건이 true 이면 goNext/칩 전진은 차단되고 토스트만 표시된다.
+  const isBranchGated =
+    branchEnabled &&
+    isEvaluated &&
+    stepIdx < steps.length - 1 &&
+    !!step &&
+    !branchedStepIds.has(step.id);
 
   const [toast, setToast] = useState<string | null>(null);
   const toastTimerRef = useRef<number | null>(null);
@@ -239,11 +249,13 @@ export function StageLearn({
       return;
     }
     if (option.type === "roadmap_next") {
+      if (step) setBranchedStepIds((prev) => { const n = new Set(prev); n.add(step.id); return n; });
       if (stepIdx >= steps.length - 1) onDone();
       else setStepIdx(stepIdx + 1);
       return;
     }
     if (option.stageContent) {
+      if (step) setBranchedStepIds((prev) => { const n = new Set(prev); n.add(step.id); return n; });
       const parentStep = steps[stepIdx];
       const parentLabel = parentStep ? displayLabelOf(parentStep) : "0";
       const parentBase = stripLeadingZero(parentLabel);
@@ -328,6 +340,10 @@ export function StageLearn({
       showToast("답변 제출이 필요합니다");
       return;
     }
+    if (isBranchGated) {
+      showToast("분기 옵션을 먼저 선택해주세요");
+      return;
+    }
     if (stepIdx >= steps.length - 1) {
       onDone();
     } else {
@@ -341,6 +357,15 @@ export function StageLearn({
       }
       setStepIdx(stepIdx + 1);
     }
+  };
+  // 단계 칩 클릭: 전진 방향은 분기 게이트 체크 적용.
+  // 후진(i <= stepIdx)은 항상 허용, 전진(i > stepIdx)은 분기 미완료 시 차단.
+  const handleChipClick = (i: number) => {
+    if (branchEnabled && i > stepIdx && !!step && !branchedStepIds.has(step.id)) {
+      showToast("분기 옵션을 먼저 선택해주세요");
+      return;
+    }
+    setStepIdx(i);
   };
   const skipStep = () => {
     if (isEvaluated) return;
@@ -614,7 +639,15 @@ export function StageLearn({
                 (insertedMeta.has(s.id) ? " is-inserted" : "")
               }
             >
-              <button type="button" onClick={() => setStepIdx(i)}>
+              <button
+                type="button"
+                onClick={() => handleChipClick(i)}
+                aria-disabled={
+                  branchEnabled && i > stepIdx && !!step && !branchedStepIds.has(step.id)
+                    ? true
+                    : undefined
+                }
+              >
                 <span className="lv-step-num">{displayLabelOf(s)}</span>
                 <span className="lv-step-title">{s.title}</span>
               </button>
@@ -696,10 +729,11 @@ export function StageLearn({
           모르겠어요 (전체 건너뜀)
         </button>
         <button
-          className="lv-btn-holo"
+          className={"lv-btn-holo" + (isBranchGated ? " is-disabled" : "")}
           type="button"
           onClick={goNext}
           disabled={detailLoading || isEvaluating}
+          aria-disabled={isBranchGated ? true : undefined}
         >
           {stepIdx >= steps.length - 1 ? "학습 마치기" : "다음 개념"} →
         </button>
