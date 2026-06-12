@@ -1,25 +1,36 @@
 import { createElement, Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import { parseSegments, renderMath } from "./mathSegments";
 
 function renderInline(text: string): ReactNode[] {
   const parts: ReactNode[] = [];
-  const re = /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g;
-  let last = 0;
   let key = 0;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text))) {
-    if (m.index > last) parts.push(text.slice(last, m.index));
-    const s = m[0];
-    if (s.startsWith("**")) parts.push(<strong key={key++}>{s.slice(2, -2)}</strong>);
-    else if (s.startsWith("*")) parts.push(<em key={key++}>{s.slice(1, -1)}</em>);
-    else if (s.startsWith("`"))
-      parts.push(
-        <code key={key++} className="md-code">
-          {s.slice(1, -1)}
-        </code>,
-      );
-    last = re.lastIndex;
+  const re = /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g;
+
+  for (const seg of parseSegments(text)) {
+    if (seg.type !== "plain") {
+      const html = renderMath(seg.latex, seg.type === "blockMath");
+      parts.push(<span key={key++} dangerouslySetInnerHTML={{ __html: html }} />);
+      continue;
+    }
+    // plain 세그먼트: 기존 bold/italic/code 렌더
+    re.lastIndex = 0;
+    let last = 0;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(seg.text))) {
+      if (m.index > last) parts.push(seg.text.slice(last, m.index));
+      const s = m[0];
+      if (s.startsWith("**")) parts.push(<strong key={key++}>{s.slice(2, -2)}</strong>);
+      else if (s.startsWith("*")) parts.push(<em key={key++}>{s.slice(1, -1)}</em>);
+      else
+        parts.push(
+          <code key={key++} className="md-code">
+            {s.slice(1, -1)}
+          </code>,
+        );
+      last = re.lastIndex;
+    }
+    if (last < seg.text.length) parts.push(seg.text.slice(last));
   }
-  if (last < text.length) parts.push(text.slice(last));
   return parts;
 }
 
@@ -28,7 +39,8 @@ type Block =
   | { kind: "heading"; level: number; text: string }
   | { kind: "list"; ordered: boolean; items: string[] }
   | { kind: "code"; lang: string; text: string }
-  | { kind: "table"; header: string[]; rows: string[][] };
+  | { kind: "table"; header: string[]; rows: string[][] }
+  | { kind: "mathBlock"; latex: string };
 
 // 리스트 항목(`- `/`* `/`+ ` 또는 `1. `). 기호 뒤 공백 필수. ordered 는 숫자 마커.
 function parseListItem(line: string): { ordered: boolean; text: string } | null {
@@ -77,6 +89,40 @@ function parseBlocks(text: string): Block[] {
         code = null;
       } else {
         code = { lang: line.slice(3).trim(), lines: [] };
+      }
+      continue;
+    }
+    // $$ 블록 수식: 독립 라인으로 시작하는 멀티라인 블록
+    if (!code && line.trim().startsWith("$$")) {
+      flush();
+      const trimmed = line.trim();
+      // 단일 라인: $$...$$
+      if (trimmed.length > 4 && trimmed.endsWith("$$")) {
+        blocks.push({ kind: "mathBlock", latex: trimmed.slice(2, -2).trim() });
+        continue;
+      }
+      // 멀티라인: 닫기 $$ 탐색
+      const mathLines: string[] = trimmed.length > 2 ? [trimmed.slice(2)] : [];
+      let closed = false;
+      while (i + 1 < lines.length) {
+        i++;
+        const ml = lines[i];
+        if (ml.trim() === "$$") {
+          closed = true;
+          break;
+        }
+        if (ml.trim().endsWith("$$") && ml.trim().length > 2) {
+          mathLines.push(ml.trim().slice(0, -2));
+          closed = true;
+          break;
+        }
+        mathLines.push(ml);
+      }
+      if (closed) {
+        blocks.push({ kind: "mathBlock", latex: mathLines.join("\n").trim() });
+      } else {
+        // 닫히지 않은 블록 - 원문 유지 (스트리밍 중간 상태)
+        blocks.push({ kind: "p", text: line.trim() + (mathLines.length ? "\n" + mathLines.join("\n") : "") });
       }
       continue;
     }
@@ -140,10 +186,15 @@ function blockRawText(b: Block): string {
     return b.items.map((it, idx) => (b.ordered ? `${idx + 1}. ${it}` : `- ${it}`)).join("\n");
   if (b.kind === "table")
     return [b.header.join(" | "), ...b.rows.map((r) => r.join(" | "))].join("\n");
+  if (b.kind === "mathBlock") return `$$${b.latex}$$`;
   return b.text;
 }
 
 function renderBlock(b: Block, key: number): ReactNode {
+  if (b.kind === "mathBlock") {
+    const html = renderMath(b.latex, true);
+    return <div key={key} dangerouslySetInnerHTML={{ __html: html }} />;
+  }
   if (b.kind === "heading") {
     const level = Math.min(Math.max(b.level, 1), 6);
     return createElement(
