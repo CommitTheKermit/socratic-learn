@@ -93,6 +93,14 @@ describe("parseSegments - 미완성 델리미터 폴백 (스트리밍 안전)", 
     expect(segs).toHaveLength(1);
     expect(segs[0].type).toBe("plain");
   });
+
+  it("닫히지 않은 '$x^2 +' → inlineMath/blockMath 세그먼트 없음, 원문 plain 유지 (AC 4)", () => {
+    const segs = parseSegments("$x^2 +");
+    const mathSegs = segs.filter((s) => s.type === "inlineMath" || s.type === "blockMath");
+    expect(mathSegs).toHaveLength(0);
+    const allText = segs.map((s) => (s as { type: string; text?: string }).text ?? "").join("");
+    expect(allText).toContain("$x^2 +");
+  });
 });
 
 // ─── renderMath 단위 테스트 ──────────────────────────────────────────────────
@@ -113,6 +121,29 @@ describe("renderMath", () => {
     const html = renderMath("\\invalid{unclosed", false);
     expect(typeof html).toBe("string");
     expect(html.length).toBeGreaterThan(0);
+  });
+});
+
+// ─── Markdown 블록 수식 렌더링 (AC 2) ────────────────────────────────────────
+
+describe("Markdown 블록 수식 렌더링 (AC 2)", () => {
+  it("'$$\\frac{a}{b}$$' → display 모드 KaTeX 마크업(.katex-display)으로 렌더된다", () => {
+    const { container } = render(<Markdown text="$$\frac{a}{b}$$" />);
+    // KaTeX displayMode=true 시 .katex-display 클래스가 부여된다
+    const displayEl = container.querySelector(".katex-display");
+    expect(displayEl).not.toBeNull();
+    expect(container.querySelector(".katex")).not.toBeNull();
+  });
+
+  it("renderMath('\\\\frac{a}{b}', displayMode=true) → HTML 에 katex-display 포함", () => {
+    const html = renderMath("\\frac{a}{b}", true);
+    expect(html).toContain("katex-display");
+  });
+
+  it("parseSegments('$$\\\\frac{a}{b}$$') → blockMath 세그먼트 1개, latex='\\\\frac{a}{b}'", () => {
+    const segs = parseSegments("$$\\frac{a}{b}$$");
+    expect(segs).toHaveLength(1);
+    expect(segs[0]).toEqual({ type: "blockMath", latex: "\\frac{a}{b}" });
   });
 });
 
@@ -149,6 +180,12 @@ describe("Markdown 인라인 수식 렌더링 (AC 1)", () => {
     const { container } = render(<Markdown text="에너지는 $E=mc^2" />);
     expect(container.querySelector(".katex")).toBeNull();
     expect(container.textContent).toContain("$E=mc^2");
+  });
+
+  it("닫히지 않은 '$x^2 +' → KaTeX 렌더 없이 원문 유지 (AC 4 - 미완성 폴백)", () => {
+    const { container } = render(<Markdown text="$x^2 +" />);
+    expect(container.querySelector(".katex")).toBeNull();
+    expect(container.textContent).toContain("$x^2 +");
   });
 
   it("블록 $$E=mc^2$$ → KaTeX display 렌더", () => {
