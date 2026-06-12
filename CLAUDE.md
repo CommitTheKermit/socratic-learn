@@ -70,6 +70,7 @@ Firebase 프로젝트 `socratic-learn-web`(`.firebaserc`), region `us-central1`.
 서버 자동 회귀 테스트 대신 frontend 단위 테스트(vitest) + emulator Playwright E2E 로 검증한다. `frontend/e2e/sliceN-*.cjs` 가 input→해당 단계까지 주행하며 ① 해당 엔드포인트가 `127.0.0.1:5001` 으로 200, ② api.anthropic.com 직호출 0건 을 확인한다. dev server 가 IPv6 만 바인딩하면 `http://localhost:<port>` 로 접속. 상세는 `docs/firebase-migration.md`.
 
 - E2E 는 로그인 게이팅을 우회하려 Auth emulator + 자동 익명 로그인을 쓴다. emulator 를 `--only functions,auth,firestore` 로 띄우고, dev 를 `VITE_AUTH_EMULATOR_URL=http://127.0.0.1:9099 VITE_E2E_AUTO_SIGNIN=true npm run dev` 로 실행한 뒤 `E2E_BASE_URL=http://localhost:<port> node e2e/<file>.cjs`. 두 env 는 실서비스 빌드엔 없으므로 영향이 없다(`firebase.ts` 의 `connectAuthEmulator`, `useAuth` 의 익명 로그인은 해당 env 가 있을 때만 동작).
+- 위 오케스트레이션은 **`bash frontend/e2e/run.sh`** 가 한 번에 한다(functions 빌드 → emulator+dev 기동/readiness 대기 → e2e 실행 → 띄운 프로세스 정리. 인자로 슬라이스 파일명 지정 가능, `--smoke` 는 기동/배선만 점검하고 Anthropic 호출 없음). E2E 본 실행은 emulator 를 통해 실제 Anthropic API 를 호출하므로 비용이 발생한다. 전체 검증 절차(타입체크+vitest+선택적 E2E)는 `verify-all` 스킬을 따른다.
 
 ## 작업 시 유의사항
 
