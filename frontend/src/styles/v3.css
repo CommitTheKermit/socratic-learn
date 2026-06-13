@@ -1529,6 +1529,7 @@ body {
   z-index: 5;
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
   padding-top: 6px;
   pointer-events: none;
 }
@@ -1894,7 +1895,8 @@ body {
 .lvv-qlist { display: flex; flex-direction: column; gap: 14px; }
 
 /* 세로일 때 제출 버튼은 흐름 하단에 (sticky 불필요) */
-.lvv-submit-row { display: flex; padding-top: 2px; }
+.lvv-submit-row { display: flex; justify-content: flex-end; gap: 8px; padding-top: 2px; }
+.lv-reanswer { display: inline-flex; align-items: center; gap: 6px; }
 
 .lv-foot {
   display: flex;

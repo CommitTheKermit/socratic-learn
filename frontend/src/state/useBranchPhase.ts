@@ -130,6 +130,8 @@ export function useBranchPhase() {
    */
   const chooseBranch = useCallback(
     (option: BranchOption, current: BranchState): BranchState => {
+      // reanswer 는 분기 상태를 바꾸지 않는 클라이언트 전용 액션(호출자가 가로챔). 여기 오면 무시.
+      if (option.type === "reanswer") return current;
       const next = reduceBranch(current, {
         type: option.type,
         stageContent: option.stageContent,

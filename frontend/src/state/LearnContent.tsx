@@ -54,6 +54,12 @@ interface LearnContentValue {
     skips: Record<string, boolean>,
     mode?: string,
   ) => Promise<void>;
+  /**
+   * 한 단계의 평가 결과를 비워 잠금을 푼다(재답변용).
+   * stepEvaluations/Status/Errors 의 해당 stepIdx 항목을 제거 → isEvaluated 가 false 가 되어
+   * 답변 입력칸이 다시 편집 가능해지고 "답변 제출하기" 버튼이 복귀한다.
+   */
+  clearEvaluation: (stepIdx: number) => void;
 
   /**
    * 분기 선택의 결과로 새 학습 단계를 currentIndex+1 위치에 삽입한다.
@@ -301,6 +307,19 @@ export function LearnContentProvider({
     [],
   );
 
+  const clearEvaluation = useCallback((stepIdx: number) => {
+    const omit = <T,>(m: Record<number, T>): Record<number, T> => {
+      if (!(stepIdx in m)) return m;
+      const next = { ...m };
+      delete next[stepIdx];
+      return next;
+    };
+    setStepEvaluations(omit);
+    setStepEvalStatus(omit);
+    setStepEvalErrors((m) => omit(m));
+    evalInflightRef.current.delete(stepIdx);
+  }, []);
+
   const insertStepAt = useCallback(
     (index: number, step: Step): number => {
       const cur = stepsRef.current;
@@ -351,6 +370,7 @@ export function LearnContentProvider({
         stepEvalStatus,
         stepEvalErrors,
         submitEvaluation,
+        clearEvaluation,
         insertStepAt,
         reset,
       }}

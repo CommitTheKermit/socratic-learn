@@ -46,6 +46,14 @@ function normalizeBranchOptions(
   return [roadmapNext, ...rest];
 }
 
+/** 분기 다이얼로그에 항상 끼워 넣는 클라이언트 전용 옵션. 현재 단계를 다시 답변하기. */
+const REANSWER_OPTION: BranchOption = {
+  label: "다시 답변하기",
+  type: "reanswer",
+  isRecommended: false,
+  stageContent: null,
+};
+
 /**
  * 확인 질문 답변 입력칸. 마운트 시 1회만 랜덤 placeholder 를 골라 고정한다.
  * 질문마다 독립 컴포넌트로 마운트되므로 입력칸마다 서로 다른 문구가 표시된다.
@@ -149,6 +157,7 @@ export function StageLearn({
     stepEvalStatus,
     stepEvalErrors,
     submitEvaluation,
+    clearEvaluation,
     insertStepAt,
   } = useLearnContent();
   const branch = useBranchPhase();
@@ -230,7 +239,26 @@ export function StageLearn({
     logEvent("sl_step_enter", { session_id: sessionId, step_idx: stepIdx });
   }, [sessionId, stepIdx]);
 
+  // 재답변: 현재 단계의 평가를 비워 잠금을 풀고, 열린 분기 다이얼로그/평가를 닫는다.
+  // 이미 분기를 고른 단계여도(branchedStepIds 유지) 호출 가능 - "마치기 전이면 언제든".
+  // 평가가 비워지면 isEvaluated 가 false 가 되어 입력칸 편집과 "답변 제출하기"가 복귀하고,
+  // 재제출 시 submitAnswers 가 평가+분기를 새로 시작한다.
+  const handleReanswer = () => {
+    if (!step) return;
+    if (sessionId) {
+      logEvent("sl_reanswer", { session_id: sessionId, step_idx: stepIdx });
+    }
+    clearEvaluation(stepIdx);
+    setBranchVisible(false);
+    branch.closeBranch();
+  };
+
   const handleChoose = (option: BranchOption) => {
+    // reanswer 는 분기 이동이 아니라 현재 단계 재답변. 계측/리듀서 전에 가로챈다.
+    if (option.type === "reanswer") {
+      handleReanswer();
+      return;
+    }
     // sl_branch_select 계측: 분기 옵션 선택 즉시 emit (fire-and-forget).
     if (sessionId) {
       logEvent("sl_branch_select", {
@@ -416,27 +444,53 @@ export function StageLearn({
 
   // 가로/세로 두 방향이 공유하는 조각들 (래퍼만 방향별로 달라진다).
   // light 모드는 평가 완료 후 "평가 보기"(분기 다이얼로그)가 없으므로 버튼을 숨기고 푸터로 진행한다.
-  const submitButton = fullReady ? (
-    branchEnabled ? (
-      <button
-        className="lv-btn-holo lv-submit"
-        type="button"
-        onClick={() => setBranchVisible(true)}
-      >
-        <span className="lv-submit-icon" aria-hidden>{I.brand}</span>
-        평가 보기
-      </button>
-    ) : null
-  ) : (
+  // 다시 답변하기: 평가가 끝나(잠긴) 단계에서 노출. 마치기 전이면 언제든 잠금을 풀 수 있다.
+  const reanswerButton = (
     <button
-      className={"lv-btn-holo lv-submit" + (fullLoading ? " is-loading" : "")}
+      className="lv-btn-ghost lv-reanswer"
       type="button"
-      onClick={submitAnswers}
-      disabled={fullLoading || isEvaluated}
-      aria-busy={fullLoading || undefined}
+      onClick={handleReanswer}
+    >
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M9 14L4 9l5-5" />
+        <path d="M4 9h11a5 5 0 0 1 0 10h-1" />
+      </svg>
+      다시 답변하기
+    </button>
+  );
+  // 제출/재답변 액션 영역. 로딩 > 평가완료(잠김) > 미제출 순으로 분기.
+  const submitButton = fullLoading ? (
+    <button
+      className="lv-btn-holo lv-submit is-loading"
+      type="button"
+      disabled
+      aria-busy
     >
       <span className="lv-submit-icon" aria-hidden>{I.brand}</span>
-      {fullLoading ? "평가 중…" : "답변 제출하기"}
+      평가 중…
+    </button>
+  ) : isEvaluated ? (
+    <>
+      {branchEnabled && branchReady && (
+        <button
+          className="lv-btn-holo lv-submit"
+          type="button"
+          onClick={() => setBranchVisible(true)}
+        >
+          <span className="lv-submit-icon" aria-hidden>{I.brand}</span>
+          평가 보기
+        </button>
+      )}
+      {reanswerButton}
+    </>
+  ) : (
+    <button
+      className="lv-btn-holo lv-submit"
+      type="button"
+      onClick={submitAnswers}
+    >
+      <span className="lv-submit-icon" aria-hidden>{I.brand}</span>
+      답변 제출하기
     </button>
   );
 
@@ -744,7 +798,7 @@ export function StageLearn({
       <BranchDialog
         open={branchVisible && (branch.mode === "choosing" || branch.mode === "error")}
         evaluationText={branch.evaluationText}
-        options={normalizeBranchOptions(branch.options, steps, stepIdx)}
+        options={[...normalizeBranchOptions(branch.options, steps, stepIdx), REANSWER_OPTION]}
         onChoose={handleChoose}
         onClose={() => setBranchVisible(false)}
         error={
