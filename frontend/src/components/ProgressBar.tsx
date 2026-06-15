@@ -1,5 +1,6 @@
 import { PHASES, type Stage } from "../stages/data";
 import { useLearnContent } from "../state/LearnContent";
+import { getLabelForStep } from "../lib/stepLabel";
 
 interface Props {
   stage: Stage;
@@ -10,6 +11,7 @@ export function ProgressBar({ stage, stepIdx }: Props) {
   const currentPhaseIdx = PHASES.findIndex((p) => p.id === stage);
   const { steps } = useLearnContent();
   const stepsCount = Math.max(steps.length, 1);
+  const stepLabel = getLabelForStep(steps, stepIdx);
 
   return (
     <div className="phase-bar">
@@ -31,7 +33,7 @@ export function ProgressBar({ stage, stepIdx }: Props) {
               <span className="pb-name">{p.label}</span>
               {p.id === "learn" && state === "curr" && (
                 <span className="pb-sub">
-                  개념 {Math.min(stepIdx + 1, stepsCount)}/{stepsCount}
+                  개념 {stepLabel}/{stepsCount}
                 </span>
               )}
             </span>
