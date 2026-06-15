@@ -226,3 +226,85 @@ describe("isDuplicateStep - 대소문자 혼합 케이스", () => {
     ).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// 특수문자 엣지 케이스 - Sub-AC 2 명시 요건
+// ---------------------------------------------------------------------------
+
+describe("normalizeStepTitle - 특수문자 엣지 케이스", () => {
+  test("빈 문자열은 빈 문자열을 반환한다", () => {
+    expect(normalizeStepTitle("")).toBe("");
+  });
+
+  test("공백만 있는 문자열은 빈 문자열을 반환한다", () => {
+    expect(normalizeStepTitle("   ")).toBe("");
+  });
+
+  test("줄바꿈(\\n)은 공백으로 처리된다", () => {
+    // \n 은 \s+ 패턴에 포함되어 단일 공백으로 대체된다
+    expect(normalizeStepTitle("hello\nworld")).toBe("hello world");
+  });
+
+  test("캐리지리턴+줄바꿈(\\r\\n)은 공백으로 처리된다", () => {
+    expect(normalizeStepTitle("hello\r\nworld")).toBe("hello world");
+  });
+
+  test("탭(\\t)은 공백으로 처리된다", () => {
+    expect(normalizeStepTitle("hello\tworld")).toBe("hello world");
+  });
+
+  test("앞뒤 줄바꿈은 trim 에서 제거된다", () => {
+    expect(normalizeStepTitle("\nhello world\n")).toBe("hello world");
+  });
+
+  test("느낌표(!)는 비구분자 - 보존된다", () => {
+    expect(normalizeStepTitle("hello!")).toBe("hello!");
+  });
+
+  test("물음표(?)는 비구분자 - 보존된다", () => {
+    expect(normalizeStepTitle("what is async?")).toBe("what is async?");
+  });
+
+  test("해시(#)는 비구분자 - 보존된다", () => {
+    expect(normalizeStepTitle("C# 기초")).toBe("c# 기초");
+  });
+
+  test("괄호는 비구분자 - 보존된다", () => {
+    expect(normalizeStepTitle("함수형 프로그래밍 (FP 개요)")).toBe(
+      "함수형 프로그래밍 (fp 개요)"
+    );
+  });
+
+  test("슬래시(/)는 비구분자 - 보존된다", () => {
+    expect(normalizeStepTitle("async/await 패턴")).toBe("async/await 패턴");
+  });
+
+  test("퍼센트(%)는 비구분자 - 보존된다", () => {
+    expect(normalizeStepTitle("CPU 사용률 100% 이해")).toBe(
+      "cpu 사용률 100% 이해"
+    );
+  });
+
+  test("중복 공백 + 특수문자 혼합 - 공백 단일화 후 특수문자 보존", () => {
+    expect(normalizeStepTitle("hello   world!")).toBe("hello world!");
+  });
+
+  test("콜론 이후 특수문자가 있는 부제는 콜론 기준 제거", () => {
+    // "async/await: #기초 개념!" -> normalize -> "async/await"
+    expect(normalizeStepTitle("async/await: #기초 개념!")).toBe("async/await");
+  });
+
+  test("특수문자로만 이루어진 문자열은 그대로 반환", () => {
+    expect(normalizeStepTitle("!@#$%^&*")).toBe("!@#$%^&*");
+  });
+
+  test("숫자와 특수문자 혼합 - 소문자화 영향 없이 보존", () => {
+    // 숫자와 ! 는 소문자화 대상 아님, 그대로 유지
+    expect(normalizeStepTitle("Step 1! - 도입")).toBe("step 1!");
+  });
+
+  test("연속 중복 공백과 다수 특수문자 혼합 파이프라인", () => {
+    // trim -> lowercase -> 공백단일화("c# basics  (oop)") -> 구분자 없음 -> 그대로
+    expect(normalizeStepTitle("  C#   Basics  (OOP)  ")).toBe("c# basics (oop)");
+  });
+});
