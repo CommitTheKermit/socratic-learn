@@ -11,15 +11,8 @@ import { useBranchPhase } from "../state/useBranchPhase";
 import { MathText } from "../lib/mathText";
 import type { BranchOption } from "../api/contract";
 import { logEvent } from "../lib/analytics";
-
-interface InsertedMeta {
-  parentDisplayBase: string; // e.g. "1" or "1-1"
-  siblingIndex: number;       // 0-based among same-parent siblings
-}
-
-function stripLeadingZero(label: string): string {
-  return label.replace(/^0+(?=\d)/, "");
-}
+import { getLabelForStep } from "../lib/stepLabel";
+import { shouldInsertBranchStep } from "../lib/stepInsertGuard";
 
 /**
  * LLM 이 돌려준 분기 옵션을 결정론적으로 보정한다.
@@ -161,7 +154,6 @@ export function StageLearn({
     insertStepAt,
   } = useLearnContent();
   const branch = useBranchPhase();
-  const [insertedMeta, setInsertedMeta] = useState<Map<number, InsertedMeta>>(new Map());
   const [branchVisible, setBranchVisible] = useState(false);
   // 분기 옵션 선택이 완료된 step.id 집합. handleChoose 로만 추가된다.
   const [branchedStepIds, setBranchedStepIds] = useState<Set<number>>(new Set());
@@ -169,21 +161,6 @@ export function StageLearn({
   const [orient, setOrient] = useState<Orient>("vertical");
   // 세로 모드에서 개념 설명 카드 접힘 여부 (기본 펼침).
   const [explainOpen, setExplainOpen] = useState(true);
-
-  // 각 step 의 표시 라벨 계산: 원본은 "01","02"…, 삽입은 "1-1","1-2"…
-  const displayLabelOf = (s: Step): string => {
-    const meta = insertedMeta.get(s.id);
-    if (meta) return `${meta.parentDisplayBase}-${meta.siblingIndex + 1}`;
-    // 원본 카운트
-    let count = 0;
-    for (const x of steps) {
-      if (!insertedMeta.has(x.id)) {
-        count += 1;
-        if (x.id === s.id) return String(count).padStart(2, "0");
-      }
-    }
-    return String(count).padStart(2, "0");
-  };
   const safeLevel = level ?? 2;
   // "가볍게" 모드는 분기 시스템을 끄고 평가만 한 뒤 바로 다음 개념으로 진행한다.
   const branchEnabled = mode !== "light";
@@ -284,19 +261,26 @@ export function StageLearn({
     }
     if (option.stageContent) {
       if (step) setBranchedStepIds((prev) => { const n = new Set(prev); n.add(step.id); return n; });
-      const parentStep = steps[stepIdx];
-      const parentLabel = parentStep ? displayLabelOf(parentStep) : "0";
-      const parentBase = stripLeadingZero(parentLabel);
-      let siblings = 0;
-      for (const m of insertedMeta.values()) {
-        if (m.parentDisplayBase === parentBase) siblings += 1;
+
+      // 중복 노드 삽입 가드: isMerged 값과 무관하게 이미 존재하는 단계와 동일 개념이면 삽입 스킵.
+      // 중복 시에도 branchedStepIds 에는 추가됐으므로 분기 게이트는 해제된 상태다.
+      if (!shouldInsertBranchStep(option.stageContent, steps)) {
+        setBranchVisible(false);
+        if (stepIdx >= steps.length - 1) onDone();
+        else setStepIdx(stepIdx + 1);
+        return;
       }
-      const assignedId = insertStepAt(stepIdx + 1, option.stageContent);
-      setInsertedMeta((prev) => {
-        const next = new Map(prev);
-        next.set(assignedId, { parentDisplayBase: parentBase, siblingIndex: siblings });
-        return next;
-      });
+
+      const parentStep = steps[stepIdx];
+      // 분기의 분기는 같은 메인 아래 다음 형제로 평탄화 (3-depth 금지)
+      const parentMainStepId = parentStep?._meta
+        ? parentStep._meta.parentMainStepId
+        : parentStep?.id ?? 0;
+      // 같은 메인 아래 이미 삽입된 형제 수 = 새 단계의 siblingIndex
+      const siblingIndex = steps.filter(
+        (s) => s._meta?.parentMainStepId === parentMainStepId,
+      ).length;
+      insertStepAt(stepIdx + 1, { ...option.stageContent, _meta: { parentMainStepId, siblingIndex } });
       setBranchVisible(false);
       setStepIdx(stepIdx + 1);
     }
@@ -690,7 +674,7 @@ export function StageLearn({
                 "lv-step" +
                 (i === stepIdx ? " is-curr" : "") +
                 (i < stepIdx ? " is-done" : "") +
-                (insertedMeta.has(s.id) ? " is-inserted" : "")
+                (s._meta ? " is-inserted" : "")
               }
             >
               <button
@@ -702,7 +686,7 @@ export function StageLearn({
                     : undefined
                 }
               >
-                <span className="lv-step-num">{displayLabelOf(s)}</span>
+                <span className="lv-step-num">{getLabelForStep(steps, i)}</span>
                 <span className="lv-step-title">{s.title}</span>
               </button>
             </li>
