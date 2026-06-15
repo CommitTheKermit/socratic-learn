@@ -35,3 +35,22 @@ export function getLabelForStep(steps: Step[], index: number): string {
   }
   return `${parentOrdinal}.${siblingIndex + 1}`;
 }
+
+/**
+ * stepId 기반 계층형 십진수 라벨 계산 (순수 함수).
+ *
+ * getLabelForStep 의 stepId 버전. steps 배열에서 stepId 를 먼저 찾아
+ * 인덱스를 확인한 뒤 getLabelForStep 에 위임한다.
+ *
+ * - 비삽입(원본) Step: 정수 ("1", "2", "3"...)
+ * - 삽입(분기) Step: 부모정수.형제순번 ("1.1", "2.3"...)
+ * - stepId 가 배열에 없으면 빈 문자열 반환
+ *
+ * @param steps  현재 steps 배열 (원본 + 삽입 혼합 가능)
+ * @param stepId 라벨을 구할 단계의 id
+ */
+export function getStepLabel(steps: Step[], stepId: number): string {
+  const index = steps.findIndex((s) => s.id === stepId);
+  if (index === -1) return "";
+  return getLabelForStep(steps, index);
+}
