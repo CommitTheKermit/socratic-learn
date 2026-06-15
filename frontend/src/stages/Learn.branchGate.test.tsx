@@ -54,6 +54,7 @@ function makeBranchPhase(overrides: Record<string, unknown> = {}): Record<string
     mode: "closed",
     evaluationText: "",
     options: [],
+    isMerged: false,
     retryCount: 0,
     errorMessage: null,
     technicalDetail: null,
@@ -486,5 +487,121 @@ describe("AC4(칩): 분기 모드 단계 칩 전진 게이팅", () => {
     fireEvent.click(screen.getByRole("button", { name: /스레드 비용/ }));
 
     expect(setStepIdx).toHaveBeenCalledWith(1);
+  });
+});
+
+// ─── AC2(isMerged): isMerged=true 시 ai_recommended 단계 삽입 차단 ──────────
+describe("AC2(isMerged): isMerged=true 시 ai_recommended 삽입 차단", () => {
+  const branchStageContent: Step = {
+    id: 10,
+    title: "AI 추천 보조 단계",
+    desc: "AI 추천",
+    body: "body",
+    questions: [],
+  };
+
+  test("isMerged=true + ai_recommended 선택 시 insertStepAt 이 호출되지 않는다", () => {
+    const insertStepAt = vi.fn(() => 99);
+    mockLearnContent = makeLearnContent({
+      stepEvalStatus: { 0: "ready" },
+      stepEvaluations: { 0: { evaluations: [] } },
+      insertStepAt,
+    });
+    mockBranchPhase = makeBranchPhase({
+      mode: "choosing",
+      evaluationText: "평가 완료",
+      isMerged: true,
+      options: [
+        {
+          label: "AI 추천 단계로 이동",
+          type: "ai_recommended",
+          isRecommended: true,
+          stageContent: branchStageContent,
+        },
+      ],
+    });
+
+    const setStepIdx = vi.fn();
+    renderLearn({ mode: "branch", stepIdx: 0, setStepIdx });
+
+    fireEvent.click(screen.getByRole("button", { name: /평가 보기/ }));
+    fireEvent.click(screen.getByRole("button", { name: /AI 추천 단계로 이동/ }));
+
+    expect(insertStepAt).not.toHaveBeenCalled();
+    expect(setStepIdx).toHaveBeenCalledWith(1);
+  });
+
+  test("isMerged=false 이면 ai_recommended 단계를 정상 삽입한다", () => {
+    const insertStepAt = vi.fn(() => 99);
+    const newStep: Step = {
+      id: 20,
+      title: "완전히 새로운 보조 개념",
+      desc: "새 개념",
+      body: "body",
+      questions: [],
+    };
+    mockLearnContent = makeLearnContent({
+      stepEvalStatus: { 0: "ready" },
+      stepEvaluations: { 0: { evaluations: [] } },
+      insertStepAt,
+    });
+    mockBranchPhase = makeBranchPhase({
+      mode: "choosing",
+      evaluationText: "평가 완료",
+      isMerged: false,
+      options: [
+        {
+          label: "새 AI 추천 단계",
+          type: "ai_recommended",
+          isRecommended: true,
+          stageContent: newStep,
+        },
+      ],
+    });
+
+    const setStepIdx = vi.fn();
+    renderLearn({ mode: "branch", stepIdx: 0, setStepIdx });
+
+    fireEvent.click(screen.getByRole("button", { name: /평가 보기/ }));
+    fireEvent.click(screen.getByRole("button", { name: /새 AI 추천 단계/ }));
+
+    expect(insertStepAt).toHaveBeenCalled();
+    expect(setStepIdx).toHaveBeenCalledWith(1);
+  });
+
+  test("isMerged=true 이어도 additional 타입은 삽입된다 (isMerged 는 ai_recommended 에만 적용)", () => {
+    const insertStepAt = vi.fn(() => 99);
+    const additionalStep: Step = {
+      id: 30,
+      title: "사용자 추가 보충 단계",
+      desc: "추가",
+      body: "body",
+      questions: [],
+    };
+    mockLearnContent = makeLearnContent({
+      stepEvalStatus: { 0: "ready" },
+      stepEvaluations: { 0: { evaluations: [] } },
+      insertStepAt,
+    });
+    mockBranchPhase = makeBranchPhase({
+      mode: "choosing",
+      evaluationText: "평가 완료",
+      isMerged: true,
+      options: [
+        {
+          label: "추가 학습 단계",
+          type: "additional",
+          isRecommended: false,
+          stageContent: additionalStep,
+        },
+      ],
+    });
+
+    renderLearn({ mode: "branch", stepIdx: 0 });
+
+    fireEvent.click(screen.getByRole("button", { name: /평가 보기/ }));
+    fireEvent.click(screen.getByRole("button", { name: /추가 학습 단계/ }));
+
+    expect(insertStepAt).toHaveBeenCalled();
   });
 });

@@ -161,6 +161,61 @@ describe("useBranchPhase - chooseBranch", () => {
   });
 });
 
+describe("useBranchPhase - isMerged 노출", () => {
+  test("초기 상태에서 isMerged 는 false 이다", () => {
+    const { result } = renderHook(() => useBranchPhase());
+    expect(result.current.isMerged).toBe(false);
+  });
+
+  test("EvaluationResponse.isMerged=true 이면 스냅샷에 isMerged=true 가 노출된다", async () => {
+    generateBranchEvaluationMock.mockResolvedValueOnce({
+      evaluationText: "평가 완료",
+      isMerged: true,
+      branchOptions: sampleOptions,
+    });
+    const { result } = renderHook(() => useBranchPhase());
+
+    await act(async () => {
+      await result.current.openBranch(sampleInput);
+    });
+
+    expect(result.current.isMerged).toBe(true);
+  });
+
+  test("EvaluationResponse.isMerged=false 이면 스냅샷에 isMerged=false 가 노출된다", async () => {
+    generateBranchEvaluationMock.mockResolvedValueOnce({
+      evaluationText: "평가 완료",
+      isMerged: false,
+      branchOptions: sampleOptions,
+    });
+    const { result } = renderHook(() => useBranchPhase());
+
+    await act(async () => {
+      await result.current.openBranch(sampleInput);
+    });
+
+    expect(result.current.isMerged).toBe(false);
+  });
+
+  test("closeBranch 후 isMerged 가 false 로 초기화된다", async () => {
+    generateBranchEvaluationMock.mockResolvedValueOnce({
+      evaluationText: "평가 완료",
+      isMerged: true,
+      branchOptions: sampleOptions,
+    });
+    const { result } = renderHook(() => useBranchPhase());
+
+    await act(async () => {
+      await result.current.openBranch(sampleInput);
+    });
+    expect(result.current.isMerged).toBe(true);
+
+    act(() => result.current.closeBranch());
+
+    expect(result.current.isMerged).toBe(false);
+  });
+});
+
 describe("useBranchPhase - closeBranch", () => {
   test("closeBranch 는 스냅샷을 초기화한다", async () => {
     generateBranchEvaluationMock.mockResolvedValueOnce({

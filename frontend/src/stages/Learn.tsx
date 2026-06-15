@@ -262,7 +262,16 @@ export function StageLearn({
     if (option.stageContent) {
       if (step) setBranchedStepIds((prev) => { const n = new Set(prev); n.add(step.id); return n; });
 
-      // 중복 노드 삽입 가드: isMerged 값과 무관하게 이미 존재하는 단계와 동일 개념이면 삽입 스킵.
+      // AC2: LLM 이 isMerged=true 를 반환하면 ai_recommended 단계를 삽입하지 않는다.
+      // branchedStepIds 에는 추가됐으므로 분기 게이트는 해제된 상태다.
+      if (option.type === "ai_recommended" && branch.isMerged) {
+        setBranchVisible(false);
+        if (stepIdx >= steps.length - 1) onDone();
+        else setStepIdx(stepIdx + 1);
+        return;
+      }
+
+      // AC3 백스톱: isMerged 값과 무관하게 이미 존재하는 단계와 동일 개념이면 삽입 스킵.
       // 중복 시에도 branchedStepIds 에는 추가됐으므로 분기 게이트는 해제된 상태다.
       if (!shouldInsertBranchStep(option.stageContent, steps)) {
         setBranchVisible(false);

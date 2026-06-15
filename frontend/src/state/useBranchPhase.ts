@@ -17,6 +17,8 @@ export interface BranchPhaseSnapshot {
   mode: BranchDialogMode;
   evaluationText: string;
   options: BranchOption[];
+  /** LLM 이 "추천 단계가 이미 로드맵에 존재한다"고 신호한 경우 true. ai_recommended 삽입 차단에 사용. */
+  isMerged: boolean;
   retryCount: number;
   errorMessage: string | null;
   technicalDetail: string | null;
@@ -34,6 +36,7 @@ const initialSnapshot: BranchPhaseSnapshot = {
   mode: "closed",
   evaluationText: "",
   options: [],
+  isMerged: false,
   retryCount: 0,
   errorMessage: null,
   technicalDetail: null,
@@ -88,6 +91,7 @@ export function useBranchPhase() {
         ...cur,
         mode: "choosing",
         evaluationText: ok.evaluationText,
+        isMerged: ok.isMerged,
         options: ok.branchOptions,
         errorMessage: null,
         technicalDetail: null,
