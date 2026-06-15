@@ -4,6 +4,8 @@ import { Sidebar } from "./components/Sidebar";
 import { ProgressBar } from "./components/ProgressBar";
 import { Hero } from "./components/Hero";
 import { SessionLoadOverlay } from "./components/SessionLoadOverlay";
+import { WhatsNewPanel } from "./components/whatsnew/WhatsNewPanel";
+import { hasUnseenWhatsNew, markWhatsNewSeen } from "./state/whatsnewSeen";
 import { I } from "./components/icons";
 import {
   ACCENT_PRESETS,
@@ -187,6 +189,13 @@ function AppWorkspace({
   const edgeRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLElement>(null);
 
+  // 업데이트 소식(What's New): 좌측 드로어에서 확장되는 플라이아웃 패널.
+  // 트리거의 빨간 점은 "아직 안 본 새 버전이 있을 때만" 켠다(localStorage 기록 기준).
+  const [wnOpen, setWnOpen] = useState(false);
+  const [wnUnseen, setWnUnseen] = useState(() => hasUnseenWhatsNew());
+  const wnOpenRef = useRef(wnOpen);
+  wnOpenRef.current = wnOpen;
+
   const peekOn = () => {
     if (!pinnedRef.current) setPeeking(true);
   };
@@ -206,9 +215,20 @@ function AppWorkspace({
   const hide = () => {
     setPinned(false);
     setPeeking(false);
+    setWnOpen(false);
     if (!isMobileRef.current) saveSidebarPinned(false);
     requestAnimationFrame(() => edgeRef.current?.focus());
   };
+
+  // "업데이트" 클릭: 사이드바를 펼쳐 고정하고 그 오른쪽으로 패널을 확장한다.
+  // 여는 순간 최신 버전을 "봤음"으로 기록해 빨간 점을 끈다.
+  const openWhatsNew = () => {
+    pin();
+    setWnOpen(true);
+    markWhatsNewSeen();
+    setWnUnseen(false);
+  };
+  const closeWhatsNew = () => setWnOpen(false);
   // 모바일에서 드로어 안 항목을 고르거나 새 학습을 누르면 드로어를 닫는다.
   const closeDrawerOnMobile = () => {
     if (isMobileRef.current) hide();
@@ -229,13 +249,15 @@ function AppWorkspace({
     return () => mql.removeEventListener("change", onChange);
   }, []);
 
-  // Esc 로 고정된 드로워를 닫는다(비모달 오버레이라 포커스 트랩 없음).
+  // Esc: 플라이아웃이 열려 있으면 그것부터 닫고(사이드바 유지), 없으면 고정 드로어를 닫는다.
+  // (비모달 오버레이라 포커스 트랩 없음. wnOpenRef 로 effect 재구독 없이 현재 열림 상태를 읽는다.)
   useEffect(() => {
     if (!pinned) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        hide();
+        if (wnOpenRef.current) closeWhatsNew();
+        else hide();
       }
     };
     document.addEventListener("keydown", onKey);
@@ -557,6 +579,8 @@ function AppWorkspace({
         photoURL={user?.photoURL ?? undefined}
         onLogin={() => void login()}
         onLogout={() => void logout()}
+        onWhatsNew={openWhatsNew}
+        wnUnseen={wnUnseen}
       />
 
       {/* edge hotzone(hidden→호버=peek) + peek catcher(peek→클릭=고정) */}
@@ -575,6 +599,17 @@ function AppWorkspace({
 
       {/* 모바일 드로어 어둠막 — 탭하면 닫힘 (CSS 가 모바일·open 상태에서만 노출) */}
       {pinned && <div className="sb-scrim" aria-hidden onClick={hide} />}
+
+      {/* 업데이트 소식 플라이아웃 — 사이드바(z-index 100) 뒤에서 그 오른쪽으로 확장.
+          조건부 렌더 + keyframe 진입 애니메이션. 스크림 클릭은 플라이아웃만 닫는다(사이드바 유지). */}
+      {wnOpen && (
+        <>
+          <div className="wn-flyout-scrim" aria-hidden onClick={closeWhatsNew} />
+          <aside className="wn-flyout" aria-label="업데이트 소식">
+            <WhatsNewPanel onClose={closeWhatsNew} />
+          </aside>
+        </>
+      )}
 
       <main className="main">
         <MobileTopBar onMenu={pin} onNew={() => { closeDrawerOnMobile(); newSession(); }} />

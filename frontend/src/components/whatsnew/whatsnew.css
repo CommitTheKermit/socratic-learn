@@ -1,0 +1,272 @@
+/* 업데이트 소식(What's New) 패널 - 시안 D + 좌측 플라이아웃
+   현재 서비스(v3.css)의 토큰/톤을 그대로 따른다. 분류 색은 브랜드 액센트 재사용. */
+
+:root {
+  --wn-feature: #a8ffc9;
+  --wn-improve: #7de3ff;
+  --wn-fix: #c8b6ff;
+}
+
+/* ── 패널 외피 ─────────────────────────────────────────────────────── */
+.wn-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background: var(--bg-elev-1);
+  border-left: 1px solid var(--line);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  letter-spacing: -0.01em;
+  overflow: hidden;
+}
+
+/* 헤더 - 제목 + 닫기 */
+.wn-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 22px 22px 16px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--bg-elev-1), oklch(0.165 0.006 270 / 0.85));
+}
+.wn-head-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.wn-title {
+  font-size: 18px;
+  font-weight: 650;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+.wn-spacer {
+  flex: 1 1 auto;
+}
+.wn-close {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: var(--fg-mut);
+  border: 1px solid var(--line);
+  background: var(--bg-elev-2);
+  transition: color 0.14s ease, background 0.14s ease, border-color 0.14s ease;
+}
+.wn-close:hover {
+  color: var(--fg);
+  background: oklch(1 0 0 / 0.06);
+}
+
+/* 본문 스크롤 영역 */
+.wn-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px 22px 26px;
+}
+.wn-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.wn-scroll::-webkit-scrollbar-thumb {
+  background: oklch(1 0 0 / 0.08);
+  border-radius: 4px;
+}
+.wn-scroll::-webkit-scrollbar-thumb:hover {
+  background: oklch(1 0 0 / 0.16);
+}
+
+/* NEW / 최신 배지 */
+.wn-newpill {
+  display: inline-flex;
+  align-items: center;
+  height: 19px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--holo-on);
+  background: var(--holo);
+  box-shadow: var(--holo-glow);
+}
+
+/* 버전 번호 · 날짜 (mono) */
+.wn-ver {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.wn-date {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--fg-dim);
+}
+
+/* ── 시안 D - 아이콘 선두 (글리프 배지) ───────────────────────────────
+   각 항목 앞에 색 배지 + 글리프. 분류 타이틀은 흰색, 색은 배지로만 구분. */
+.wnD-group {
+  margin-bottom: 24px;
+}
+.wnD-vhead {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 13px;
+}
+.wnD-vhead .wn-ver {
+  font-size: 14px;
+}
+.wnD-vhead .wn-date {
+  margin-left: auto;
+}
+.wnD-items {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.wnD-item {
+  display: flex;
+  gap: 11px;
+  align-items: start;
+}
+.wnD-badge {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+}
+.wnD-badge--feature {
+  color: var(--wn-feature);
+  background: color-mix(in oklab, var(--wn-feature) 15%, transparent);
+}
+.wnD-badge--improve {
+  color: var(--wn-improve);
+  background: color-mix(in oklab, var(--wn-improve) 15%, transparent);
+}
+.wnD-badge--fix {
+  color: var(--wn-fix);
+  background: color-mix(in oklab, var(--wn-fix) 15%, transparent);
+}
+.wnD-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 1px;
+}
+.wnD-catname {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--fg);
+}
+.wnD-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--fg-mut);
+}
+
+/* ── 메인 통합: 좌측 드로어에서 확장되는 플라이아웃 패널 ───────────────
+   사이드바(--sidebar-w) 오른쪽 가장자리에 붙어, 그 뒤에서 슬라이드되어 나오며
+   드로어가 넓어지는 듯한 확장감을 준다. */
+.wn-flyout-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: oklch(0 0 0 / 0.42);
+  -webkit-backdrop-filter: blur(1.5px);
+  backdrop-filter: blur(1.5px);
+  animation: wn-scrim-in 0.3s ease; /* fill 없음 → 정지 상태 opacity:1 */
+}
+@keyframes wn-scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+.wn-flyout {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: var(--sidebar-w);
+  width: 384px;
+  max-width: calc(100vw - var(--sidebar-w));
+  z-index: 95; /* 사이드바(100) 뒤에서 미끄러져 나온다 */
+  box-shadow: 22px 0 56px -30px oklch(0 0 0 / 0.75);
+  animation: wn-fly-in 0.36s cubic-bezier(0.4, 0, 0.2, 1); /* fill 없음 → 정지 상태 transform:none */
+}
+@keyframes wn-fly-in {
+  from {
+    transform: translateX(-100%);
+    opacity: 0.3;
+  }
+}
+.wn-flyout .wn-panel {
+  border-left: 0;
+} /* 사이드바 우측 보더와 겹치지 않게 */
+
+@media (prefers-reduced-motion: reduce) {
+  .wn-flyout,
+  .wn-flyout-scrim {
+    animation-duration: 0.01ms;
+  }
+}
+
+/* ── 사이드바 트리거 항목 - '업데이트' + 빨간 점(핑) ──────────────────── */
+.sb-wn .wn-sb-dot {
+  margin-left: auto;
+  position: relative;
+  flex: 0 0 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: oklch(0.68 0.2 25);
+  box-shadow: 0 0 8px -1px oklch(0.68 0.2 25 / 0.9);
+}
+.sb-wn .wn-sb-dot.is-ping::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: oklch(0.68 0.2 25);
+  animation: wn-ping 1.8s ease-out infinite;
+}
+@keyframes wn-ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  70%,
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sb-wn .wn-sb-dot.is-ping::after {
+    animation: none;
+  }
+}
+
+/* ── 모바일(≤760px): 사이드바가 풀폭 오버레이라 우측 플라이아웃이 무의미.
+   사이드바 위를 덮는 근풀폭 패널로 슬라이드 인한다. ─────────────────── */
+@media (max-width: 760px) {
+  .wn-flyout {
+    left: 0;
+    width: min(420px, 92vw);
+    max-width: 92vw;
+    z-index: 125; /* 모바일 사이드바(120) 위로 */
+  }
+}
