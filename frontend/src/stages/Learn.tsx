@@ -12,7 +12,7 @@ import { MathText } from "../lib/mathText";
 import type { BranchOption } from "../api/contract";
 import { logEvent } from "../lib/analytics";
 import { getLabelForStep } from "../lib/stepLabel";
-import { shouldInsertBranchStep } from "../lib/stepInsertGuard";
+import { canInsertBranchStep } from "../lib/stepInsertGuard";
 
 /**
  * LLM 이 돌려준 분기 옵션을 결정론적으로 보정한다.
@@ -262,18 +262,11 @@ export function StageLearn({
     if (option.stageContent) {
       if (step) setBranchedStepIds((prev) => { const n = new Set(prev); n.add(step.id); return n; });
 
-      // AC2: LLM 이 isMerged=true 를 반환하면 ai_recommended 단계를 삽입하지 않는다.
-      // branchedStepIds 에는 추가됐으므로 분기 게이트는 해제된 상태다.
-      if (option.type === "ai_recommended" && branch.isMerged) {
-        setBranchVisible(false);
-        if (stepIdx >= steps.length - 1) onDone();
-        else setStepIdx(stepIdx + 1);
-        return;
-      }
-
-      // AC3 백스톱: isMerged 값과 무관하게 이미 존재하는 단계와 동일 개념이면 삽입 스킵.
-      // 중복 시에도 branchedStepIds 에는 추가됐으므로 분기 게이트는 해제된 상태다.
-      if (!shouldInsertBranchStep(option.stageContent, steps)) {
+      // AC2 + AC3: canInsertBranchStep 이 두 레이어를 통합 판정한다.
+      //  - AC2: ai_recommended + isMerged=true → 삽입 차단
+      //  - AC3: 제목 중복 백스톱 → 삽입 차단
+      // 두 경우 모두 branchedStepIds 에는 추가됐으므로 분기 게이트는 해제된 상태.
+      if (!canInsertBranchStep(option.type, branch.isMerged, option.stageContent, steps)) {
         setBranchVisible(false);
         if (stepIdx >= steps.length - 1) onDone();
         else setStepIdx(stepIdx + 1);
