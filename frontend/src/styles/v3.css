@@ -736,13 +736,7 @@ body {
 .mode-opt.is-selected .mode-check { opacity: 1; }
 
 /* 좁은 폭: 모드 트리거가 입력바 위 줄로 빠지도록 */
-@media (max-width: 560px) {
-  .input-bar.has-lead { grid-template-columns: 1fr; gap: 6px; }
-  .input-bar.has-lead .mode-dd { justify-self: start; }
-  .input-bar.has-lead textarea { grid-column: 1; }
-  .input-bar.has-lead .btn-capture { grid-column: 1; justify-self: stretch; justify-content: center; }
-  .mode-menu { min-width: min(272px, 78vw); }
-}
+/* 입력바 세로 스택 등 좁은 폭 보강은 styles/mobile.css(≤760px)가 전담한다. */
 
 /* ── Hero guide (입력바 아래 접이식 · 가로 4-스텝, 뉴트럴) ──────────── */
 .hero-guide {

@@ -164,6 +164,29 @@ export const I = {
       d={<path d="M14.5 4.5l5 5M4 20l1-4L16 5a2.1 2.1 0 0 1 3 3L8 19l-4 1Z" />}
     />
   ),
+  menu: (
+    <Ico
+      size={21}
+      d={
+        <>
+          <path d="M4 6h16" />
+          <path d="M4 12h16" />
+          <path d="M4 18h16" />
+        </>
+      }
+    />
+  ),
+  plus: (
+    <Ico
+      size={21}
+      d={
+        <>
+          <path d="M12 5v14" />
+          <path d="M5 12h14" />
+        </>
+      }
+    />
+  ),
   mail: (
     <Ico
       size={15}
