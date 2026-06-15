@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { normalizeStepTitle } from "./stepTitle";
+import { normalizeStepTitle, isDuplicateStep } from "./stepTitle";
 
 // ---------------------------------------------------------------------------
 // 단계별 독립 테스트 - 각 변환을 격리해 검증한다
@@ -142,5 +142,87 @@ describe("normalizeStepTitle - 완전 파이프라인", () => {
     expect(normalizeStepTitle("코루틴이 가벼운 이유")).toBe(
       "코루틴이 가벼운 이유"
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// isDuplicateStep 테스트
+// ---------------------------------------------------------------------------
+
+describe("isDuplicateStep - 일치 케이스", () => {
+  test("완전히 동일한 제목이면 true", () => {
+    expect(
+      isDuplicateStep("동시성과 병렬성", ["동시성과 병렬성", "스레드의 비용"])
+    ).toBe(true);
+  });
+
+  test("부제가 다른 동일 개념 제목이면 true", () => {
+    // candidate: "동시성과 병렬성: 기초 개념" -> normalize -> "동시성과 병렬성"
+    // roadmap:   "동시성과 병렬성"             -> normalize -> "동시성과 병렬성"
+    expect(
+      isDuplicateStep("동시성과 병렬성: 기초 개념", ["동시성과 병렬성"])
+    ).toBe(true);
+  });
+
+  test("로드맵 항목에 부제가 있고 candidate 가 핵심만인 경우도 true", () => {
+    // roadmap: "동시성과 병렬성 - 핵심 개념" -> normalize -> "동시성과 병렬성"
+    // candidate: "동시성과 병렬성"            -> normalize -> "동시성과 병렬성"
+    expect(
+      isDuplicateStep("동시성과 병렬성", ["동시성과 병렬성 - 핵심 개념"])
+    ).toBe(true);
+  });
+
+  test("배열 중간 항목과 일치해도 true", () => {
+    expect(
+      isDuplicateStep("스레드의 비용", [
+        "동시성과 병렬성",
+        "스레드의 비용",
+        "일시중단 함수",
+      ])
+    ).toBe(true);
+  });
+});
+
+describe("isDuplicateStep - 불일치 케이스", () => {
+  test("배열에 없는 제목이면 false", () => {
+    expect(
+      isDuplicateStep("코루틴이 가벼운 이유", [
+        "동시성과 병렬성",
+        "스레드의 비용",
+      ])
+    ).toBe(false);
+  });
+
+  test("빈 배열이면 항상 false", () => {
+    expect(isDuplicateStep("동시성과 병렬성", [])).toBe(false);
+  });
+
+  test("핵심 단어가 비슷해도 정규화 결과가 다르면 false", () => {
+    // "동시성" vs "동시성과 병렬성" - 다른 제목
+    expect(isDuplicateStep("동시성", ["동시성과 병렬성"])).toBe(false);
+  });
+});
+
+describe("isDuplicateStep - 대소문자 혼합 케이스", () => {
+  test("candidate 가 대문자여도 로드맵 소문자와 일치하면 true", () => {
+    expect(isDuplicateStep("REACT HOOKS", ["react hooks", "스레드의 비용"])).toBe(
+      true
+    );
+  });
+
+  test("로드맵이 대문자여도 candidate 소문자와 일치하면 true", () => {
+    expect(isDuplicateStep("react hooks", ["REACT HOOKS"])).toBe(true);
+  });
+
+  test("혼합 대소문자 양쪽이 정규화 후 일치하면 true", () => {
+    expect(isDuplicateStep("Async Await", ["async await"])).toBe(true);
+  });
+
+  test("대소문자만 다른 동일 개념 - 부제까지 포함", () => {
+    // "React Hooks: Deep Dive" -> normalize -> "react hooks"
+    // "react hooks"            -> normalize -> "react hooks"
+    expect(
+      isDuplicateStep("React Hooks: Deep Dive", ["react hooks"])
+    ).toBe(true);
   });
 });

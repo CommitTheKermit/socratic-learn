@@ -30,3 +30,24 @@ export function normalizeStepTitle(title: string): string {
 
   return s;
 }
+
+/**
+ * isDuplicateStep - 분기 중복 노드 삽입 방지 순수 함수
+ *
+ * candidate 를 normalizeStepTitle 로 정규화한 뒤,
+ * roadmapSteps 의 각 항목을 동일하게 정규화해 비교한다.
+ * 하나라도 일치하면 true 를 반환한다.
+ *
+ * @param candidate  삽입 예정 단계 제목
+ * @param roadmapSteps 현재 로드맵에 이미 존재하는 단계 제목 배열
+ * @returns 동일 개념 노드가 이미 존재하면 true
+ */
+export function isDuplicateStep(
+  candidate: string,
+  roadmapSteps: string[]
+): boolean {
+  const normalizedCandidate = normalizeStepTitle(candidate);
+  return roadmapSteps.some(
+    (step) => normalizeStepTitle(step) === normalizedCandidate
+  );
+}
