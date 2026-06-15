@@ -262,8 +262,12 @@ describe("Sub-AC 2b: handleChoose(stageContent) - insertStepAt 먼저 호출 후
     // "AI 추천 단계로 이동" 클릭
     fireEvent.click(screen.getByRole("button", { name: /AI 추천 단계로 이동/ }));
 
-    // insertStepAt 이 (1, branchStageContent) 로 호출되었는지 확인
-    expect(insertStepAt).toHaveBeenCalledWith(1, branchStageContent);
+    // insertStepAt 이 (1, branchStageContent + _meta) 로 호출되었는지 확인
+    // _meta: 현재 stepIdx=0 의 step.id=1 을 부모로, 형제 0번(첫 분기)
+    expect(insertStepAt).toHaveBeenCalledWith(1, {
+      ...branchStageContent,
+      _meta: { parentMainStepId: 1, siblingIndex: 0 },
+    });
     // setStepIdx 가 (1) 로 호출되었는지 확인
     expect(setStepIdx).toHaveBeenCalledWith(1);
     // 호출 순서: insertStepAt 먼저, setStepIdx 이후
