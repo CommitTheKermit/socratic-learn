@@ -42,10 +42,14 @@
 .m-topbar { display: none; }
 .sb-scrim { display: none; }
 
-/* 드로어 열림 상태: transition 으로 translateX(0) 을 주면 리렌더 중 transition
+/* 드로어 열림 슬라이드인: transition 으로 translateX(0) 을 주면 리렌더 중 transition
    이 재시작되며 끝까지 도달하지 못하는 문제가 있다. 키프레임은 끝 프레임을
-   고정(forwards)하고 리렌더로 재시작되지 않으므로 열림 변환을 확정한다. */
-.app[data-drawer="open"] .sidebar {
+   고정(forwards)하고 리렌더로 재시작되지 않으므로 열림 변환을 확정한다.
+   단, 키프레임은 요소가 새로 마운트될 때마다 재생되므로, 페이지(단계)/세션 전환으로
+   사이드바가 재마운트될 때 슬라이드가 반복되는 문제가 있다. 그래서 사용자가 직접
+   펼치는 순간(App 이 data-drawer-anim="in" 으로 표시)에만 키프레임을 건다. 재마운트
+   시에는 이 표시가 없어 v3.css 의 resting transform(translateX(0)) 으로 즉시 고정된다. */
+.app[data-drawer-anim="in"][data-drawer="open"] .sidebar {
   animation: sbDrawerIn 0.26s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 @keyframes sbDrawerIn {
@@ -53,7 +57,7 @@
   to   { transform: translateX(0); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .app[data-drawer="open"] .sidebar { animation-duration: 0.01ms; }
+  .app[data-drawer-anim="in"][data-drawer="open"] .sidebar { animation-duration: 0.01ms; }
 }
 
 /* ══════════════════════════════════════════════════════════════════════
