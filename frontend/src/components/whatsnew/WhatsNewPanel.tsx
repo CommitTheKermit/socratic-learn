@@ -1,4 +1,4 @@
-import { CHANGELOG, CHANGE_CATEGORY } from "./changelog";
+import { CHANGELOG, CHANGE_CATEGORY, CHANGE_TYPE_ORDER } from "./changelog";
 import "./whatsnew.css";
 
 /** 공용 닫기(×) 아이콘. */
@@ -49,7 +49,12 @@ export function WhatsNewPanel({ onClose }: { onClose?: () => void }) {
               <span className="wn-date">{ver.date}</span>
             </div>
             <div className="wnD-items">
-              {ver.changes.map((c, i) => {
+              {[...ver.changes]
+                .sort(
+                  (a, b) =>
+                    CHANGE_TYPE_ORDER.indexOf(a.type) - CHANGE_TYPE_ORDER.indexOf(b.type),
+                )
+                .map((c, i) => {
                 const cat = CHANGE_CATEGORY[c.type];
                 return (
                   <div className="wnD-item" key={i}>

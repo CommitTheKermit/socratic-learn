@@ -43,6 +43,9 @@ export const CHANGE_CATEGORY: Record<
   fix: { label: "수정", full: "버그 수정", glyph: "✓" },
 };
 
+/** 패널 내 변경 항목 표시 순서: 기능 추가 → 개선 → 버그 수정. */
+export const CHANGE_TYPE_ORDER: ChangeType[] = ["feature", "improve", "fix"];
+
 /** 전체 버전 히스토리 (최신 → 과거). 맨 앞이 현재 버전. */
 export const CHANGELOG: VersionEntry[] = [
   {
