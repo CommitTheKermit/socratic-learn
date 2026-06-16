@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLearnContent } from "../state/LearnContent";
 import { Markdown } from "../lib/markdown";
 import { LEVEL_LABELS, type Step } from "./data";
@@ -191,6 +191,38 @@ export function StageLearn({
   useEffect(() => () => {
     if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
   }, []);
+
+  // ── 학습 로드맵 미니 바 (스크롤 시 헤더가 사라지면 위에서 슬라이드+페이드 등장) ──
+  // 트리거: 실제 헤더(lv-bar)가 스크롤 컨테이너(.main-inner) 위로 완전히 벗어나면 표시.
+  const [miniVisible, setMiniVisible] = useState(false);
+  const miniRailRef = useRef<HTMLOListElement | null>(null);
+  const miniObserverRef = useRef<IntersectionObserver | null>(null);
+  const setBarRef = useCallback((node: HTMLElement | null) => {
+    miniObserverRef.current?.disconnect();
+    miniObserverRef.current = null;
+    if (!node || typeof IntersectionObserver === "undefined") return;
+    const root = node.closest(".main-inner");
+    const io = new IntersectionObserver(
+      ([entry]) => setMiniVisible(!entry.isIntersecting),
+      { root, threshold: 0 },
+    );
+    io.observe(node);
+    miniObserverRef.current = io;
+  }, []);
+  useEffect(() => () => miniObserverRef.current?.disconnect(), []);
+
+  // 미니 바가 보일 때 현재 칩을 가로 레일 중앙으로 정렬한다.
+  useEffect(() => {
+    if (!miniVisible) return;
+    const rail = miniRailRef.current;
+    if (!rail || typeof rail.scrollTo !== "function") return;
+    const cur = rail.querySelector<HTMLElement>(".is-curr");
+    if (!cur) return;
+    rail.scrollTo({
+      left: cur.offsetLeft - rail.clientWidth / 2 + cur.offsetWidth / 2,
+      behavior: "smooth",
+    });
+  }, [miniVisible, stepIdx]);
 
   useEffect(() => {
     if (
@@ -639,9 +671,40 @@ export function StageLearn({
     </>
   ) : null;
 
+  // 전체 학습 진행도(현재 순번/전체) - 미니 바 하단 holo 진행 바 width.
+  const progressPct = steps.length
+    ? Math.min(100, Math.round(((stepIdx + 1) / steps.length) * 100))
+    : 0;
+  // 헤더 칩과 미니 바 칩이 동일 소스를 쓰도록 한 곳에서 렌더한다.
+  const renderStepItems = () =>
+    steps.map((s, i) => (
+      <li
+        key={s.id}
+        className={
+          "lv-step" +
+          (i === stepIdx ? " is-curr" : "") +
+          (i < stepIdx ? " is-done" : "") +
+          (s._meta ? " is-inserted" : "")
+        }
+      >
+        <button
+          type="button"
+          onClick={() => handleChipClick(i)}
+          aria-disabled={
+            branchEnabled && i > stepIdx && !!step && !branchedStepIds.has(step.id)
+              ? true
+              : undefined
+          }
+        >
+          <span className="lv-step-num">{getLabelForStep(steps, i)}</span>
+          <span className="lv-step-title">{s.title}</span>
+        </button>
+      </li>
+    ));
+
   return (
     <div className="lv-board">
-      <header className="lv-bar">
+      <header className="lv-bar" ref={setBarRef}>
         <div className="lv-bar-top">
           <span className="lv-bar-eyebrow">학습 진행</span>
           <span className="lv-bar-title">{concept}</span>
@@ -668,33 +731,21 @@ export function StageLearn({
             </button>
           </div>
         </div>
-        <ol className="lv-steps">
-          {steps.map((s, i) => (
-            <li
-              key={s.id}
-              className={
-                "lv-step" +
-                (i === stepIdx ? " is-curr" : "") +
-                (i < stepIdx ? " is-done" : "") +
-                (s._meta ? " is-inserted" : "")
-              }
-            >
-              <button
-                type="button"
-                onClick={() => handleChipClick(i)}
-                aria-disabled={
-                  branchEnabled && i > stepIdx && !!step && !branchedStepIds.has(step.id)
-                    ? true
-                    : undefined
-                }
-              >
-                <span className="lv-step-num">{getLabelForStep(steps, i)}</span>
-                <span className="lv-step-title">{s.title}</span>
-              </button>
-            </li>
-          ))}
-        </ol>
+        <ol className="lv-steps">{renderStepItems()}</ol>
       </header>
+
+      {/* 스크롤 시 헤더가 사라지면 위에서 슬라이드+페이드로 내려오는 압축 로드맵 미니 바 */}
+      <div className={"lv-mini" + (miniVisible ? " is-shown" : "")} aria-hidden={!miniVisible}>
+        <div className="lv-mini-inner">
+          <span className="lv-mini-title">{concept}</span>
+          <ol className="lv-steps lv-mini-steps" ref={miniRailRef}>
+            {renderStepItems()}
+          </ol>
+        </div>
+        <div className="lv-prog">
+          <span style={{ width: progressPct + "%" }} />
+        </div>
+      </div>
 
       {step &&
         (orient === "horizontal" ? (

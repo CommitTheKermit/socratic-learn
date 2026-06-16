@@ -121,7 +121,7 @@ describe("Sub-AC 4: Learn 헤더 단계목록 - 원본 단계 정수 라벨", ()
 
     const { container } = renderLearn(steps);
 
-    const nums = container.querySelectorAll(".lv-step-num");
+    const nums = container.querySelectorAll(".lv-bar .lv-step-num");
     expect(nums).toHaveLength(3);
     expect(nums[0].textContent).toBe("1");
     expect(nums[1].textContent).toBe("2");
@@ -134,7 +134,7 @@ describe("Sub-AC 4: Learn 헤더 단계목록 - 원본 단계 정수 라벨", ()
 
     const { container } = renderLearn(steps);
 
-    const nums = container.querySelectorAll(".lv-step-num");
+    const nums = container.querySelectorAll(".lv-bar .lv-step-num");
     expect(nums[0].textContent).not.toBe("01");
     expect(nums[1].textContent).not.toBe("02");
     expect(nums[0].textContent).toBe("1");
@@ -154,7 +154,7 @@ describe("Sub-AC 4: Learn 헤더 단계목록 - 분기 단계 계층형 십진�
 
     const { container } = renderLearn(steps);
 
-    const nums = container.querySelectorAll(".lv-step-num");
+    const nums = container.querySelectorAll(".lv-bar .lv-step-num");
     expect(nums[0].textContent).toBe("1");
     expect(nums[1].textContent).toBe("1.1");
   });
@@ -169,7 +169,7 @@ describe("Sub-AC 4: Learn 헤더 단계목록 - 분기 단계 계층형 십진�
 
     const { container } = renderLearn(steps);
 
-    const nums = container.querySelectorAll(".lv-step-num");
+    const nums = container.querySelectorAll(".lv-bar .lv-step-num");
     expect(nums[0].textContent).toBe("1");
     expect(nums[1].textContent).toBe("1.1");
     expect(nums[2].textContent).toBe("1.2");
@@ -186,7 +186,7 @@ describe("Sub-AC 4: Learn 헤더 단계목록 - 분기 단계 계층형 십진�
 
     const { container } = renderLearn(steps);
 
-    const nums = container.querySelectorAll(".lv-step-num");
+    const nums = container.querySelectorAll(".lv-bar .lv-step-num");
     expect(nums[0].textContent).toBe("1");
     expect(nums[1].textContent).toBe("1.1");
     expect(nums[2].textContent).toBe("2");
@@ -208,7 +208,7 @@ describe("Sub-AC 4: Learn 헤더 단계목록 - 혼합 배열 순번 일관성",
 
     const { container } = renderLearn(steps);
 
-    const nums = container.querySelectorAll(".lv-step-num");
+    const nums = container.querySelectorAll(".lv-bar .lv-step-num");
     expect(nums[0].textContent).toBe("1");
     expect(nums[1].textContent).toBe("1.1");
     expect(nums[2].textContent).toBe("2");
@@ -228,7 +228,7 @@ describe("Sub-AC 4: Learn 헤더 단계목록 - 혼합 배열 순번 일관성",
 
     const { container } = renderLearn(steps);
 
-    const nums = container.querySelectorAll(".lv-step-num");
+    const nums = container.querySelectorAll(".lv-bar .lv-step-num");
     expect(nums[0].textContent).toBe("1");
     expect(nums[1].textContent).toBe("1.1");
     expect(nums[2].textContent).toBe("1.2");
@@ -248,6 +248,6 @@ describe("Sub-AC 4: Learn 헤더 단계목록 - 혼합 배열 순번 일관성",
     const { container } = renderLearn(steps);
 
     // 3개 단계 → .lv-step-num 3개 (내부 독립 카운터가 없어야 항상 steps.length 와 일치)
-    expect(container.querySelectorAll(".lv-step-num")).toHaveLength(steps.length);
+    expect(container.querySelectorAll(".lv-bar .lv-step-num")).toHaveLength(steps.length);
   });
 });
