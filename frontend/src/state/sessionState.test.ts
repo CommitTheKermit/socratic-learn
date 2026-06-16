@@ -69,6 +69,46 @@ describe("sessionState 직렬화/역직렬화", () => {
     expect(JSON.parse(json)).not.toHaveProperty("secret");
   });
 
+  test("stepBranches/branchedStepIds 분기 스냅샷이 round-trip 보존된다", () => {
+    const state: SessionState = {
+      ...fullState(),
+      stepBranches: {
+        0: {
+          evaluationText: "잘 이해했어요",
+          isMerged: false,
+          options: [
+            { label: "다음 로드맵", type: "roadmap_next", isRecommended: true, stageContent: null },
+            { label: "추가 학습", type: "additional", isRecommended: false, stageContent: null },
+          ],
+        },
+      },
+      branchedStepIds: [1, 3],
+    };
+    const restored = deserializeSessionState(serializeSessionState(state));
+    expect(restored.stepBranches).toEqual(state.stepBranches);
+    expect(restored.branchedStepIds).toEqual([1, 3]);
+  });
+
+  test("options 가 빈 분기 스냅샷(에러/전이 잔여)은 역직렬화에서 버려진다", () => {
+    const json = JSON.stringify({
+      ...fullState(),
+      stepBranches: { 0: { evaluationText: "x", isMerged: false, options: [] } },
+    });
+    expect(deserializeSessionState(json).stepBranches).toBeUndefined();
+  });
+
+  test("branchedStepIds 의 정수 아닌 항목은 걸러진다", () => {
+    const json = JSON.stringify({ ...fullState(), branchedStepIds: [1, "2", 3.5, 4] });
+    expect(deserializeSessionState(json).branchedStepIds).toEqual([1, 4]);
+  });
+
+  test("분기 스냅샷이 없으면 직렬화 결과에 키가 포함되지 않는다", () => {
+    const json = serializeSessionState(fullState());
+    const parsed = JSON.parse(json);
+    expect(parsed).not.toHaveProperty("stepBranches");
+    expect(parsed).not.toHaveProperty("branchedStepIds");
+  });
+
   test("객체가 아닌 JSON 역직렬화 시 throw 한다", () => {
     expect(() => deserializeSessionState("null")).toThrow();
     expect(() => deserializeSessionState("42")).toThrow();

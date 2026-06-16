@@ -64,6 +64,10 @@ function makeLearnContent(steps: Step[], overrides: Record<string, unknown> = {}
     stepEvalErrors: {},
     submitEvaluation: vi.fn(),
     clearEvaluation: vi.fn(),
+    stepBranches: {},
+    setStepBranch: vi.fn(),
+    branchedStepIds: new Set<number>(),
+    markBranched: vi.fn(),
     insertStepAt: vi.fn(() => 99),
     ...overrides,
   };
@@ -81,6 +85,7 @@ function makeBranchPhase(): Record<string, unknown> {
     chooseBranch: vi.fn(() => ({ stage: "explain" })),
     closeBranch: vi.fn(),
     retryBranch: vi.fn(),
+    hydrate: vi.fn(),
   };
 }
 

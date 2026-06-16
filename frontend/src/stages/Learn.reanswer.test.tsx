@@ -45,6 +45,10 @@ function makeLearnContent(overrides: Record<string, unknown> = {}): Record<strin
     stepEvalErrors: {},
     submitEvaluation: vi.fn(),
     clearEvaluation: vi.fn(),
+    stepBranches: {},
+    setStepBranch: vi.fn(),
+    branchedStepIds: new Set<number>(),
+    markBranched: vi.fn(),
     insertStepAt: vi.fn(() => 99),
     ...overrides,
   };
@@ -66,6 +70,7 @@ function makeBranchPhase(overrides: Record<string, unknown> = {}): Record<string
     })),
     closeBranch: vi.fn(),
     retryBranch: vi.fn(),
+    hydrate: vi.fn(),
     ...overrides,
   };
 }

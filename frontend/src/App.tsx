@@ -131,6 +131,8 @@ function AppSession({ stage, sessionId }: { stage: Stage; sessionId?: string }) 
               probeReady: loaded.probeReady,
               steps: loaded.steps,
               stepEvaluations: loaded.stepEvaluations,
+              stepBranches: loaded.stepBranches,
+              branchedStepIds: loaded.branchedStepIds,
             }
           : undefined
       }
@@ -294,6 +296,8 @@ function AppWorkspace({
     outlineStatus,
     stepDetailStatus,
     stepEvaluations,
+    stepBranches,
+    branchedStepIds,
     loadProbe,
     loadOutline,
   } = useLearnContent();
@@ -363,6 +367,8 @@ function AppWorkspace({
     probeReady: probeStatus === "ready",
     steps: outlineStatus === "ready" && steps.length ? steps : undefined,
     stepEvaluations: Object.keys(stepEvaluations).length ? stepEvaluations : undefined,
+    stepBranches: Object.keys(stepBranches).length ? stepBranches : undefined,
+    branchedStepIds: branchedStepIds.size ? [...branchedStepIds] : undefined,
   });
 
   // answers 디바운스 hook. 입력 완료 신호(textarea onBlur)에 flush 를 연결하고,
@@ -418,6 +424,8 @@ function AppWorkspace({
     outlineStatus,
     stepDetailStatus,
     stepEvaluations,
+    stepBranches,
+    branchedStepIds,
   ]);
 
   const accentStyle = useMemo<AccentVars>(() => {

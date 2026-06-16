@@ -1,5 +1,17 @@
 import type { ProbeAnswers, ProbeQuestion, Stage, Step } from "../stages/data";
 import type { StepEvaluation } from "../api/claudeContent";
+import type { BranchOption } from "../api/contract";
+
+/**
+ * 한 단계에서 생성된 분기 평가 스냅샷. 다이얼로그의 평가 텍스트/선택지/병합 여부를 담는다.
+ * 재접속/새로고침 시 "평가 보기"로 분기 다이얼로그를 복원하기 위해 영속화한다.
+ * (useBranchPhase 의 전이 상태(loading/error)는 영속화 대상이 아니며 choosing 결과만 보관한다.)
+ */
+export interface StepBranchResult {
+  evaluationText: string;
+  isMerged: boolean;
+  options: BranchOption[];
+}
 
 /**
  * SessionState 최상위 필드명을 키로, 마지막으로 변경된 시각(ISO8601)을 값으로 갖는 맵.
@@ -38,6 +50,10 @@ export interface SessionState {
   steps?: Step[];
   /** stepIdx 별 답변 평가 결과. */
   stepEvaluations?: Record<number, StepEvaluation>;
+  /** stepIdx 별 분기 평가 스냅샷. "평가 보기"로 분기 다이얼로그를 복원하는 데 쓴다. */
+  stepBranches?: Record<number, StepBranchResult>;
+  /** 분기 선택이 완료된 step.id 목록. 게이트 해제 상태(다음 개념 진행 허용)를 복원한다. */
+  branchedStepIds?: number[];
   /** 최상위 필드별 마지막 변경 시각(ISO8601). 누락 시 빈 객체로 취급한다. */
   fieldUpdatedAt?: FieldUpdatedAt;
 }
@@ -160,6 +176,53 @@ function asStepEvaluations(v: unknown): Record<number, StepEvaluation> | undefin
 }
 
 /**
+ * 분기 선택지 배열을 보정한다. label/type 문자열이 있어야 유효하며 나머지 필드는 신뢰한다.
+ * (stageContent 는 Step|null 로 트리밍 없이 그대로 보존한다.)
+ */
+function asBranchOptions(v: unknown): BranchOption[] {
+  if (!Array.isArray(v)) return [];
+  return v.filter(
+    (x): x is BranchOption =>
+      x != null &&
+      typeof x === "object" &&
+      typeof (x as { label?: unknown }).label === "string" &&
+      typeof (x as { type?: unknown }).type === "string",
+  );
+}
+
+/**
+ * stepIdx 별 분기 스냅샷 맵을 보정한다. 각 항목은 비어있지 않은 options 를 가져야 한다.
+ * options 가 없으면(에러/전이 스냅샷) 항목을 버려 "분기 결과 없음"으로 취급한다.
+ */
+function asStepBranches(v: unknown): Record<number, StepBranchResult> | undefined {
+  if (v == null || typeof v !== "object") return undefined;
+  const out: Record<number, StepBranchResult> = {};
+  for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+    const idx = Number(k);
+    if (!Number.isInteger(idx)) continue;
+    if (val == null || typeof val !== "object") continue;
+    const o = val as Record<string, unknown>;
+    const options = asBranchOptions(o.options);
+    if (!options.length) continue;
+    out[idx] = {
+      evaluationText: typeof o.evaluationText === "string" ? o.evaluationText : "",
+      isMerged: o.isMerged === true,
+      options,
+    };
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+/**
+ * 분기 선택 완료 step.id 목록을 보정한다. 정수만 신뢰하며 항목이 0개면 undefined.
+ */
+function asBranchedStepIds(v: unknown): number[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const out = v.filter((x): x is number => typeof x === "number" && Number.isInteger(x));
+  return out.length ? out : undefined;
+}
+
+/**
  * 필드별 변경 시각 맵을 보정한다. 값이 문자열인 항목만 신뢰한다.
  *
  * 누락(undefined/null)되었거나 손상된(비객체/배열 등 잘못된 타입) 입력은
@@ -204,6 +267,12 @@ export function serializeSessionState(state: SessionState): string {
   if (state.stepEvaluations && Object.keys(state.stepEvaluations).length) {
     payload.stepEvaluations = state.stepEvaluations;
   }
+  if (state.stepBranches && Object.keys(state.stepBranches).length) {
+    payload.stepBranches = state.stepBranches;
+  }
+  if (state.branchedStepIds && state.branchedStepIds.length) {
+    payload.branchedStepIds = state.branchedStepIds;
+  }
   if (state.fieldUpdatedAt && Object.keys(state.fieldUpdatedAt).length) {
     payload.fieldUpdatedAt = state.fieldUpdatedAt;
   }
@@ -225,6 +294,8 @@ export function deserializeSessionState(json: string): SessionState {
   const probeQuestions = asProbeQuestions(o.probeQuestions);
   const steps = asSteps(o.steps);
   const stepEvaluations = asStepEvaluations(o.stepEvaluations);
+  const stepBranches = asStepBranches(o.stepBranches);
+  const branchedStepIds = asBranchedStepIds(o.branchedStepIds);
   const fieldUpdatedAt = asFieldUpdatedAt(o.fieldUpdatedAt);
   return {
     sessionId: asString(o.sessionId),
@@ -245,6 +316,8 @@ export function deserializeSessionState(json: string): SessionState {
     probeReady: probeQuestions ? o.probeReady === true : undefined,
     steps,
     stepEvaluations,
+    stepBranches,
+    branchedStepIds,
     fieldUpdatedAt,
   };
 }

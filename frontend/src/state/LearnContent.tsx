@@ -21,6 +21,7 @@ import {
 } from "../api/claudeContent";
 import { streamStepDetail, type StreamHandle } from "../api/stepDetailStream";
 import type { LearnMode } from "../api/contract";
+import type { StepBranchResult } from "./sessionState";
 import { buildRoadmapStages } from "./roadmap";
 
 // "streaming": body 토큰이 점진적으로 들어오는 중(questions 는 아직 없음). complete 시 "ready".
@@ -62,6 +63,18 @@ interface LearnContentValue {
   clearEvaluation: (stepIdx: number) => void;
 
   /**
+   * stepIdx 별 분기 평가 스냅샷(평가 텍스트/선택지/병합 여부).
+   * 재접속/새로고침 시 "평가 보기"로 분기 다이얼로그를 복원하는 출처가 된다.
+   */
+  stepBranches: Record<number, StepBranchResult>;
+  /** 한 단계의 분기 평가 결과를 저장(또는 덮어쓰기)한다. choosing 성공 시점에 호출. */
+  setStepBranch: (stepIdx: number, result: StepBranchResult) => void;
+  /** 분기 선택이 완료된 step.id 집합. 게이트 해제(다음 개념 진행) 판정의 출처. */
+  branchedStepIds: Set<number>;
+  /** 한 step.id 를 분기 선택 완료로 표시한다(게이트 해제). */
+  markBranched: (stepId: number) => void;
+
+  /**
    * 분기 선택의 결과로 새 학습 단계를 currentIndex+1 위치에 삽입한다.
    * - 신규 step.id 는 현 steps 의 max id + 1 로 강제 재할당해 충돌을 방지
    * - 삽입된 id 를 반환하여 외부에서 inserted 목록 추적 가능
@@ -88,6 +101,8 @@ export interface LearnContentInitial {
   probeReady?: boolean;
   steps?: Step[];
   stepEvaluations?: Record<number, StepEvaluation>;
+  stepBranches?: Record<number, StepBranchResult>;
+  branchedStepIds?: number[];
 }
 
 /** 복원된 steps 로부터 각 단계의 상세 로딩 상태를 도출한다(본문+질문이 있으면 ready). */
@@ -164,6 +179,26 @@ export function LearnContentProvider({
   );
   const [stepEvalErrors, setStepEvalErrors] = useState<Record<number, ErrInfo | null>>({});
   const evalInflightRef = useRef<Set<number>>(new Set());
+
+  // 분기 평가 스냅샷(stepIdx별)과 분기 선택 완료 step.id 집합. 둘 다 세션에 영속화되며
+  // initial 로 복원된다. stepBranches 는 "평가 보기" 복원, branchedStepIds 는 게이트 해제 복원용.
+  const [stepBranches, setStepBranches] = useState<Record<number, StepBranchResult>>(
+    () => initial?.stepBranches ?? {},
+  );
+  const [branchedStepIds, setBranchedStepIds] = useState<Set<number>>(
+    () => new Set(initial?.branchedStepIds ?? []),
+  );
+  const setStepBranch = useCallback((stepIdx: number, result: StepBranchResult) => {
+    setStepBranches((m) => ({ ...m, [stepIdx]: result }));
+  }, []);
+  const markBranched = useCallback((stepId: number) => {
+    setBranchedStepIds((prev) => {
+      if (prev.has(stepId)) return prev;
+      const next = new Set(prev);
+      next.add(stepId);
+      return next;
+    });
+  }, []);
 
   // 언마운트(세션 전환으로 Provider 가 key 재마운트되는 경우 포함) 시 진행 중 스트림을 정리한다.
   useEffect(() => () => abortStepStreams(), [abortStepStreams]);
@@ -349,6 +384,8 @@ export function LearnContentProvider({
     setStepEvalStatus({});
     setStepEvalErrors({});
     evalInflightRef.current.clear();
+    setStepBranches({});
+    setBranchedStepIds(new Set());
   }, [abortStepStreams]);
 
   return (
@@ -371,6 +408,10 @@ export function LearnContentProvider({
         stepEvalErrors,
         submitEvaluation,
         clearEvaluation,
+        stepBranches,
+        setStepBranch,
+        branchedStepIds,
+        markBranched,
         insertStepAt,
         reset,
       }}

@@ -151,12 +151,16 @@ export function StageLearn({
     stepEvalErrors,
     submitEvaluation,
     clearEvaluation,
+    stepBranches,
+    setStepBranch,
+    branchedStepIds,
+    markBranched,
     insertStepAt,
   } = useLearnContent();
   const branch = useBranchPhase();
   const [branchVisible, setBranchVisible] = useState(false);
-  // 분기 옵션 선택이 완료된 step.id 집합. handleChoose 로만 추가된다.
-  const [branchedStepIds, setBranchedStepIds] = useState<Set<number>>(new Set());
+  // 분기 옵션 선택 완료 step.id 집합(branchedStepIds)과 분기 스냅샷(stepBranches)은
+  // LearnContent 가 보유·영속화한다. markBranched 로만 추가되며 새로고침/세션 복원 시 유지된다.
   // 레이아웃 방향: 기본 세로(접이식 설명 ▸ 질문). 저장값 의존 없이 항상 세로로 시작.
   const [orient, setOrient] = useState<Orient>("vertical");
   // 세로 모드에서 개념 설명 카드 접힘 여부 (기본 펼침).
@@ -234,12 +238,33 @@ export function StageLearn({
     }
   }, [outlineStatus, stepIdx, step, detailStatus, concept, safeLevel, mode, loadStepDetail]);
 
-  // stepIdx 가 바뀌면 분기 가시 상태도 닫는다.
+  // stepIdx 가 바뀌면 분기 다이얼로그를 닫는다. 단, 그 단계에 영속된 분기 스냅샷이 있으면
+  // closeBranch(휘발) 대신 hydrate 로 choosing 상태를 복원해 "평가 보기"가 다시 동작하게 한다.
+  // (영속값에서 즉시 복원하므로 LLM 재호출 비용이 없다.)
   useEffect(() => {
     setBranchVisible(false);
-    branch.closeBranch();
+    const persisted = stepBranches[stepIdx];
+    if (branchEnabled && persisted) branch.hydrate(persisted);
+    else branch.closeBranch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stepIdx]);
+
+  // 분기 평가가 성공(choosing)하면 그 스냅샷을 stepBranches 에 영속화한다.
+  // 새로고침/단계 이동으로 다이얼로그가 휘발돼도 위 hydrate 가 이 값으로 복원한다.
+  // hydrate 직후처럼 동일 스냅샷이 이미 저장돼 있으면(참조 동일) 중복 저장을 건너뛴다.
+  useEffect(() => {
+    if (!branchEnabled || branch.mode !== "choosing") return;
+    const cur = stepBranches[stepIdx];
+    if (cur && cur.options === branch.options && cur.evaluationText === branch.evaluationText) {
+      return;
+    }
+    setStepBranch(stepIdx, {
+      evaluationText: branch.evaluationText,
+      isMerged: branch.isMerged,
+      options: branch.options,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [branchEnabled, branch.mode, branch.options, branch.evaluationText, branch.isMerged, stepIdx]);
 
   // sl_step_enter: 스텝 진입/이동 시 계측(fire-and-forget).
   // stepIdx 변경마다 1회 emit. sessionId 없으면 no-op.
@@ -286,13 +311,13 @@ export function StageLearn({
       return;
     }
     if (option.type === "roadmap_next") {
-      if (step) setBranchedStepIds((prev) => { const n = new Set(prev); n.add(step.id); return n; });
+      if (step) markBranched(step.id);
       if (stepIdx >= steps.length - 1) onDone();
       else setStepIdx(stepIdx + 1);
       return;
     }
     if (option.stageContent) {
-      if (step) setBranchedStepIds((prev) => { const n = new Set(prev); n.add(step.id); return n; });
+      if (step) markBranched(step.id);
 
       // AC2 + AC3: canInsertBranchStep 이 두 레이어를 통합 판정한다.
       //  - AC2: ai_recommended + isMerged=true → 삽입 차단
@@ -419,6 +444,17 @@ export function StageLearn({
     for (const q of step?.questions ?? []) nextSkips[q.id] = true;
     setSkips(nextSkips);
   };
+  // 분기 평가(openBranch) 입력을 현재 단계 기준으로 구성한다. 최초 제출과 스냅샷 복구 재요청이 공유.
+  const buildBranchInput = (s: Step) => ({
+    concept,
+    level: safeLevel,
+    step: s,
+    questions: s.questions
+      .filter((q) => !skips[q.id])
+      .map((q) => ({ id: q.id, q: q.q, answer: answers[q.id] || "" })),
+    roadmapOutlineText: steps.map((x, i) => `${i + 1}. ${x.title} - ${x.desc}`).join("\n"),
+  });
+
   const submitAnswers = () => {
     if (!step || isEvaluating || isEvaluated) return;
     // 계측: 제출되는 각 질문(스킵 제외)마다 sl_answer_submit emit (fire-and-forget)
@@ -431,19 +467,15 @@ export function StageLearn({
     // "가볍게" 모드는 분기 없이 평가만 하고 끝. (사용자는 푸터의 "다음 개념" 으로 진행)
     if (!branchEnabled) return;
     // 그 외 모드는 분기 평가도 백그라운드로 시작. 사용자는 "평가 보기" 버튼으로 다이얼로그를 연다.
-    const roadmapOutlineText = steps
-      .map((s, i) => `${i + 1}. ${s.title} - ${s.desc}`)
-      .join("\n");
-    const qList = step.questions
-      .filter((q) => !skips[q.id])
-      .map((q) => ({ id: q.id, q: q.q, answer: answers[q.id] || "" }));
-    void branch.openBranch({
-      concept,
-      level: safeLevel,
-      step,
-      questions: qList,
-      roadmapOutlineText,
-    });
+    void branch.openBranch(buildBranchInput(step));
+  };
+
+  // "평가 보기" 클릭. 분기 스냅샷이 살아있으면(choosing/error 또는 hydrate 복원) 다이얼로그만 연다.
+  // 스냅샷이 없는 경우(평가는 끝났지만 분기 평가가 에러였거나 로딩 중 이탈해 영속 안 됨)
+  // 분기 평가를 재요청해 복구한다 - 게이트에 걸렸는데 다이얼로그를 못 여는 데드락을 막는다.
+  const handleOpenBranch = () => {
+    setBranchVisible(true);
+    if (!branchReady && step) void branch.openBranch(buildBranchInput(step));
   };
 
   // 두 호출의 합산 로딩/완료 상태. light 모드는 분기 호출이 없으므로 평가만으로 완료를 판정한다.
@@ -489,11 +521,13 @@ export function StageLearn({
     </button>
   ) : isEvaluated ? (
     <>
-      {branchEnabled && branchReady && (
+      {/* 분기가 준비됐거나(branchReady) 게이트에 걸린(isBranchGated) 동안 항상 "평가 보기"를 노출한다.
+          스냅샷이 휘발된 게이트 상태에서도 버튼이 사라지지 않아야 다이얼로그로 복귀할 수 있다. */}
+      {branchEnabled && (branchReady || isBranchGated) && (
         <button
           className="lv-btn-holo lv-submit"
           type="button"
-          onClick={() => setBranchVisible(true)}
+          onClick={handleOpenBranch}
         >
           <span className="lv-submit-icon" aria-hidden>{I.brand}</span>
           평가 보기

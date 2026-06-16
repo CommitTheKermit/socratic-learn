@@ -33,6 +33,9 @@ const sampleSteps: Step[] = [
 ];
 
 function makeLearnContent(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  // 실제 LearnContent 처럼 markBranched 가 같은 Set 을 in-place 갱신하도록 묶는다.
+  // (분기 선택 후 게이트 해제를 검증하는 칩 이동 테스트가 이 갱신에 의존한다.)
+  const branchedStepIds = new Set<number>();
   return {
     steps: sampleSteps,
     outlineStatus: "ready",
@@ -44,6 +47,13 @@ function makeLearnContent(overrides: Record<string, unknown> = {}): Record<strin
     stepEvalStatus: {},
     stepEvalErrors: {},
     submitEvaluation: vi.fn(),
+    clearEvaluation: vi.fn(),
+    stepBranches: {},
+    setStepBranch: vi.fn(),
+    branchedStepIds,
+    markBranched: vi.fn((id: number) => {
+      branchedStepIds.add(id);
+    }),
     insertStepAt: vi.fn(() => 99),
     ...overrides,
   };
@@ -66,6 +76,7 @@ function makeBranchPhase(overrides: Record<string, unknown> = {}): Record<string
     })),
     closeBranch: vi.fn(),
     retryBranch: vi.fn(),
+    hydrate: vi.fn(),
     ...overrides,
   };
 }
@@ -190,7 +201,7 @@ describe("AC3: light mode 동작 불변 - 분기 게이트 없음", () => {
 
 // ─── AC4: 분기 완료 후 다음 개념 버튼 활성 ───────────────────────────────────
 describe("AC4: 분기 완료 후 다음 개념 버튼 활성화", () => {
-  test("handleChoose(roadmap_next) 호출 후 다음 개념 버튼의 aria-disabled 가 제거된다", () => {
+  test("roadmap_next 선택 시 markBranched(step.id) 로 위임하고, 갱신 후 다음 개념 버튼의 aria-disabled 가 제거된다", () => {
     mockLearnContent = makeLearnContent({
       stepEvalStatus: { 0: "ready" },
       stepEvaluations: { 0: { evaluations: [] } },
@@ -201,7 +212,24 @@ describe("AC4: 분기 완료 후 다음 개념 버튼 활성화", () => {
       evaluationText: "평가 완료",
     });
 
-    renderLearn({ mode: "branch", stepIdx: 0 });
+    // 게이트 해제는 LearnContent 의 branchedStepIds(Set) 갱신 → 재렌더로 일어난다.
+    // 단위 테스트에서는 mock 의 markBranched 가 같은 Set 을 in-place 갱신하고, rerender 로 모사한다.
+    const props = {
+      concept: "코루틴",
+      level: 2,
+      mode: "branch" as const,
+      sessionId: "s1",
+      stepIdx: 0,
+      setStepIdx: vi.fn(),
+      answers: {},
+      setAnswers: vi.fn(),
+      skips: {},
+      setSkips: vi.fn(),
+      onPrev: vi.fn(),
+      onDone: vi.fn(),
+      onRetry: vi.fn(),
+    };
+    const { rerender } = render(<StageLearn {...props} />);
 
     // 초기 상태: aria-disabled 있음
     expect(screen.getByRole("button", { name: /다음 개념/ })).toHaveAttribute("aria-disabled", "true");
@@ -209,10 +237,12 @@ describe("AC4: 분기 완료 후 다음 개념 버튼 활성화", () => {
     // 평가 보기 클릭 - 다이얼로그 오픈
     fireEvent.click(screen.getByRole("button", { name: /평가 보기/ }));
 
-    // roadmap_next 선택 - 분기 완료
+    // roadmap_next 선택 - 분기 완료를 LearnContent 에 위임(markBranched(1))
     fireEvent.click(screen.getByRole("button", { name: /로드맵 다음 단계로 이동/ }));
+    expect(mockLearnContent.markBranched).toHaveBeenCalledWith(1);
 
-    // 분기 완료 후: aria-disabled 제거됨
+    // LearnContent 갱신(여기선 in-place + rerender) 후: aria-disabled 제거됨
+    rerender(<StageLearn {...props} />);
     expect(screen.getByRole("button", { name: /다음 개념/ })).not.toHaveAttribute("aria-disabled");
   });
 });
