@@ -122,12 +122,25 @@ export interface StepQuestion {
   q: string;
 }
 
+/**
+ * 분기 삽입 단계의 메타. 이 필드가 존재하면 삽입(분기) 단계, 없으면 원본(메인) 단계.
+ * parentMainStepId: 삽입 기준이 된 메인 단계의 id.
+ * siblingIndex: 같은 메인 아래 형제 삽입 중 0-based 순번.
+ * 분기의 분기는 같은 메인 아래 다음 형제로 평탄화 (3-depth 금지).
+ */
+export interface StepInsertedMeta {
+  parentMainStepId: number;
+  siblingIndex: number;
+}
+
 export interface Step {
   id: number;
   title: string;
   desc: string;
   body: string;
   questions: StepQuestion[];
+  /** 삽입(분기) 단계만 설정. 원본 단계는 undefined. */
+  _meta?: StepInsertedMeta;
 }
 
 export const STEPS: Step[] = [

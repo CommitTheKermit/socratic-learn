@@ -736,13 +736,7 @@ body {
 .mode-opt.is-selected .mode-check { opacity: 1; }
 
 /* 좁은 폭: 모드 트리거가 입력바 위 줄로 빠지도록 */
-@media (max-width: 560px) {
-  .input-bar.has-lead { grid-template-columns: 1fr; gap: 6px; }
-  .input-bar.has-lead .mode-dd { justify-self: start; }
-  .input-bar.has-lead textarea { grid-column: 1; }
-  .input-bar.has-lead .btn-capture { grid-column: 1; justify-self: stretch; justify-content: center; }
-  .mode-menu { min-width: min(272px, 78vw); }
-}
+/* 입력바 세로 스택 등 좁은 폭 보강은 styles/mobile.css(≤760px)가 전담한다. */
 
 /* ── Hero guide (입력바 아래 접이식 · 가로 4-스텝, 뉴트럴) ──────────── */
 .hero-guide {
@@ -1505,6 +1499,79 @@ body {
 }
 .lv-step-title { letter-spacing: -0.005em; }
 
+/* ════════ 학습 로드맵 미니 바 (스크롤 시 슬라이드+페이드 등장, 모핑 없음) ════════ */
+/* 실제 헤더(lv-bar)가 .main-inner 위로 벗어나면 .is-shown 이 붙어 위에서 내려온다. */
+.lv-mini {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  background: oklch(0.135 0.005 270 / 0.82);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: inset 0 -1px 0 0 var(--line), 0 12px 32px -18px rgba(0, 0, 0, 0.8);
+  transform: translateY(-110%);
+  opacity: 0;
+  transition: transform 0.28s cubic-bezier(0.2, 0.7, 0.3, 1), opacity 0.22s ease;
+  will-change: transform;
+  pointer-events: none;
+}
+.lv-mini.is-shown {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+/* 사이드바 고정(open) 시 본문(.main)이 밀리는 만큼 미니 바도 비켜선다. */
+.app[data-drawer="open"] .lv-mini { left: var(--sidebar-w); }
+.lv-mini-inner {
+  width: min(1080px, 100%);
+  margin: 0 auto;
+  padding: 10px 24px 12px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.lv-mini-title {
+  flex: 0 0 auto;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--fg);
+}
+.lv-mini-steps {
+  flex: 1 1 auto;
+  min-width: 0;
+  scroll-behavior: smooth;
+  /* 칩 레일 양끝 페이드 */
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 20px), transparent 100%);
+          mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 20px), transparent 100%);
+}
+.lv-mini-steps .lv-step button { padding: 5px 10px; font-size: 11.5px; }
+/* 미니 바 하단 얇은 holo 진행 바 (은근한 전체 진행도) */
+.lv-prog {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+.lv-prog > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--holo);
+  transition: width 0.4s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lv-mini { transition: opacity 0.2s ease; }
+  .lv-mini-steps { scroll-behavior: auto; }
+  .lv-prog > span { transition: none; }
+}
+
 .lv-status { padding: 0 4px; }
 
 .lv-loading {
@@ -1529,6 +1596,7 @@ body {
   z-index: 5;
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
   padding-top: 6px;
   pointer-events: none;
 }
@@ -1894,7 +1962,8 @@ body {
 .lvv-qlist { display: flex; flex-direction: column; gap: 14px; }
 
 /* 세로일 때 제출 버튼은 흐름 하단에 (sticky 불필요) */
-.lvv-submit-row { display: flex; padding-top: 2px; }
+.lvv-submit-row { display: flex; justify-content: flex-end; gap: 8px; padding-top: 2px; }
+.lv-reanswer { display: inline-flex; align-items: center; gap: 6px; }
 
 .lv-foot {
   display: flex;

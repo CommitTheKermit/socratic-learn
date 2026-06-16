@@ -4,6 +4,8 @@ import { Sidebar } from "./components/Sidebar";
 import { ProgressBar } from "./components/ProgressBar";
 import { Hero } from "./components/Hero";
 import { SessionLoadOverlay } from "./components/SessionLoadOverlay";
+import { WhatsNewPanel } from "./components/whatsnew/WhatsNewPanel";
+import { hasUnseenWhatsNew, markWhatsNewSeen } from "./state/whatsnewSeen";
 import { I } from "./components/icons";
 import {
   ACCENT_PRESETS,
@@ -60,6 +62,30 @@ function readDraftConcept(): string {
   }
 }
 
+/** CSS ≤760px 와 같은 기준의 모바일 판정 쿼리. JS 드로어 동작과 레이아웃이 항상 일치한다. */
+const MOBILE_QUERY = "(max-width: 760px)";
+function isMobileViewport(): boolean {
+  return typeof window !== "undefined" && window.matchMedia(MOBILE_QUERY).matches;
+}
+
+/** 모바일 상단바(≤760px 컨테이너에서만 CSS 로 노출). 햄버거=드로어 열기, +=새로 학습하기. */
+function MobileTopBar({ onMenu, onNew }: { onMenu: () => void; onNew: () => void }) {
+  return (
+    <header className="m-topbar">
+      <button className="m-topbar-btn" type="button" aria-label="메뉴 열기" onClick={onMenu}>
+        {I.menu}
+      </button>
+      <div className="m-topbar-brand">
+        <span className="m-topbar-mark">{I.brand}</span>
+        <span className="m-topbar-name">Socratic</span>
+      </div>
+      <button className="m-topbar-btn" type="button" aria-label="새로 학습하기" onClick={onNew}>
+        {I.plus}
+      </button>
+    </header>
+  );
+}
+
 /** 루트("/") 진입 시 항상 홈(개념 입력) 화면을 보여준다. 마지막 세션으로의 자동 복원은 하지 않는다. */
 function Home() {
   return <AppShell stage="input" />;
@@ -105,6 +131,8 @@ function AppSession({ stage, sessionId }: { stage: Stage; sessionId?: string }) 
               probeReady: loaded.probeReady,
               steps: loaded.steps,
               stepEvaluations: loaded.stepEvaluations,
+              stepBranches: loaded.stepBranches,
+              branchedStepIds: loaded.branchedStepIds,
             }
           : undefined
       }
@@ -146,8 +174,10 @@ function AppWorkspace({
   //   open   : peek 을 클릭하면 전체 슬라이드 + 고정(PIN). 이때는 본문을 사이드바 폭만큼
   //            밀어 컬럼을 가리지 않는다. 드로워 안 "숨기기" 버튼 / Esc 로 hidden 복귀.
   // pinned 는 localStorage 에 영속화해 메인/모든 단계가 같은 설정 하나를 공유한다.
-  // (화면 폭과 무관하게 사용자의 선택만 따른다. peeking 은 일시적이라 저장 안 함.)
-  const [pinned, setPinned] = useState(loadSidebarPinned);
+  // 단, 모바일(≤760px)에선 드로어가 영속 핀이 아니라 햄버거로 여는 일시 오버레이라,
+  // 마운트 시 항상 닫힘으로 시작하고 핀 변경을 저장하지 않는다(데스크톱 설정 보존).
+  // (peeking 은 일시적이라 저장 안 함.)
+  const [pinned, setPinned] = useState(() => (isMobileViewport() ? false : loadSidebarPinned()));
   const [peeking, setPeeking] = useState(false);
   const drawerState: "hidden" | "peek" | "open" = pinned
     ? "open"
@@ -157,8 +187,16 @@ function AppWorkspace({
 
   const pinnedRef = useRef(pinned);
   pinnedRef.current = pinned;
+  const isMobileRef = useRef(isMobileViewport());
   const edgeRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLElement>(null);
+
+  // 업데이트 소식(What's New): 좌측 드로어에서 확장되는 플라이아웃 패널.
+  // 트리거의 빨간 점은 "아직 안 본 새 버전이 있을 때만" 켠다(localStorage 기록 기준).
+  const [wnOpen, setWnOpen] = useState(false);
+  const [wnUnseen, setWnUnseen] = useState(() => hasUnseenWhatsNew());
+  const wnOpenRef = useRef(wnOpen);
+  wnOpenRef.current = wnOpen;
 
   const peekOn = () => {
     if (!pinnedRef.current) setPeeking(true);
@@ -169,7 +207,7 @@ function AppWorkspace({
   const pin = () => {
     setPinned(true);
     setPeeking(false);
-    saveSidebarPinned(true);
+    if (!isMobileRef.current) saveSidebarPinned(true);
     requestAnimationFrame(() => {
       const el = drawerRef.current;
       const f = el?.querySelector<HTMLElement>(".sb-collapse") ?? el;
@@ -179,17 +217,49 @@ function AppWorkspace({
   const hide = () => {
     setPinned(false);
     setPeeking(false);
-    saveSidebarPinned(false);
+    setWnOpen(false);
+    if (!isMobileRef.current) saveSidebarPinned(false);
     requestAnimationFrame(() => edgeRef.current?.focus());
   };
 
-  // Esc 로 고정된 드로워를 닫는다(비모달 오버레이라 포커스 트랩 없음).
+  // "업데이트" 클릭: 사이드바를 펼쳐 고정하고 그 오른쪽으로 패널을 확장한다.
+  // 여는 순간 최신 버전을 "봤음"으로 기록해 빨간 점을 끈다.
+  const openWhatsNew = () => {
+    pin();
+    setWnOpen(true);
+    markWhatsNewSeen();
+    setWnUnseen(false);
+  };
+  const closeWhatsNew = () => setWnOpen(false);
+  // 모바일에서 드로어 안 항목을 고르거나 새 학습을 누르면 드로어를 닫는다.
+  const closeDrawerOnMobile = () => {
+    if (isMobileRef.current) hide();
+  };
+
+  // 뷰포트가 모바일 경계를 넘나들 때 추적한다. 모바일로 진입하면 데스크톱에서 핀해둔
+  // 드로어가 좁은 본문을 덮지 않도록 접는다(영속 설정은 건드리지 않는 일시 동작).
+  useEffect(() => {
+    const mql = window.matchMedia(MOBILE_QUERY);
+    const onChange = (e: MediaQueryListEvent) => {
+      isMobileRef.current = e.matches;
+      if (e.matches) {
+        setPinned(false);
+        setPeeking(false);
+      }
+    };
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+
+  // Esc: 플라이아웃이 열려 있으면 그것부터 닫고(사이드바 유지), 없으면 고정 드로어를 닫는다.
+  // (비모달 오버레이라 포커스 트랩 없음. wnOpenRef 로 effect 재구독 없이 현재 열림 상태를 읽는다.)
   useEffect(() => {
     if (!pinned) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        hide();
+        if (wnOpenRef.current) closeWhatsNew();
+        else hide();
       }
     };
     document.addEventListener("keydown", onKey);
@@ -226,6 +296,8 @@ function AppWorkspace({
     outlineStatus,
     stepDetailStatus,
     stepEvaluations,
+    stepBranches,
+    branchedStepIds,
     loadProbe,
     loadOutline,
   } = useLearnContent();
@@ -295,6 +367,8 @@ function AppWorkspace({
     probeReady: probeStatus === "ready",
     steps: outlineStatus === "ready" && steps.length ? steps : undefined,
     stepEvaluations: Object.keys(stepEvaluations).length ? stepEvaluations : undefined,
+    stepBranches: Object.keys(stepBranches).length ? stepBranches : undefined,
+    branchedStepIds: branchedStepIds.size ? [...branchedStepIds] : undefined,
   });
 
   // answers 디바운스 hook. 입력 완료 신호(textarea onBlur)에 flush 를 연결하고,
@@ -350,6 +424,8 @@ function AppWorkspace({
     outlineStatus,
     stepDetailStatus,
     stepEvaluations,
+    stepBranches,
+    branchedStepIds,
   ]);
 
   const accentStyle = useMemo<AccentVars>(() => {
@@ -494,10 +570,16 @@ function AppWorkspace({
         onHide={hide}
         stage={stage}
         concept={concept}
-        onNewSession={newSession}
+        onNewSession={() => {
+          closeDrawerOnMobile();
+          newSession();
+        }}
         sessions={sessions}
         activeSessionId={sessionId ?? ""}
-        onSelectSession={switchSession}
+        onSelectSession={(id) => {
+          closeDrawerOnMobile();
+          void switchSession(id);
+        }}
         onDeleteSession={deleteSession}
         authPending={authLoading}
         loggedIn={!!user}
@@ -505,6 +587,8 @@ function AppWorkspace({
         photoURL={user?.photoURL ?? undefined}
         onLogin={() => void login()}
         onLogout={() => void logout()}
+        onWhatsNew={openWhatsNew}
+        wnUnseen={wnUnseen}
       />
 
       {/* edge hotzone(hidden→호버=peek) + peek catcher(peek→클릭=고정) */}
@@ -521,7 +605,22 @@ function AppWorkspace({
         <span className="sb-edge-grip" aria-hidden />
       </button>
 
+      {/* 모바일 드로어 어둠막 — 탭하면 닫힘 (CSS 가 모바일·open 상태에서만 노출) */}
+      {pinned && <div className="sb-scrim" aria-hidden onClick={hide} />}
+
+      {/* 업데이트 소식 플라이아웃 — 사이드바(z-index 100) 뒤에서 그 오른쪽으로 확장.
+          조건부 렌더 + keyframe 진입 애니메이션. 스크림 클릭은 플라이아웃만 닫는다(사이드바 유지). */}
+      {wnOpen && (
+        <>
+          <div className="wn-flyout-scrim" aria-hidden onClick={closeWhatsNew} />
+          <aside className="wn-flyout" aria-label="업데이트 소식">
+            <WhatsNewPanel onClose={closeWhatsNew} />
+          </aside>
+        </>
+      )}
+
       <main className="main">
+        <MobileTopBar onMenu={pin} onNew={() => { closeDrawerOnMobile(); newSession(); }} />
         {showAurora && (
           <div className="aurora" aria-hidden>
             <div className="vignette" />

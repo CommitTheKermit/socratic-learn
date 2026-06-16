@@ -88,10 +88,15 @@ function iconFor(type: BranchOption["type"]) {
       return <IconDot />;
     case "exit":
       return <IconExit />;
+    case "reanswer":
+      return <IconRetry />;
   }
 }
 
+const TYPE_PREVIEW_REANSWER = "이 단계 답변을 지우고 다시 작성합니다";
+
 function previewOf(option: BranchOption): string {
+  if (option.type === "reanswer") return TYPE_PREVIEW_REANSWER;
   if (option.type === "exit" || !option.stageContent) return TYPE_PREVIEW_EXIT;
   return `${option.stageContent.title} · ${option.stageContent.desc}`;
 }

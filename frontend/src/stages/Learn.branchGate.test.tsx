@@ -33,6 +33,9 @@ const sampleSteps: Step[] = [
 ];
 
 function makeLearnContent(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  // 실제 LearnContent 처럼 markBranched 가 같은 Set 을 in-place 갱신하도록 묶는다.
+  // (분기 선택 후 게이트 해제를 검증하는 칩 이동 테스트가 이 갱신에 의존한다.)
+  const branchedStepIds = new Set<number>();
   return {
     steps: sampleSteps,
     outlineStatus: "ready",
@@ -44,6 +47,13 @@ function makeLearnContent(overrides: Record<string, unknown> = {}): Record<strin
     stepEvalStatus: {},
     stepEvalErrors: {},
     submitEvaluation: vi.fn(),
+    clearEvaluation: vi.fn(),
+    stepBranches: {},
+    setStepBranch: vi.fn(),
+    branchedStepIds,
+    markBranched: vi.fn((id: number) => {
+      branchedStepIds.add(id);
+    }),
     insertStepAt: vi.fn(() => 99),
     ...overrides,
   };
@@ -54,6 +64,7 @@ function makeBranchPhase(overrides: Record<string, unknown> = {}): Record<string
     mode: "closed",
     evaluationText: "",
     options: [],
+    isMerged: false,
     retryCount: 0,
     errorMessage: null,
     technicalDetail: null,
@@ -65,6 +76,7 @@ function makeBranchPhase(overrides: Record<string, unknown> = {}): Record<string
     })),
     closeBranch: vi.fn(),
     retryBranch: vi.fn(),
+    hydrate: vi.fn(),
     ...overrides,
   };
 }
@@ -189,7 +201,7 @@ describe("AC3: light mode 동작 불변 - 분기 게이트 없음", () => {
 
 // ─── AC4: 분기 완료 후 다음 개념 버튼 활성 ───────────────────────────────────
 describe("AC4: 분기 완료 후 다음 개념 버튼 활성화", () => {
-  test("handleChoose(roadmap_next) 호출 후 다음 개념 버튼의 aria-disabled 가 제거된다", () => {
+  test("roadmap_next 선택 시 markBranched(step.id) 로 위임하고, 갱신 후 다음 개념 버튼의 aria-disabled 가 제거된다", () => {
     mockLearnContent = makeLearnContent({
       stepEvalStatus: { 0: "ready" },
       stepEvaluations: { 0: { evaluations: [] } },
@@ -200,7 +212,24 @@ describe("AC4: 분기 완료 후 다음 개념 버튼 활성화", () => {
       evaluationText: "평가 완료",
     });
 
-    renderLearn({ mode: "branch", stepIdx: 0 });
+    // 게이트 해제는 LearnContent 의 branchedStepIds(Set) 갱신 → 재렌더로 일어난다.
+    // 단위 테스트에서는 mock 의 markBranched 가 같은 Set 을 in-place 갱신하고, rerender 로 모사한다.
+    const props = {
+      concept: "코루틴",
+      level: 2,
+      mode: "branch" as const,
+      sessionId: "s1",
+      stepIdx: 0,
+      setStepIdx: vi.fn(),
+      answers: {},
+      setAnswers: vi.fn(),
+      skips: {},
+      setSkips: vi.fn(),
+      onPrev: vi.fn(),
+      onDone: vi.fn(),
+      onRetry: vi.fn(),
+    };
+    const { rerender } = render(<StageLearn {...props} />);
 
     // 초기 상태: aria-disabled 있음
     expect(screen.getByRole("button", { name: /다음 개념/ })).toHaveAttribute("aria-disabled", "true");
@@ -208,10 +237,12 @@ describe("AC4: 분기 완료 후 다음 개념 버튼 활성화", () => {
     // 평가 보기 클릭 - 다이얼로그 오픈
     fireEvent.click(screen.getByRole("button", { name: /평가 보기/ }));
 
-    // roadmap_next 선택 - 분기 완료
+    // roadmap_next 선택 - 분기 완료를 LearnContent 에 위임(markBranched(1))
     fireEvent.click(screen.getByRole("button", { name: /로드맵 다음 단계로 이동/ }));
+    expect(mockLearnContent.markBranched).toHaveBeenCalledWith(1);
 
-    // 분기 완료 후: aria-disabled 제거됨
+    // LearnContent 갱신(여기선 in-place + rerender) 후: aria-disabled 제거됨
+    rerender(<StageLearn {...props} />);
     expect(screen.getByRole("button", { name: /다음 개념/ })).not.toHaveAttribute("aria-disabled");
   });
 });
@@ -262,8 +293,12 @@ describe("Sub-AC 2b: handleChoose(stageContent) - insertStepAt 먼저 호출 후
     // "AI 추천 단계로 이동" 클릭
     fireEvent.click(screen.getByRole("button", { name: /AI 추천 단계로 이동/ }));
 
-    // insertStepAt 이 (1, branchStageContent) 로 호출되었는지 확인
-    expect(insertStepAt).toHaveBeenCalledWith(1, branchStageContent);
+    // insertStepAt 이 (1, branchStageContent + _meta) 로 호출되었는지 확인
+    // _meta: 현재 stepIdx=0 의 step.id=1 을 부모로, 형제 0번(첫 분기)
+    expect(insertStepAt).toHaveBeenCalledWith(1, {
+      ...branchStageContent,
+      _meta: { parentMainStepId: 1, siblingIndex: 0 },
+    });
     // setStepIdx 가 (1) 로 호출되었는지 확인
     expect(setStepIdx).toHaveBeenCalledWith(1);
     // 호출 순서: insertStepAt 먼저, setStepIdx 이후
@@ -482,5 +517,121 @@ describe("AC4(칩): 분기 모드 단계 칩 전진 게이팅", () => {
     fireEvent.click(screen.getByRole("button", { name: /스레드 비용/ }));
 
     expect(setStepIdx).toHaveBeenCalledWith(1);
+  });
+});
+
+// ─── AC2(isMerged): isMerged=true 시 ai_recommended 단계 삽입 차단 ──────────
+describe("AC2(isMerged): isMerged=true 시 ai_recommended 삽입 차단", () => {
+  const branchStageContent: Step = {
+    id: 10,
+    title: "AI 추천 보조 단계",
+    desc: "AI 추천",
+    body: "body",
+    questions: [],
+  };
+
+  test("isMerged=true + ai_recommended 선택 시 insertStepAt 이 호출되지 않는다", () => {
+    const insertStepAt = vi.fn(() => 99);
+    mockLearnContent = makeLearnContent({
+      stepEvalStatus: { 0: "ready" },
+      stepEvaluations: { 0: { evaluations: [] } },
+      insertStepAt,
+    });
+    mockBranchPhase = makeBranchPhase({
+      mode: "choosing",
+      evaluationText: "평가 완료",
+      isMerged: true,
+      options: [
+        {
+          label: "AI 추천 단계로 이동",
+          type: "ai_recommended",
+          isRecommended: true,
+          stageContent: branchStageContent,
+        },
+      ],
+    });
+
+    const setStepIdx = vi.fn();
+    renderLearn({ mode: "branch", stepIdx: 0, setStepIdx });
+
+    fireEvent.click(screen.getByRole("button", { name: /평가 보기/ }));
+    fireEvent.click(screen.getByRole("button", { name: /AI 추천 단계로 이동/ }));
+
+    expect(insertStepAt).not.toHaveBeenCalled();
+    expect(setStepIdx).toHaveBeenCalledWith(1);
+  });
+
+  test("isMerged=false 이면 ai_recommended 단계를 정상 삽입한다", () => {
+    const insertStepAt = vi.fn(() => 99);
+    const newStep: Step = {
+      id: 20,
+      title: "완전히 새로운 보조 개념",
+      desc: "새 개념",
+      body: "body",
+      questions: [],
+    };
+    mockLearnContent = makeLearnContent({
+      stepEvalStatus: { 0: "ready" },
+      stepEvaluations: { 0: { evaluations: [] } },
+      insertStepAt,
+    });
+    mockBranchPhase = makeBranchPhase({
+      mode: "choosing",
+      evaluationText: "평가 완료",
+      isMerged: false,
+      options: [
+        {
+          label: "새 AI 추천 단계",
+          type: "ai_recommended",
+          isRecommended: true,
+          stageContent: newStep,
+        },
+      ],
+    });
+
+    const setStepIdx = vi.fn();
+    renderLearn({ mode: "branch", stepIdx: 0, setStepIdx });
+
+    fireEvent.click(screen.getByRole("button", { name: /평가 보기/ }));
+    fireEvent.click(screen.getByRole("button", { name: /새 AI 추천 단계/ }));
+
+    expect(insertStepAt).toHaveBeenCalled();
+    expect(setStepIdx).toHaveBeenCalledWith(1);
+  });
+
+  test("isMerged=true 이어도 additional 타입은 삽입된다 (isMerged 는 ai_recommended 에만 적용)", () => {
+    const insertStepAt = vi.fn(() => 99);
+    const additionalStep: Step = {
+      id: 30,
+      title: "사용자 추가 보충 단계",
+      desc: "추가",
+      body: "body",
+      questions: [],
+    };
+    mockLearnContent = makeLearnContent({
+      stepEvalStatus: { 0: "ready" },
+      stepEvaluations: { 0: { evaluations: [] } },
+      insertStepAt,
+    });
+    mockBranchPhase = makeBranchPhase({
+      mode: "choosing",
+      evaluationText: "평가 완료",
+      isMerged: true,
+      options: [
+        {
+          label: "추가 학습 단계",
+          type: "additional",
+          isRecommended: false,
+          stageContent: additionalStep,
+        },
+      ],
+    });
+
+    renderLearn({ mode: "branch", stepIdx: 0 });
+
+    fireEvent.click(screen.getByRole("button", { name: /평가 보기/ }));
+    fireEvent.click(screen.getByRole("button", { name: /추가 학습 단계/ }));
+
+    expect(insertStepAt).toHaveBeenCalled();
   });
 });

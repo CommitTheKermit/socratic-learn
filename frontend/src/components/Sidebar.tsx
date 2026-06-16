@@ -113,6 +113,10 @@ interface Props {
   photoURL?: string;
   onLogin?: () => void;
   onLogout?: () => void;
+  /** "업데이트 소식" 항목 클릭. 좌측 플라이아웃 패널을 연다. */
+  onWhatsNew?: () => void;
+  /** 아직 안 본 새 버전이 있으면 항목에 빨간 점(핑)을 표시한다. */
+  wnUnseen?: boolean;
 }
 
 export function Sidebar({
@@ -132,6 +136,8 @@ export function Sidebar({
   photoURL,
   onLogin,
   onLogout,
+  onWhatsNew,
+  wnUnseen = false,
 }: Props) {
   const [historyOpen, setHistoryOpen] = useState(true);
   const isActive = stage !== "input";
@@ -174,6 +180,12 @@ export function Sidebar({
       >
         <span className="ico">{I.newLearn}</span>
         새로 학습하기
+      </button>
+
+      <button className="sb-item sb-wn" type="button" onClick={onWhatsNew}>
+        <span className="ico">{I.sparkle}</span>
+        업데이트
+        {wnUnseen && <span className="wn-sb-dot is-ping" aria-hidden />}
       </button>
 
       <div className="sb-divider" />

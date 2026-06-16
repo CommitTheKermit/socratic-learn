@@ -1,4 +1,5 @@
 import type { Step } from "../../stages/data";
+import { getLabelForStep } from "../../lib/stepLabel";
 
 interface StepChipsBarProps {
   steps: Step[];
@@ -23,7 +24,7 @@ export function StepChipsBar({ steps, currentIndex, insertedIds }: StepChipsBarP
               <span className="pb-fill" style={{ width: fill + "%" }} />
             </span>
             <span className="pb-label">
-              <span className="pb-num">{String(i + 1).padStart(2, "0")}</span>
+              <span className="pb-num">{getLabelForStep(steps, i)}</span>
               <span className="pb-name">{s.title}</span>
             </span>
           </div>

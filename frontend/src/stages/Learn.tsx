@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLearnContent } from "../state/LearnContent";
 import { Markdown } from "../lib/markdown";
 import { LEVEL_LABELS, type Step } from "./data";
@@ -11,15 +11,8 @@ import { useBranchPhase } from "../state/useBranchPhase";
 import { MathText } from "../lib/mathText";
 import type { BranchOption } from "../api/contract";
 import { logEvent } from "../lib/analytics";
-
-interface InsertedMeta {
-  parentDisplayBase: string; // e.g. "1" or "1-1"
-  siblingIndex: number;       // 0-based among same-parent siblings
-}
-
-function stripLeadingZero(label: string): string {
-  return label.replace(/^0+(?=\d)/, "");
-}
+import { getLabelForStep } from "../lib/stepLabel";
+import { canInsertBranchStep } from "../lib/stepInsertGuard";
 
 /**
  * LLM 이 돌려준 분기 옵션을 결정론적으로 보정한다.
@@ -45,6 +38,14 @@ function normalizeBranchOptions(
   };
   return [roadmapNext, ...rest];
 }
+
+/** 분기 다이얼로그에 항상 끼워 넣는 클라이언트 전용 옵션. 현재 단계를 다시 답변하기. */
+const REANSWER_OPTION: BranchOption = {
+  label: "다시 답변하기",
+  type: "reanswer",
+  isRecommended: false,
+  stageContent: null,
+};
 
 /**
  * 확인 질문 답변 입력칸. 마운트 시 1회만 랜덤 placeholder 를 골라 고정한다.
@@ -149,32 +150,21 @@ export function StageLearn({
     stepEvalStatus,
     stepEvalErrors,
     submitEvaluation,
+    clearEvaluation,
+    stepBranches,
+    setStepBranch,
+    branchedStepIds,
+    markBranched,
     insertStepAt,
   } = useLearnContent();
   const branch = useBranchPhase();
-  const [insertedMeta, setInsertedMeta] = useState<Map<number, InsertedMeta>>(new Map());
   const [branchVisible, setBranchVisible] = useState(false);
-  // 분기 옵션 선택이 완료된 step.id 집합. handleChoose 로만 추가된다.
-  const [branchedStepIds, setBranchedStepIds] = useState<Set<number>>(new Set());
+  // 분기 옵션 선택 완료 step.id 집합(branchedStepIds)과 분기 스냅샷(stepBranches)은
+  // LearnContent 가 보유·영속화한다. markBranched 로만 추가되며 새로고침/세션 복원 시 유지된다.
   // 레이아웃 방향: 기본 세로(접이식 설명 ▸ 질문). 저장값 의존 없이 항상 세로로 시작.
   const [orient, setOrient] = useState<Orient>("vertical");
   // 세로 모드에서 개념 설명 카드 접힘 여부 (기본 펼침).
   const [explainOpen, setExplainOpen] = useState(true);
-
-  // 각 step 의 표시 라벨 계산: 원본은 "01","02"…, 삽입은 "1-1","1-2"…
-  const displayLabelOf = (s: Step): string => {
-    const meta = insertedMeta.get(s.id);
-    if (meta) return `${meta.parentDisplayBase}-${meta.siblingIndex + 1}`;
-    // 원본 카운트
-    let count = 0;
-    for (const x of steps) {
-      if (!insertedMeta.has(x.id)) {
-        count += 1;
-        if (x.id === s.id) return String(count).padStart(2, "0");
-      }
-    }
-    return String(count).padStart(2, "0");
-  };
   const safeLevel = level ?? 2;
   // "가볍게" 모드는 분기 시스템을 끄고 평가만 한 뒤 바로 다음 개념으로 진행한다.
   const branchEnabled = mode !== "light";
@@ -206,6 +196,38 @@ export function StageLearn({
     if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
   }, []);
 
+  // ── 학습 로드맵 미니 바 (스크롤 시 헤더가 사라지면 위에서 슬라이드+페이드 등장) ──
+  // 트리거: 실제 헤더(lv-bar)가 스크롤 컨테이너(.main-inner) 위로 완전히 벗어나면 표시.
+  const [miniVisible, setMiniVisible] = useState(false);
+  const miniRailRef = useRef<HTMLOListElement | null>(null);
+  const miniObserverRef = useRef<IntersectionObserver | null>(null);
+  const setBarRef = useCallback((node: HTMLElement | null) => {
+    miniObserverRef.current?.disconnect();
+    miniObserverRef.current = null;
+    if (!node || typeof IntersectionObserver === "undefined") return;
+    const root = node.closest(".main-inner");
+    const io = new IntersectionObserver(
+      ([entry]) => setMiniVisible(!entry.isIntersecting),
+      { root, threshold: 0 },
+    );
+    io.observe(node);
+    miniObserverRef.current = io;
+  }, []);
+  useEffect(() => () => miniObserverRef.current?.disconnect(), []);
+
+  // 미니 바가 보일 때 현재 칩을 가로 레일 중앙으로 정렬한다.
+  useEffect(() => {
+    if (!miniVisible) return;
+    const rail = miniRailRef.current;
+    if (!rail || typeof rail.scrollTo !== "function") return;
+    const cur = rail.querySelector<HTMLElement>(".is-curr");
+    if (!cur) return;
+    rail.scrollTo({
+      left: cur.offsetLeft - rail.clientWidth / 2 + cur.offsetWidth / 2,
+      behavior: "smooth",
+    });
+  }, [miniVisible, stepIdx]);
+
   useEffect(() => {
     if (
       outlineStatus === "ready" &&
@@ -216,12 +238,33 @@ export function StageLearn({
     }
   }, [outlineStatus, stepIdx, step, detailStatus, concept, safeLevel, mode, loadStepDetail]);
 
-  // stepIdx 가 바뀌면 분기 가시 상태도 닫는다.
+  // stepIdx 가 바뀌면 분기 다이얼로그를 닫는다. 단, 그 단계에 영속된 분기 스냅샷이 있으면
+  // closeBranch(휘발) 대신 hydrate 로 choosing 상태를 복원해 "평가 보기"가 다시 동작하게 한다.
+  // (영속값에서 즉시 복원하므로 LLM 재호출 비용이 없다.)
   useEffect(() => {
     setBranchVisible(false);
-    branch.closeBranch();
+    const persisted = stepBranches[stepIdx];
+    if (branchEnabled && persisted) branch.hydrate(persisted);
+    else branch.closeBranch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stepIdx]);
+
+  // 분기 평가가 성공(choosing)하면 그 스냅샷을 stepBranches 에 영속화한다.
+  // 새로고침/단계 이동으로 다이얼로그가 휘발돼도 위 hydrate 가 이 값으로 복원한다.
+  // hydrate 직후처럼 동일 스냅샷이 이미 저장돼 있으면(참조 동일) 중복 저장을 건너뛴다.
+  useEffect(() => {
+    if (!branchEnabled || branch.mode !== "choosing") return;
+    const cur = stepBranches[stepIdx];
+    if (cur && cur.options === branch.options && cur.evaluationText === branch.evaluationText) {
+      return;
+    }
+    setStepBranch(stepIdx, {
+      evaluationText: branch.evaluationText,
+      isMerged: branch.isMerged,
+      options: branch.options,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [branchEnabled, branch.mode, branch.options, branch.evaluationText, branch.isMerged, stepIdx]);
 
   // sl_step_enter: 스텝 진입/이동 시 계측(fire-and-forget).
   // stepIdx 변경마다 1회 emit. sessionId 없으면 no-op.
@@ -230,7 +273,26 @@ export function StageLearn({
     logEvent("sl_step_enter", { session_id: sessionId, step_idx: stepIdx });
   }, [sessionId, stepIdx]);
 
+  // 재답변: 현재 단계의 평가를 비워 잠금을 풀고, 열린 분기 다이얼로그/평가를 닫는다.
+  // 이미 분기를 고른 단계여도(branchedStepIds 유지) 호출 가능 - "마치기 전이면 언제든".
+  // 평가가 비워지면 isEvaluated 가 false 가 되어 입력칸 편집과 "답변 제출하기"가 복귀하고,
+  // 재제출 시 submitAnswers 가 평가+분기를 새로 시작한다.
+  const handleReanswer = () => {
+    if (!step) return;
+    if (sessionId) {
+      logEvent("sl_reanswer", { session_id: sessionId, step_idx: stepIdx });
+    }
+    clearEvaluation(stepIdx);
+    setBranchVisible(false);
+    branch.closeBranch();
+  };
+
   const handleChoose = (option: BranchOption) => {
+    // reanswer 는 분기 이동이 아니라 현재 단계 재답변. 계측/리듀서 전에 가로챈다.
+    if (option.type === "reanswer") {
+      handleReanswer();
+      return;
+    }
     // sl_branch_select 계측: 분기 옵션 선택 즉시 emit (fire-and-forget).
     if (sessionId) {
       logEvent("sl_branch_select", {
@@ -249,26 +311,35 @@ export function StageLearn({
       return;
     }
     if (option.type === "roadmap_next") {
-      if (step) setBranchedStepIds((prev) => { const n = new Set(prev); n.add(step.id); return n; });
+      if (step) markBranched(step.id);
       if (stepIdx >= steps.length - 1) onDone();
       else setStepIdx(stepIdx + 1);
       return;
     }
     if (option.stageContent) {
-      if (step) setBranchedStepIds((prev) => { const n = new Set(prev); n.add(step.id); return n; });
-      const parentStep = steps[stepIdx];
-      const parentLabel = parentStep ? displayLabelOf(parentStep) : "0";
-      const parentBase = stripLeadingZero(parentLabel);
-      let siblings = 0;
-      for (const m of insertedMeta.values()) {
-        if (m.parentDisplayBase === parentBase) siblings += 1;
+      if (step) markBranched(step.id);
+
+      // AC2 + AC3: canInsertBranchStep 이 두 레이어를 통합 판정한다.
+      //  - AC2: ai_recommended + isMerged=true → 삽입 차단
+      //  - AC3: 제목 중복 백스톱 → 삽입 차단
+      // 두 경우 모두 branchedStepIds 에는 추가됐으므로 분기 게이트는 해제된 상태.
+      if (!canInsertBranchStep(option.type, branch.isMerged, option.stageContent, steps)) {
+        setBranchVisible(false);
+        if (stepIdx >= steps.length - 1) onDone();
+        else setStepIdx(stepIdx + 1);
+        return;
       }
-      const assignedId = insertStepAt(stepIdx + 1, option.stageContent);
-      setInsertedMeta((prev) => {
-        const next = new Map(prev);
-        next.set(assignedId, { parentDisplayBase: parentBase, siblingIndex: siblings });
-        return next;
-      });
+
+      const parentStep = steps[stepIdx];
+      // 분기의 분기는 같은 메인 아래 다음 형제로 평탄화 (3-depth 금지)
+      const parentMainStepId = parentStep?._meta
+        ? parentStep._meta.parentMainStepId
+        : parentStep?.id ?? 0;
+      // 같은 메인 아래 이미 삽입된 형제 수 = 새 단계의 siblingIndex
+      const siblingIndex = steps.filter(
+        (s) => s._meta?.parentMainStepId === parentMainStepId,
+      ).length;
+      insertStepAt(stepIdx + 1, { ...option.stageContent, _meta: { parentMainStepId, siblingIndex } });
       setBranchVisible(false);
       setStepIdx(stepIdx + 1);
     }
@@ -373,6 +444,17 @@ export function StageLearn({
     for (const q of step?.questions ?? []) nextSkips[q.id] = true;
     setSkips(nextSkips);
   };
+  // 분기 평가(openBranch) 입력을 현재 단계 기준으로 구성한다. 최초 제출과 스냅샷 복구 재요청이 공유.
+  const buildBranchInput = (s: Step) => ({
+    concept,
+    level: safeLevel,
+    step: s,
+    questions: s.questions
+      .filter((q) => !skips[q.id])
+      .map((q) => ({ id: q.id, q: q.q, answer: answers[q.id] || "" })),
+    roadmapOutlineText: steps.map((x, i) => `${i + 1}. ${x.title} - ${x.desc}`).join("\n"),
+  });
+
   const submitAnswers = () => {
     if (!step || isEvaluating || isEvaluated) return;
     // 계측: 제출되는 각 질문(스킵 제외)마다 sl_answer_submit emit (fire-and-forget)
@@ -385,19 +467,15 @@ export function StageLearn({
     // "가볍게" 모드는 분기 없이 평가만 하고 끝. (사용자는 푸터의 "다음 개념" 으로 진행)
     if (!branchEnabled) return;
     // 그 외 모드는 분기 평가도 백그라운드로 시작. 사용자는 "평가 보기" 버튼으로 다이얼로그를 연다.
-    const roadmapOutlineText = steps
-      .map((s, i) => `${i + 1}. ${s.title} - ${s.desc}`)
-      .join("\n");
-    const qList = step.questions
-      .filter((q) => !skips[q.id])
-      .map((q) => ({ id: q.id, q: q.q, answer: answers[q.id] || "" }));
-    void branch.openBranch({
-      concept,
-      level: safeLevel,
-      step,
-      questions: qList,
-      roadmapOutlineText,
-    });
+    void branch.openBranch(buildBranchInput(step));
+  };
+
+  // "평가 보기" 클릭. 분기 스냅샷이 살아있으면(choosing/error 또는 hydrate 복원) 다이얼로그만 연다.
+  // 스냅샷이 없는 경우(평가는 끝났지만 분기 평가가 에러였거나 로딩 중 이탈해 영속 안 됨)
+  // 분기 평가를 재요청해 복구한다 - 게이트에 걸렸는데 다이얼로그를 못 여는 데드락을 막는다.
+  const handleOpenBranch = () => {
+    setBranchVisible(true);
+    if (!branchReady && step) void branch.openBranch(buildBranchInput(step));
   };
 
   // 두 호출의 합산 로딩/완료 상태. light 모드는 분기 호출이 없으므로 평가만으로 완료를 판정한다.
@@ -416,27 +494,55 @@ export function StageLearn({
 
   // 가로/세로 두 방향이 공유하는 조각들 (래퍼만 방향별로 달라진다).
   // light 모드는 평가 완료 후 "평가 보기"(분기 다이얼로그)가 없으므로 버튼을 숨기고 푸터로 진행한다.
-  const submitButton = fullReady ? (
-    branchEnabled ? (
-      <button
-        className="lv-btn-holo lv-submit"
-        type="button"
-        onClick={() => setBranchVisible(true)}
-      >
-        <span className="lv-submit-icon" aria-hidden>{I.brand}</span>
-        평가 보기
-      </button>
-    ) : null
-  ) : (
+  // 다시 답변하기: 평가가 끝나(잠긴) 단계에서 노출. 마치기 전이면 언제든 잠금을 풀 수 있다.
+  const reanswerButton = (
     <button
-      className={"lv-btn-holo lv-submit" + (fullLoading ? " is-loading" : "")}
+      className="lv-btn-ghost lv-reanswer"
       type="button"
-      onClick={submitAnswers}
-      disabled={fullLoading || isEvaluated}
-      aria-busy={fullLoading || undefined}
+      onClick={handleReanswer}
+    >
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M9 14L4 9l5-5" />
+        <path d="M4 9h11a5 5 0 0 1 0 10h-1" />
+      </svg>
+      다시 답변하기
+    </button>
+  );
+  // 제출/재답변 액션 영역. 로딩 > 평가완료(잠김) > 미제출 순으로 분기.
+  const submitButton = fullLoading ? (
+    <button
+      className="lv-btn-holo lv-submit is-loading"
+      type="button"
+      disabled
+      aria-busy
     >
       <span className="lv-submit-icon" aria-hidden>{I.brand}</span>
-      {fullLoading ? "평가 중…" : "답변 제출하기"}
+      평가 중…
+    </button>
+  ) : isEvaluated ? (
+    <>
+      {/* 분기가 준비됐거나(branchReady) 게이트에 걸린(isBranchGated) 동안 항상 "평가 보기"를 노출한다.
+          스냅샷이 휘발된 게이트 상태에서도 버튼이 사라지지 않아야 다이얼로그로 복귀할 수 있다. */}
+      {branchEnabled && (branchReady || isBranchGated) && (
+        <button
+          className="lv-btn-holo lv-submit"
+          type="button"
+          onClick={handleOpenBranch}
+        >
+          <span className="lv-submit-icon" aria-hidden>{I.brand}</span>
+          평가 보기
+        </button>
+      )}
+      {reanswerButton}
+    </>
+  ) : (
+    <button
+      className="lv-btn-holo lv-submit"
+      type="button"
+      onClick={submitAnswers}
+    >
+      <span className="lv-submit-icon" aria-hidden>{I.brand}</span>
+      답변 제출하기
     </button>
   );
 
@@ -599,9 +705,40 @@ export function StageLearn({
     </>
   ) : null;
 
+  // 전체 학습 진행도(현재 순번/전체) - 미니 바 하단 holo 진행 바 width.
+  const progressPct = steps.length
+    ? Math.min(100, Math.round(((stepIdx + 1) / steps.length) * 100))
+    : 0;
+  // 헤더 칩과 미니 바 칩이 동일 소스를 쓰도록 한 곳에서 렌더한다.
+  const renderStepItems = () =>
+    steps.map((s, i) => (
+      <li
+        key={s.id}
+        className={
+          "lv-step" +
+          (i === stepIdx ? " is-curr" : "") +
+          (i < stepIdx ? " is-done" : "") +
+          (s._meta ? " is-inserted" : "")
+        }
+      >
+        <button
+          type="button"
+          onClick={() => handleChipClick(i)}
+          aria-disabled={
+            branchEnabled && i > stepIdx && !!step && !branchedStepIds.has(step.id)
+              ? true
+              : undefined
+          }
+        >
+          <span className="lv-step-num">{getLabelForStep(steps, i)}</span>
+          <span className="lv-step-title">{s.title}</span>
+        </button>
+      </li>
+    ));
+
   return (
     <div className="lv-board">
-      <header className="lv-bar">
+      <header className="lv-bar" ref={setBarRef}>
         <div className="lv-bar-top">
           <span className="lv-bar-eyebrow">학습 진행</span>
           <span className="lv-bar-title">{concept}</span>
@@ -628,33 +765,21 @@ export function StageLearn({
             </button>
           </div>
         </div>
-        <ol className="lv-steps">
-          {steps.map((s, i) => (
-            <li
-              key={s.id}
-              className={
-                "lv-step" +
-                (i === stepIdx ? " is-curr" : "") +
-                (i < stepIdx ? " is-done" : "") +
-                (insertedMeta.has(s.id) ? " is-inserted" : "")
-              }
-            >
-              <button
-                type="button"
-                onClick={() => handleChipClick(i)}
-                aria-disabled={
-                  branchEnabled && i > stepIdx && !!step && !branchedStepIds.has(step.id)
-                    ? true
-                    : undefined
-                }
-              >
-                <span className="lv-step-num">{displayLabelOf(s)}</span>
-                <span className="lv-step-title">{s.title}</span>
-              </button>
-            </li>
-          ))}
-        </ol>
+        <ol className="lv-steps">{renderStepItems()}</ol>
       </header>
+
+      {/* 스크롤 시 헤더가 사라지면 위에서 슬라이드+페이드로 내려오는 압축 로드맵 미니 바 */}
+      <div className={"lv-mini" + (miniVisible ? " is-shown" : "")} aria-hidden={!miniVisible}>
+        <div className="lv-mini-inner">
+          <span className="lv-mini-title">{concept}</span>
+          <ol className="lv-steps lv-mini-steps" ref={miniRailRef}>
+            {renderStepItems()}
+          </ol>
+        </div>
+        <div className="lv-prog">
+          <span style={{ width: progressPct + "%" }} />
+        </div>
+      </div>
 
       {step &&
         (orient === "horizontal" ? (
@@ -744,7 +869,7 @@ export function StageLearn({
       <BranchDialog
         open={branchVisible && (branch.mode === "choosing" || branch.mode === "error")}
         evaluationText={branch.evaluationText}
-        options={normalizeBranchOptions(branch.options, steps, stepIdx)}
+        options={[...normalizeBranchOptions(branch.options, steps, stepIdx), REANSWER_OPTION]}
         onChoose={handleChoose}
         onClose={() => setBranchVisible(false)}
         error={

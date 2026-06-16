@@ -17,6 +17,8 @@ export interface BranchPhaseSnapshot {
   mode: BranchDialogMode;
   evaluationText: string;
   options: BranchOption[];
+  /** LLM 이 "추천 단계가 이미 로드맵에 존재한다"고 신호한 경우 true. ai_recommended 삽입 차단에 사용. */
+  isMerged: boolean;
   retryCount: number;
   errorMessage: string | null;
   technicalDetail: string | null;
@@ -34,6 +36,7 @@ const initialSnapshot: BranchPhaseSnapshot = {
   mode: "closed",
   evaluationText: "",
   options: [],
+  isMerged: false,
   retryCount: 0,
   errorMessage: null,
   technicalDetail: null,
@@ -88,6 +91,7 @@ export function useBranchPhase() {
         ...cur,
         mode: "choosing",
         evaluationText: ok.evaluationText,
+        isMerged: ok.isMerged,
         options: ok.branchOptions,
         errorMessage: null,
         technicalDetail: null,
@@ -125,11 +129,32 @@ export function useBranchPhase() {
   }, []);
 
   /**
+   * 영속화된 분기 스냅샷으로 즉시 choosing 상태를 복원한다(LLM 재호출 없음).
+   * 단계 이동/새로고침으로 휘발된 분기 다이얼로그를 stepBranches 영속값에서 되살릴 때 쓴다.
+   */
+  const hydrate = useCallback(
+    (restored: { evaluationText: string; isMerged: boolean; options: BranchOption[] }) => {
+      setSnapshot({
+        mode: "choosing",
+        evaluationText: restored.evaluationText,
+        isMerged: restored.isMerged,
+        options: restored.options,
+        retryCount: 0,
+        errorMessage: null,
+        technicalDetail: null,
+      });
+    },
+    [],
+  );
+
+  /**
    * 선택된 옵션을 reduceBranch 에 위임하여 새 BranchState 를 계산한다.
    * 호출자(LearnContent)는 반환된 state 로 자기 steps/currentStageIndex 를 업데이트.
    */
   const chooseBranch = useCallback(
     (option: BranchOption, current: BranchState): BranchState => {
+      // reanswer 는 분기 상태를 바꾸지 않는 클라이언트 전용 액션(호출자가 가로챔). 여기 오면 무시.
+      if (option.type === "reanswer") return current;
       const next = reduceBranch(current, {
         type: option.type,
         stageContent: option.stageContent,
@@ -146,5 +171,6 @@ export function useBranchPhase() {
     chooseBranch,
     retryBranch,
     closeBranch,
+    hydrate,
   };
 }

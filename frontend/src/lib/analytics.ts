@@ -63,8 +63,13 @@ export interface SlStepNavigateParams extends SlCommonParams {
   direction: "next" | "back" | "skip";
 }
 
+/** sl_reanswer: 제출/평가 완료된 단계를 다시 답변하기 위해 잠금 해제. */
+export interface SlReanswerParams extends SlCommonParams {
+  step_idx: number;
+}
+
 /**
- * 7개 sl_ 이벤트명 → 파라미터 타입 맵.
+ * sl_ 이벤트명 → 파라미터 타입 맵.
  * 계측 포인트가 사용하는 logEvent 의 타입 인자 출처.
  */
 export interface SlEventMap {
@@ -75,6 +80,7 @@ export interface SlEventMap {
   sl_answer_edit: SlAnswerEditParams;
   sl_branch_select: SlBranchSelectParams;
   sl_step_navigate: SlStepNavigateParams;
+  sl_reanswer: SlReanswerParams;
 }
 
 // ─────────────────────────────────────────────────────────

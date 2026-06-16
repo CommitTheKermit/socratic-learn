@@ -104,7 +104,9 @@ export type BranchOptionType =
   | "roadmap_next"
   | "ai_recommended"
   | "additional"
-  | "exit";
+  | "exit"
+  // 클라이언트 주입 전용(LLM 미출력). 분기 다이얼로그에서 현재 단계를 다시 답변하기.
+  | "reanswer";
 
 export interface BranchOption {
   label: string;

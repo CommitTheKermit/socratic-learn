@@ -42,6 +42,25 @@ socratic-learn-2 의 배포(Firebase Functions + Hosting)를 **사전 점검 -> 
 - 증가 단위는 SemVer 로 변경 성격에 따라 판단한다: 호환 깨짐=major, 호환되는 기능 추가=minor, 호환되는 버그 수정=patch.
 - **`frontend/package.json` 의 `version` 만** 수정한다. (이 값이 프런트 빌드에 반영되므로 빌드 전에 올린다.)
 
+## 1.5 changelog 갱신 (업데이트 소식)
+
+사용자에게 "업데이트 소식" 패널로 노출되는 변경 내역을 **빌드(step 2) 전에** 갱신한다. 그래야 배포되는 frontend 번들에 새 항목이 인라인되어 배포 직후 노출된다. 출처는 `frontend/src/components/whatsnew/changelog.ts` 한 곳이다.
+
+1. 직전 release 이후 커밋을 모은다:
+   ```bash
+   git log --oneline --grep '^chore(release)' -1      # 직전 release 커밋 찾기
+   git log <그 커밋>..HEAD --oneline                   # 이후 변경 목록
+   ```
+2. AI(클로드)가 그 커밋들을 근거로 **사용자 관점 changelog 항목을 직접 작성**한다(git log 를 기계적으로 복사하지 않는다).
+   - `CHANGELOG` 배열 맨 앞(index 0)에 새 `VersionEntry` 하나를 prepend.
+   - `version` 은 step 1 에서 올린 `frontend/package.json` 의 version 과 **똑같이** 맞춘다.
+   - `date` 는 배포일을 `"YYYY.MM.DD"` 로.
+   - `changes` 는 각 항목 `{ type, text }`. `type` 은 `feature`(기능 추가)/`improve`(개선)/`fix`(버그 수정) 중 하나, `text` 는 사용자 관점의 짧은 한 문장.
+   - **내부 도구/하네스/CI/문서/리팩터 등 사용자 체감이 없는 변경은 제외**한다.
+3. 작성된 초안을 사람이 **검토/승인**한다(문구·분류·누락 확인). 수정 요청이 있으면 반영 후 다시 확인.
+4. **사용자 관점 변경이 0건이면 항목을 생략**한다(빈 항목을 만들지 않는다). 이 경우 `CHANGELOG[0]` 이 그대로라 빨간 점(미확인 알림)도 켜지지 않는다. changelog 의 버전 목록은 package.json 전체 버전의 부분집합일 수 있다(1:1 미러가 아니어도 된다).
+5. **커밋은 분리하지 않는다.** `changelog.ts` 변경은 step 4 release 커밋에 `package.json` version bump 와 **함께** 담는다(별도 커밋 없음).
+
 ## 2. 빌드
 
 ```bash
@@ -64,6 +83,7 @@ npx firebase deploy --only functions,hosting
 ## 4. release 커밋
 
 - 배포 성공 후 **release-commit 스킬**의 고정 포맷으로 release 커밋을 남긴다(제목 `chore(release): vX.Y.Z 배포`, 본문 = 직전 release 이후 `git log` 기반 변경 목록 + 배포 대상 + 버전 증감).
+- 이 커밋에는 **step 1 의 `package.json` version bump 와 step 1.5 의 `changelog.ts` 변경을 함께 담는다**(둘은 같은 릴리스 산출물이라 별도 커밋으로 나누지 않는다).
 - 이 프로젝트 고유값: 본문 `대상:` 줄에 실제 배포 대상(functions/hosting, 필요 시 firestore rules), 본문 **맨 끝에** `Hosting URL: https://socratic-learn-web.web.app`.
 - 서명 트레일러(Co-Authored-By 등) 없음, 한국어 본문.
 
@@ -76,4 +96,4 @@ git push
 
 ## 최종 순서 요약
 
-작업 브랜치 커밋 -> main 으로 병합 -> push -> 버전 bump -> 빌드(functions, frontend) -> `firebase deploy --only functions,hosting` -> release 커밋 -> push.
+작업 브랜치 커밋 -> main 으로 병합 -> push -> 버전 bump -> changelog 갱신(AI 작성 + 사람 검토) -> 빌드(functions, frontend) -> `firebase deploy --only functions,hosting` -> release 커밋(version + changelog 포함) -> push.

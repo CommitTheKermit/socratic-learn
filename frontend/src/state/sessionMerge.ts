@@ -26,6 +26,8 @@ export const MERGEABLE_FIELDS = [
   "probeReady",
   "steps",
   "stepEvaluations",
+  "stepBranches",
+  "branchedStepIds",
 ] as const satisfies readonly (keyof SessionState)[];
 
 export type MergeableField = (typeof MERGEABLE_FIELDS)[number];
