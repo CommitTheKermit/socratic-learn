@@ -12,4 +12,3 @@ node_modules/
 
 # Firebase deploy 캐시
 .firebase/
-.env.local
