@@ -836,11 +836,11 @@ body {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 12px;
-  padding: 18px 32px 4px;
+  padding: 9px 32px 8px;
 }
 .pb-seg {
   display: flex; flex-direction: column;
-  gap: 8px;
+  gap: 5px;
   text-align: left;
   min-width: 0;
 }
@@ -870,15 +870,15 @@ body {
 }
 .pb-seg.is-curr .pb-label { color: var(--fg); }
 .pb-seg.is-done .pb-label { color: var(--fg-mut); }
+/* learn 단계: phase-bar 는 .main-inner 안에서 스크롤되되, 폭은 풀블리드로 복구
+   (.main-inner > * 의 720px 중앙 정렬 제약을 상쇄해 본문 좌우 패딩까지 채운다) */
+.main-inner > .phase-bar { width: auto; margin-inline: -24px; }
 .pb-num { font-weight: 600; letter-spacing: 0.02em; }
 .pb-name { font-family: var(--font-sans); letter-spacing: -0.005em; font-size: 12.5px; }
 .pb-sub {
-  display: block;
-  width: 100%;
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--fg-dim);
-  margin-top: 2px;
 }
 
 /* ── Generic stage shell ─────────────────────────────────────────── */
@@ -1420,8 +1420,10 @@ body {
 /* ── Learn (통합 학습 페이지) ────────────────────────────────────── */
 .lv-board {
   width: min(1080px, 100%);
-  /* 가로 모드 2단 전환을 뷰포트가 아닌 board 실제 너비로 판단하기 위한 컨테이너 */
-  container: lv-board / inline-size;
+  /* container-type 을 두지 않는다: container-type 은 자손 position:fixed 의 컨테이닝
+     블록을 .lv-board 로 바꿔 .lv-mini(스크롤 시 상단 고정되는 미니 로드맵 바)의
+     뷰포트 고정을 깨뜨린다. 가로/세로 2단 전환은 @container 가 아니라 orient state +
+     CSS grid 로 처리하므로 container 선언은 불필요했다. */
   margin: 8px auto;
   display: flex;
   flex-direction: column;
@@ -1543,33 +1545,35 @@ body {
   flex: 1 1 auto;
   min-width: 0;
   scroll-behavior: smooth;
-  /* 칩 레일 양끝 페이드 */
-  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 20px), transparent 100%);
-          mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 20px), transparent 100%);
+  /* 칩 레일 오른쪽 끝만 페이드(가로 스크롤 시 더 있는 칩 표시).
+     왼쪽(시작)은 페이드하지 않아 첫 칩이 시작부터 어둡게 흐려지지 않는다. */
+  -webkit-mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 20px), transparent 100%);
+          mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 20px), transparent 100%);
 }
 .lv-mini-steps .lv-step button { padding: 5px 10px; font-size: 11.5px; }
-/* 미니 바 하단 얇은 holo 진행 바 (은근한 전체 진행도) */
-.lv-prog {
-  position: absolute;
+/* 페이지 최상단(top:0)에 항상 고정되는 얇은 holo 진행 라인 (전체 로드맵 진행도).
+   미니 바와 달리 스크롤 위치와 무관하게 늘 보인다(디자인 소스 .lvr-topprog). */
+.lvr-topprog {
+  position: fixed;
+  top: 0;
   left: 0;
   right: 0;
-  bottom: 0;
-  height: 2px;
-  background: var(--line);
-  overflow: hidden;
+  height: 3px;
+  z-index: 60;
+  background: oklch(1 0 0 / 0.06);
+  pointer-events: none;
 }
-.lv-prog > span {
-  position: absolute;
-  inset: 0 auto 0 0;
+.lvr-topprog > span {
+  display: block;
   height: 100%;
-  border-radius: 999px;
   background: var(--holo);
+  box-shadow: 0 0 12px 1px rgba(200, 182, 255, 0.4);
   transition: width 0.4s ease;
 }
 @media (prefers-reduced-motion: reduce) {
   .lv-mini { transition: opacity 0.2s ease; }
   .lv-mini-steps { scroll-behavior: auto; }
-  .lv-prog > span { transition: none; }
+  .lvr-topprog > span { transition: none; }
 }
 
 .lv-status { padding: 0 4px; }

@@ -627,7 +627,9 @@ function AppWorkspace({
           </div>
         )}
 
-        {stage !== "input" && <ProgressBar stage={stage} stepIdx={stepIdx} />}
+        {/* learn 단계의 phase-bar 는 .main-inner 안에서 본문과 함께 스크롤되어 사라진다.
+            (스크롤 시 슬라이드되는 .lv-mini 로드맵 바가 고정 phase-bar 를 덮는 스티키 겹침 버그 방지) */}
+        {stage !== "input" && stage !== "learn" && <ProgressBar stage={stage} stepIdx={stepIdx} />}
 
         <div className="main-inner">
           {stage === "input" && (
@@ -655,27 +657,30 @@ function AppWorkspace({
           )}
 
           {stage === "learn" && (
-            <StageLearn
-              concept={concept}
-              level={estimatedLevel}
-              mode={mode}
-              sessionId={sessionId}
-              stepIdx={stepIdx}
-              setStepIdx={setStepIdx}
-              answers={answers}
-              setAnswers={setAnswers}
-              onAnswerCommit={flush}
-              skips={skips}
-              setSkips={setSkips}
-              onPrev={() => goStage("probe")}
-              onDone={() => goStage("done")}
-              onRetry={() => {
-                if (estimatedLevel != null) {
-                  lastLoadedLevelRef.current = null;
-                  void loadOutline(concept, estimatedLevel, mode);
-                }
-              }}
-            />
+            <>
+              <ProgressBar stage={stage} stepIdx={stepIdx} />
+              <StageLearn
+                concept={concept}
+                level={estimatedLevel}
+                mode={mode}
+                sessionId={sessionId}
+                stepIdx={stepIdx}
+                setStepIdx={setStepIdx}
+                answers={answers}
+                setAnswers={setAnswers}
+                onAnswerCommit={flush}
+                skips={skips}
+                setSkips={setSkips}
+                onPrev={() => goStage("probe")}
+                onDone={() => goStage("done")}
+                onRetry={() => {
+                  if (estimatedLevel != null) {
+                    lastLoadedLevelRef.current = null;
+                    void loadOutline(concept, estimatedLevel, mode);
+                  }
+                }}
+              />
+            </>
           )}
 
           {stage === "done" && (
