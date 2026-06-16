@@ -46,6 +46,19 @@ export const CHANGE_CATEGORY: Record<
 /** 전체 버전 히스토리 (최신 → 과거). 맨 앞이 현재 버전. */
 export const CHANGELOG: VersionEntry[] = [
   {
+    version: "0.12.0",
+    date: "2026.06.16",
+    title: "학습 흐름 정리와 모바일",
+    changes: [
+      { type: "feature", text: "마치기 전이라면 답변을 다시 제출해 피드백을 새로 받을 수 있어요." },
+      { type: "improve", text: "반복되는 개념은 하나로 합치고, 단계 번호와 지금 보고 있는 위치(경로)를 또렷하게 보여줘요." },
+      { type: "feature", text: "진행 바와 단계 미니 바로 학습 진행 상황을 한눈에 볼 수 있어요." },
+      { type: "improve", text: "휴대폰 화면에서도 편하게 학습할 수 있도록 레이아웃을 정리했어요." },
+      { type: "feature", text: "업데이트 소식을 사이드바에서 모아볼 수 있어요." },
+      { type: "fix", text: "평가를 마친 분기 단계에서 다음으로 넘어가지 못하고 갇히던 문제를 고쳤어요." },
+    ],
+  },
+  {
     version: "0.11.0",
     date: "2026.06.13",
     title: "수식과 분기 다듬기",
