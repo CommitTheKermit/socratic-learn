@@ -761,10 +761,10 @@ export function StageLearn({
         <div className="lv-bar-top">
           <span className="lv-bar-eyebrow">학습 진행</span>
           <span className="lv-bar-title">{concept}</span>
-          <span className="lv-bar-spacer" />
           <span className="lv-bar-meta">
-            개념 {Math.min(stepIdx + 1, Math.max(steps.length, 1))}/{steps.length} · {LEVEL_LABELS[safeLevel]}
+            {Math.min(stepIdx + 1, Math.max(steps.length, 1))} / {steps.length}
           </span>
+          <span className="lv-bar-spacer" />
           <div className="lv-seg" role="group" aria-label="레이아웃 방향">
             <button
               type="button"
@@ -787,6 +787,11 @@ export function StageLearn({
         <ol className="lv-steps">{renderStepItems()}</ol>
       </header>
 
+      {/* 페이지 최상단(top:0)에 항상 보이는 얇은 holo 진행 라인 (전체 로드맵 진행도) */}
+      <div className="lvr-topprog" aria-hidden>
+        <span style={{ width: progressPct + "%" }} />
+      </div>
+
       {/* 스크롤 시 헤더가 사라지면 위에서 슬라이드+페이드로 내려오는 압축 로드맵 미니 바 */}
       <div ref={miniRef} className={"lv-mini" + (miniVisible ? " is-shown" : "")} aria-hidden={!miniVisible}>
         <div className="lv-mini-inner">
@@ -794,9 +799,6 @@ export function StageLearn({
           <ol className="lv-steps lv-mini-steps" ref={miniRailRef}>
             {renderStepItems()}
           </ol>
-        </div>
-        <div className="lv-prog">
-          <span style={{ width: progressPct + "%" }} />
         </div>
       </div>
 

@@ -836,11 +836,11 @@ body {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 12px;
-  padding: 18px 32px 4px;
+  padding: 9px 32px 8px;
 }
 .pb-seg {
   display: flex; flex-direction: column;
-  gap: 8px;
+  gap: 5px;
   text-align: left;
   min-width: 0;
 }
@@ -876,12 +876,9 @@ body {
 .pb-num { font-weight: 600; letter-spacing: 0.02em; }
 .pb-name { font-family: var(--font-sans); letter-spacing: -0.005em; font-size: 12.5px; }
 .pb-sub {
-  display: block;
-  width: 100%;
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--fg-dim);
-  margin-top: 2px;
 }
 
 /* ── Generic stage shell ─────────────────────────────────────────── */
@@ -1554,28 +1551,29 @@ body {
           mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 20px), transparent 100%);
 }
 .lv-mini-steps .lv-step button { padding: 5px 10px; font-size: 11.5px; }
-/* 미니 바 하단 얇은 holo 진행 바 (은근한 전체 진행도) */
-.lv-prog {
-  position: absolute;
+/* 페이지 최상단(top:0)에 항상 고정되는 얇은 holo 진행 라인 (전체 로드맵 진행도).
+   미니 바와 달리 스크롤 위치와 무관하게 늘 보인다(디자인 소스 .lvr-topprog). */
+.lvr-topprog {
+  position: fixed;
+  top: 0;
   left: 0;
   right: 0;
-  bottom: 0;
-  height: 2px;
-  background: var(--line);
-  overflow: hidden;
+  height: 3px;
+  z-index: 60;
+  background: oklch(1 0 0 / 0.06);
+  pointer-events: none;
 }
-.lv-prog > span {
-  position: absolute;
-  inset: 0 auto 0 0;
+.lvr-topprog > span {
+  display: block;
   height: 100%;
-  border-radius: 999px;
   background: var(--holo);
+  box-shadow: 0 0 12px 1px rgba(200, 182, 255, 0.4);
   transition: width 0.4s ease;
 }
 @media (prefers-reduced-motion: reduce) {
   .lv-mini { transition: opacity 0.2s ease; }
   .lv-mini-steps { scroll-behavior: auto; }
-  .lv-prog > span { transition: none; }
+  .lvr-topprog > span { transition: none; }
 }
 
 .lv-status { padding: 0 4px; }
