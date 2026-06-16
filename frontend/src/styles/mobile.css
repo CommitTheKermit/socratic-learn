@@ -142,6 +142,8 @@
     gap: 7px;
     padding: 14px 16px 2px;
   }
+  /* 모바일 main-inner 좌우 패딩(14px)에 맞춰 풀블리드 음수 마진을 줄여 가로 오버플로 방지 */
+  .main-inner > .phase-bar { margin-inline: -14px; }
   .pb-label { gap: 5px; }
   .pb-num { font-size: 10px; }
   .pb-name { font-size: 11px; }

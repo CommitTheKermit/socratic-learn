@@ -870,6 +870,9 @@ body {
 }
 .pb-seg.is-curr .pb-label { color: var(--fg); }
 .pb-seg.is-done .pb-label { color: var(--fg-mut); }
+/* learn 단계: phase-bar 는 .main-inner 안에서 스크롤되되, 폭은 풀블리드로 복구
+   (.main-inner > * 의 720px 중앙 정렬 제약을 상쇄해 본문 좌우 패딩까지 채운다) */
+.main-inner > .phase-bar { width: auto; margin-inline: -24px; }
 .pb-num { font-weight: 600; letter-spacing: 0.02em; }
 .pb-name { font-family: var(--font-sans); letter-spacing: -0.005em; font-size: 12.5px; }
 .pb-sub {

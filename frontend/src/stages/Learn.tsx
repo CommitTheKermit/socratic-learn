@@ -199,8 +199,24 @@ export function StageLearn({
   // ── 학습 로드맵 미니 바 (스크롤 시 헤더가 사라지면 위에서 슬라이드+페이드 등장) ──
   // 트리거: 실제 헤더(lv-bar)가 스크롤 컨테이너(.main-inner) 위로 완전히 벗어나면 표시.
   const [miniVisible, setMiniVisible] = useState(false);
+  const miniRef = useRef<HTMLDivElement | null>(null);
   const miniRailRef = useRef<HTMLOListElement | null>(null);
   const miniObserverRef = useRef<IntersectionObserver | null>(null);
+
+  // 미니 바(position:fixed)를 뷰포트 최상단이 아니라 스크롤 컨테이너(.main-inner) 상단에 맞춘다.
+  // top:0 으로 두면 데스크톱에선 맞지만 모바일에선 상단바(.m-topbar)를 덮는다.
+  // 스크롤러의 실제 top 에 맞춰 어떤 상단 크롬이 있든 그 아래에 자연스럽게 고정한다.
+  useEffect(() => {
+    const place = () => {
+      const mini = miniRef.current;
+      const scroller = mini?.closest<HTMLElement>(".main-inner");
+      if (!mini || !scroller) return;
+      mini.style.top = `${scroller.getBoundingClientRect().top}px`;
+    };
+    place();
+    window.addEventListener("resize", place);
+    return () => window.removeEventListener("resize", place);
+  }, []);
   const setBarRef = useCallback((node: HTMLElement | null) => {
     miniObserverRef.current?.disconnect();
     miniObserverRef.current = null;
@@ -769,7 +785,7 @@ export function StageLearn({
       </header>
 
       {/* 스크롤 시 헤더가 사라지면 위에서 슬라이드+페이드로 내려오는 압축 로드맵 미니 바 */}
-      <div className={"lv-mini" + (miniVisible ? " is-shown" : "")} aria-hidden={!miniVisible}>
+      <div ref={miniRef} className={"lv-mini" + (miniVisible ? " is-shown" : "")} aria-hidden={!miniVisible}>
         <div className="lv-mini-inner">
           <span className="lv-mini-title">{concept}</span>
           <ol className="lv-steps lv-mini-steps" ref={miniRailRef}>
