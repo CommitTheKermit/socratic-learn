@@ -49,6 +49,13 @@ export const CHANGE_TYPE_ORDER: ChangeType[] = ["feature", "improve", "fix"];
 /** 전체 버전 히스토리 (최신 → 과거). 맨 앞이 현재 버전. */
 export const CHANGELOG: VersionEntry[] = [
   {
+    version: "0.12.2",
+    date: "2026.06.16",
+    changes: [
+      { type: "fix", text: "다른 화면으로 이동할 때마다 사이드바가 다시 미끄러져 나오던 현상을 고쳐, 페이지를 옮겨도 그대로 고정되게 했어요." },
+    ],
+  },
+  {
     version: "0.12.1",
     date: "2026.06.16",
     changes: [
