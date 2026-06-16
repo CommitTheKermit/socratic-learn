@@ -81,7 +81,7 @@ localStorage 키:
 
 ## 로드맵 노드 모델
 
-학습 단계 노드의 중복 병합(isMerged + 정규화 백스톱), 계층형 십진수 번호(`1`/`1.1`), 브레드크럼 경로 - 상세는 [`docs/roadmap-node-model.md`](docs/roadmap-node-model.md) 참조 (`lib/stepTitle.ts`/`stepInsertGuard.ts`/`stepLabel.ts`/`breadcrumb.ts`).
+학습 단계 노드의 중복 병합(isMerged + 정규화 백스톱), 계층형 십진수 번호(`1`/`1.1`), 브레드크럼 경로 - 상세는 [`../docs/roadmap-node-model.md`](../docs/roadmap-node-model.md) 참조 (`lib/stepTitle.ts`/`stepInsertGuard.ts`/`stepLabel.ts`/`breadcrumb.ts`).
 
 ## API 클라이언트 계층
 
