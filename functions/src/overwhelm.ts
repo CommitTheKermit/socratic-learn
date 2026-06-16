@@ -5,7 +5,7 @@ import { CORS_ORIGINS } from "./cors";
 import { defineSecret } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import Anthropic from "@anthropic-ai/sdk";
-import { parseStructured } from "./llm";
+import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
 import { OVERWHELM_SYSTEM, overwhelmUserMessage } from "./prompts";
 
 // Secret Manager 로 주입되는 Anthropic 키. 브라우저에는 절대 노출되지 않는다.
@@ -72,14 +72,15 @@ export const overwhelm = onRequest(
     }
 
     try {
-      const parsed = (await parseStructured({
-        apiKey: ANTHROPIC_API_KEY.value(),
+      const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY.value() });
+      const resp = await client.messages.parse({
         model: CLAUDE_MODEL,
-        maxTokens: 1500,
-        system: OVERWHELM_SYSTEM,
-        user: overwhelmUserMessage(concept, materials, probeSummary),
-        schema: overwhelmSchema,
-      })) as OverwhelmDecision | undefined;
+        max_tokens: 1500,
+        system: [{ type: "text", text: OVERWHELM_SYSTEM, cache_control: { type: "ephemeral" } }],
+        messages: [{ role: "user", content: overwhelmUserMessage(concept, materials, probeSummary) }],
+        output_config: { format: jsonSchemaOutputFormat(overwhelmSchema) },
+      });
+      const parsed = resp.parsed_output as OverwhelmDecision | undefined;
       if (!parsed) {
         res.status(502).json({ code: "INVALID_RESPONSE", message: "후퇴 판단 응답이 비어 있습니다." });
         return;

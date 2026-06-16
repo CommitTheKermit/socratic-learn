@@ -5,7 +5,7 @@ import { CORS_ORIGINS } from "./cors";
 import { defineSecret } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import Anthropic from "@anthropic-ai/sdk";
-import { parseStructured } from "./llm";
+import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
 import { STEP_DETAIL_SYSTEM, stepDetailUserMessage } from "./prompts";
 
 // Secret Manager 로 주입되는 Anthropic 키. 브라우저에는 절대 노출되지 않는다.
@@ -130,23 +130,29 @@ export const stepDetail = onRequest(
       .join("\n");
 
     try {
-      const parsed = (await parseStructured({
-        apiKey: ANTHROPIC_API_KEY.value(),
+      const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY.value() });
+      const resp = await client.messages.parse({
         model: CLAUDE_MODEL,
-        maxTokens: 4000,
-        system: STEP_DETAIL_SYSTEM,
-        user: stepDetailUserMessage(
-          concept,
-          level,
-          outlineText,
-          stepIdx + 1,
-          cur.title,
-          cur.desc,
-          mode,
-        ),
+        max_tokens: 4000,
+        system: [{ type: "text", text: STEP_DETAIL_SYSTEM, cache_control: { type: "ephemeral" } }],
+        messages: [
+          {
+            role: "user",
+            content: stepDetailUserMessage(
+              concept,
+              level,
+              outlineText,
+              stepIdx + 1,
+              cur.title,
+              cur.desc,
+              mode,
+            ),
+          },
+        ],
         // 테스트 모드: 질문 2개 스키마로 LLM 호출
-        schema: testMode ? stepDetailSchemaTest : stepDetailSchema,
-      })) as StepDetail | undefined;
+        output_config: { format: jsonSchemaOutputFormat(testMode ? stepDetailSchemaTest : stepDetailSchema) },
+      });
+      const parsed = resp.parsed_output as StepDetail | undefined;
       if (!parsed?.body || !parsed?.questions?.length) {
         res.status(502).json({ code: "INVALID_RESPONSE", message: "단계 상세 응답이 비어 있습니다." });
         return;
