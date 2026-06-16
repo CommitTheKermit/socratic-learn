@@ -49,6 +49,15 @@ export const CHANGE_TYPE_ORDER: ChangeType[] = ["feature", "improve", "fix"];
 /** 전체 버전 히스토리 (최신 → 과거). 맨 앞이 현재 버전. */
 export const CHANGELOG: VersionEntry[] = [
   {
+    version: "0.12.1",
+    date: "2026.06.16",
+    changes: [
+      { type: "improve", text: "학습 진행 표시를 정리했어요 - 최상단 단계 바와 단계별 로드맵 바를 디자인에 맞추고, 페이지 맨 위에 전체 진행도 라인을 추가했어요." },
+      { type: "fix", text: "스크롤할 때 미니 로드맵 바가 진행 바를 덮거나, 새로고침 뒤 나타나지 않던 문제를 고쳤어요." },
+      { type: "improve", text: "업데이트 소식 항목을 '기능 추가 → 개선 → 버그 수정' 순으로 정렬해 보기 쉽게 했어요." },
+    ],
+  },
+  {
     version: "0.12.0",
     date: "2026.06.16",
     title: "학습 흐름 정리와 모바일",
