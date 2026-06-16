@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLearnContent } from "../state/LearnContent";
 import { Markdown } from "../lib/markdown";
 import { LEVEL_LABELS, type Step } from "./data";
@@ -199,37 +199,40 @@ export function StageLearn({
   // ── 학습 로드맵 미니 바 (스크롤 시 헤더가 사라지면 위에서 슬라이드+페이드 등장) ──
   // 트리거: 실제 헤더(lv-bar)가 스크롤 컨테이너(.main-inner) 위로 완전히 벗어나면 표시.
   const [miniVisible, setMiniVisible] = useState(false);
+  const headRef = useRef<HTMLElement | null>(null);
   const miniRef = useRef<HTMLDivElement | null>(null);
   const miniRailRef = useRef<HTMLOListElement | null>(null);
-  const miniObserverRef = useRef<IntersectionObserver | null>(null);
 
-  // 미니 바(position:fixed)를 뷰포트 최상단이 아니라 스크롤 컨테이너(.main-inner) 상단에 맞춘다.
-  // top:0 으로 두면 데스크톱에선 맞지만 모바일에선 상단바(.m-topbar)를 덮는다.
-  // 스크롤러의 실제 top 에 맞춰 어떤 상단 크롬이 있든 그 아래에 자연스럽게 고정한다.
+  // 헤더(lv-bar)가 스크롤 컨테이너(.main-inner) 위로 벗어나면 미니 바를 띄우고,
+  // 미니 바(position:fixed)를 스크롤러 상단(상단 크롬 아래)에 맞춘다.
+  // 콜백 ref 가 아니라 useEffect+ref 로 거는 이유: 세션 복원/새로고침으로 마운트되는
+  // 경로에서 콜백 ref 는 옵저버가 신뢰성 있게 걸리지 않아 미니 바가 안 떴다. 커밋 직후
+  // outlineStatus(ready)·orient 변화에 맞춰 한 번 확실히 옵저버를 건다(디자인 소스 방식).
   useEffect(() => {
+    const head = headRef.current;
+    const scroller = head?.closest<HTMLElement>(".main-inner");
+    if (!head || !scroller) return;
     const place = () => {
       const mini = miniRef.current;
-      const scroller = mini?.closest<HTMLElement>(".main-inner");
-      if (!mini || !scroller) return;
+      if (!mini) return;
+      // top:0(뷰포트 최상단)이 아니라 스크롤러 상단에 맞춰 모바일 상단바(.m-topbar) 겹침 방지.
       mini.style.top = `${scroller.getBoundingClientRect().top}px`;
     };
     place();
     window.addEventListener("resize", place);
-    return () => window.removeEventListener("resize", place);
-  }, []);
-  const setBarRef = useCallback((node: HTMLElement | null) => {
-    miniObserverRef.current?.disconnect();
-    miniObserverRef.current = null;
-    if (!node || typeof IntersectionObserver === "undefined") return;
-    const root = node.closest(".main-inner");
+    if (typeof IntersectionObserver === "undefined") {
+      return () => window.removeEventListener("resize", place);
+    }
     const io = new IntersectionObserver(
       ([entry]) => setMiniVisible(!entry.isIntersecting),
-      { root, threshold: 0 },
+      { root: scroller, threshold: 0 },
     );
-    io.observe(node);
-    miniObserverRef.current = io;
-  }, []);
-  useEffect(() => () => miniObserverRef.current?.disconnect(), []);
+    io.observe(head);
+    return () => {
+      io.disconnect();
+      window.removeEventListener("resize", place);
+    };
+  }, [outlineStatus, orient]);
 
   // 미니 바가 보일 때 현재 칩을 가로 레일 중앙으로 정렬한다.
   useEffect(() => {
@@ -754,7 +757,7 @@ export function StageLearn({
 
   return (
     <div className="lv-board">
-      <header className="lv-bar" ref={setBarRef}>
+      <header className="lv-bar" ref={headRef}>
         <div className="lv-bar-top">
           <span className="lv-bar-eyebrow">학습 진행</span>
           <span className="lv-bar-title">{concept}</span>

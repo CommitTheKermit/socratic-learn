@@ -1423,8 +1423,10 @@ body {
 /* ── Learn (통합 학습 페이지) ────────────────────────────────────── */
 .lv-board {
   width: min(1080px, 100%);
-  /* 가로 모드 2단 전환을 뷰포트가 아닌 board 실제 너비로 판단하기 위한 컨테이너 */
-  container: lv-board / inline-size;
+  /* container-type 을 두지 않는다: container-type 은 자손 position:fixed 의 컨테이닝
+     블록을 .lv-board 로 바꿔 .lv-mini(스크롤 시 상단 고정되는 미니 로드맵 바)의
+     뷰포트 고정을 깨뜨린다. 가로/세로 2단 전환은 @container 가 아니라 orient state +
+     CSS grid 로 처리하므로 container 선언은 불필요했다. */
   margin: 8px auto;
   display: flex;
   flex-direction: column;
