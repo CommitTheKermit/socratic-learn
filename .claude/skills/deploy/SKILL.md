@@ -60,6 +60,14 @@ socratic-learn-2 의 배포(Firebase Functions + Hosting)를 **사전 점검 -> 
 3. 작성된 초안을 사람이 **검토/승인**한다(문구·분류·누락 확인). 수정 요청이 있으면 반영 후 다시 확인.
 4. **사용자 관점 변경이 0건이면 항목을 생략**한다(빈 항목을 만들지 않는다). 이 경우 `CHANGELOG[0]` 이 그대로라 빨간 점(미확인 알림)도 켜지지 않는다. changelog 의 버전 목록은 package.json 전체 버전의 부분집합일 수 있다(1:1 미러가 아니어도 된다).
 5. **커밋은 분리하지 않는다.** `changelog.ts` 변경은 step 4 release 커밋에 `package.json` version bump 와 **함께** 담는다(별도 커밋 없음).
+6. **검증 게이트 (빌드 직전 필수 - 건너뛰지 말 것).** changelog 갱신 누락을 막는 마지막 방어선이다. 빌드(step 2) 직전에 두 버전이 맞는지 기계적으로 확인한다:
+   ```bash
+   grep -oE 'version: "[0-9]+\.[0-9]+\.[0-9]+"' frontend/src/components/whatsnew/changelog.ts | head -1   # CHANGELOG[0]
+   node -p "require('./frontend/package.json').version"                                                    # package.json
+   ```
+   - 두 값이 **일치**하면 통과.
+   - **불일치**하면 멈춘다. 거의 항상 changelog 갱신을 빠뜨린 것이므로 2번으로 돌아가 항목을 추가한다. **유일한 예외**는 step 4 의 "사용자 체감 변경 0건이라 의도적으로 항목을 생략" 한 경우뿐이며, 이때만 불일치를 허용하고 진행한다(판단이 서지 않으면 사용자에게 확인).
+   - 이 게이트는 **SKILL.md 를 옛 버전(예: 1.5 단계가 아직 머지 안 된 브랜치 기준)으로 읽어 changelog 갱신을 통째로 건너뛰는 사고**까지 잡는다. 그러니 이 게이트만큼은 어떤 경우에도 실행한다.
 
 ## 2. 빌드
 
@@ -96,4 +104,4 @@ git push
 
 ## 최종 순서 요약
 
-작업 브랜치 커밋 -> main 으로 병합 -> push -> 버전 bump -> changelog 갱신(AI 작성 + 사람 검토) -> 빌드(functions, frontend) -> `firebase deploy --only functions,hosting` -> release 커밋(version + changelog 포함) -> push.
+작업 브랜치 커밋 -> main 으로 병합 -> push -> 버전 bump -> changelog 갱신(AI 작성 + 사람 검토) -> **버전 정합 검증 게이트** -> 빌드(functions, frontend) -> `firebase deploy --only functions,hosting` -> release 커밋(version + changelog 포함) -> push.
