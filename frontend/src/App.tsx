@@ -179,6 +179,10 @@ function AppWorkspace({
   // (peeking 은 일시적이라 저장 안 함.)
   const [pinned, setPinned] = useState(() => (isMobileViewport() ? false : loadSidebarPinned()));
   const [peeking, setPeeking] = useState(false);
+  // 펼침 슬라이드인(sbDrawerIn) 재생 여부. 마운트 기본값은 false 라 페이지(단계)/세션 전환으로
+  // 워크스페이스가 재마운트돼도 슬라이드가 재생되지 않고 고정 위치 그대로 나타난다.
+  // 사용자가 직접 펼치는 pin() 에서만 true 로 켜 그 동작에서만 슬라이드를 보인다.
+  const [openAnim, setOpenAnim] = useState(false);
   const drawerState: "hidden" | "peek" | "open" = pinned
     ? "open"
     : peeking
@@ -205,6 +209,8 @@ function AppWorkspace({
     if (!pinnedRef.current) setPeeking(false);
   };
   const pin = () => {
+    // 이미 펼쳐진 상태에서의 재호출(예: 업데이트 패널 열기)은 슬라이드를 다시 켜지 않는다.
+    if (!pinnedRef.current) setOpenAnim(true);
     setPinned(true);
     setPeeking(false);
     if (!isMobileRef.current) saveSidebarPinned(true);
@@ -217,6 +223,7 @@ function AppWorkspace({
   const hide = () => {
     setPinned(false);
     setPeeking(false);
+    setOpenAnim(false);
     setWnOpen(false);
     if (!isMobileRef.current) saveSidebarPinned(false);
     requestAnimationFrame(() => edgeRef.current?.focus());
@@ -560,6 +567,7 @@ function AppWorkspace({
     <div
       className="app"
       data-drawer={drawerState}
+      data-drawer-anim={openAnim ? "in" : undefined}
       data-stage={stage}
       style={accentStyle}
       aria-busy={loadingTitle !== null ? "true" : undefined}
