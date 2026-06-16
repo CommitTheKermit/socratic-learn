@@ -1548,9 +1548,10 @@ body {
   flex: 1 1 auto;
   min-width: 0;
   scroll-behavior: smooth;
-  /* 칩 레일 양끝 페이드 */
-  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 20px), transparent 100%);
-          mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 20px), transparent 100%);
+  /* 칩 레일 오른쪽 끝만 페이드(가로 스크롤 시 더 있는 칩 표시).
+     왼쪽(시작)은 페이드하지 않아 첫 칩이 시작부터 어둡게 흐려지지 않는다. */
+  -webkit-mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 20px), transparent 100%);
+          mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 20px), transparent 100%);
 }
 .lv-mini-steps .lv-step button { padding: 5px 10px; font-size: 11.5px; }
 /* 미니 바 하단 얇은 holo 진행 바 (은근한 전체 진행도) */
