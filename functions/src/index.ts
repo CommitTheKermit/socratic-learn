@@ -4,6 +4,7 @@ export { probe } from "./probe";
 export { outline } from "./outline";
 export { stepDetail } from "./stepDetail";
 export { stepDetailStream } from "./stepDetailStream";
+export { testEligible } from "./testEligible";
 export { answerEval } from "./answerEval";
 export { branchEval } from "./branchEval";
 export { sessionSave, sessionList, sessionGet } from "./sessions";

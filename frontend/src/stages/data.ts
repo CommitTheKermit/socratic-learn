@@ -228,6 +228,20 @@ export const ANSWER_MODES: AnswerMode[] = [
   { id: "deep", name: "깊게", cvar: "--mode-deep", desc: "끝까지 파고들기. 질문 5개+, 더 혹독한 점검과 추궁" },
 ];
 
+// 테스트 모드 - testModeUsers 자격 계정에만 드롭다운에 노출되는 빠른 점검용 축소 모드.
+// 진단 1문항 / 로드맵 2단계 / 단계 확인질문 2개 / 후퇴 판단 생략으로 LLM 호출·출력을 줄인다.
+export const TEST_MODE: AnswerMode = {
+  id: "test",
+  name: "테스트",
+  cvar: "--mode-test",
+  desc: "빠른 점검용. 진단·단계·질문 최소화, LLM 호출 절약",
+};
+
+// 자격 여부에 따라 드롭다운에 보일 모드 목록. 자격자에게만 테스트 모드를 덧붙인다.
+export function modesFor(testEligible: boolean): AnswerMode[] {
+  return testEligible ? [...ANSWER_MODES, TEST_MODE] : ANSWER_MODES;
+}
+
 // 메인 가이드 — 학습 4단계 흐름 (입력바 아래 접이식)
 export const HOW_STEPS = [
   { n: "01", title: "수준 확인", desc: "몇 가지 질문으로 지금 아는 만큼을 가늠해요" },

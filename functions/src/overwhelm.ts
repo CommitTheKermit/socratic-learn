@@ -52,18 +52,20 @@ export const overwhelm = onRequest(
       return;
     }
 
-    const testMode = await isTestMode(uid);
-
-    const { concept, materials, probeSummary } = (req.body ?? {}) as {
+    const { concept, materials, probeSummary, mode } = (req.body ?? {}) as {
       concept?: string;
       materials?: string;
       probeSummary?: string;
+      mode?: string;
     };
 
     if (!concept || typeof probeSummary !== "string") {
       res.status(400).json({ code: "INVALID_REQUEST", message: "concept 와 probeSummary 가 필요합니다." });
       return;
     }
+
+    // 테스트 모드는 사용자가 직접 mode='test' 를 골랐을 때만, 그리고 자격(testModeUsers)이 있을 때만 적용.
+    const testMode = mode === "test" && (await isTestMode(uid));
 
     // 테스트 모드: LLM 호출 없이 즉시 shouldRetreat=false 반환
     if (testMode) {

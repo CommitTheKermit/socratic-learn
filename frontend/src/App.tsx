@@ -23,6 +23,7 @@ import type { SessionState } from "./state/sessionState";
 import { fetchAndMerge, persistWithSync } from "./state/sessionSync";
 import { useDebouncedPersist } from "./state/useDebouncedPersist";
 import { useAuth } from "./state/useAuth";
+import { useTestEligible } from "./state/useTestEligible";
 import { hasSynced, markSynced } from "./state/fetchOncePerSession";
 import type { LearnMode } from "./api/contract";
 import { logEvent } from "./lib/analytics";
@@ -276,6 +277,8 @@ function AppWorkspace({
   // 답변 모드. 입력바 드롭다운에서 고르고 세션에 영속화되어 probe/outline/stepDetail/eval 프롬프트
   // 강도와 분기 on/off 를 정한다. (probe 단계 진입 전에 확정되므로 세션 발급 시점에 스냅샷에 담긴다.)
   const [mode, setMode] = useState<string>(() => loaded?.mode ?? "socratic");
+  // 테스트 모드 자격(testModeUsers) 여부. 자격자에게만 입력창 드롭다운에 "테스트" 항목을 노출한다.
+  const testEligible = useTestEligible();
   const [accent] = useState<string[]>(ACCENT_PRESETS[0]);
   const showAurora = true;
 
@@ -647,6 +650,7 @@ function AppWorkspace({
               concept={concept}
               setConcept={setConcept}
               onStart={startLearning}
+              testEligible={testEligible}
             />
           )}
 
@@ -654,6 +658,7 @@ function AppWorkspace({
             <StageProbe
               concept={concept}
               materials={materials}
+              mode={mode}
               probes={probes}
               setProbes={(updater) => setProbes((prev) => updater(prev))}
               setEstimatedLevel={setEstimatedLevel}

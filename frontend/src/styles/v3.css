@@ -28,6 +28,7 @@ textarea, input { font: inherit; color: inherit; }
   --mode-light:    #A8FFC9;   /* 가볍게 · 민트 */
   --mode-socratic: #FFB3D9;   /* 소크라틱 · 핑크 */
   --mode-deep:     #C8B6FF;   /* 깊게 · 라벤더 */
+  --mode-test:     #9DB2BF;   /* 테스트 · 슬레이트(학습 강도 아닌 점검용임을 색으로 구분) */
   --accent-pick:   var(--mode-socratic);
 
   /* Ethereal Pulse — holographic signature gradient */

@@ -82,8 +82,6 @@ export const outline = onRequest(
       return;
     }
 
-    const testMode = await isTestMode(uid);
-
     const { concept, level, mode } = (req.body ?? {}) as {
       concept?: string;
       level?: number;
@@ -94,6 +92,9 @@ export const outline = onRequest(
       res.status(400).json({ code: "INVALID_REQUEST", message: "concept 와 level 이 필요합니다." });
       return;
     }
+
+    // 테스트 모드는 사용자가 직접 mode='test' 를 골랐을 때만, 그리고 자격(testModeUsers)이 있을 때만 적용.
+    const testMode = mode === "test" && (await isTestMode(uid));
 
     try {
       const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY.value() });

@@ -56,6 +56,7 @@ socratic-learn-2 의 배포(Firebase Functions + Hosting)를 **사전 점검 -> 
    - `version` 은 step 1 에서 올린 `frontend/package.json` 의 version 과 **똑같이** 맞춘다.
    - `date` 는 배포일을 `"YYYY.MM.DD"` 로.
    - `changes` 는 각 항목 `{ type, text }`. `type` 은 `feature`(기능 추가)/`improve`(개선)/`fix`(버그 수정) 중 하나, `text` 는 사용자 관점의 짧은 한 문장.
+   - 한 버전 안에서 항목은 **`feature` → `improve` → `fix` 순서**로 정렬한다(기능 추가를 위에, 버그 수정을 아래에).
    - **내부 도구/하네스/CI/문서/리팩터 등 사용자 체감이 없는 변경은 제외**한다.
 3. 작성된 초안을 사람이 **검토/승인**한다(문구·분류·누락 확인). 수정 요청이 있으면 반영 후 다시 확인.
 4. **사용자 관점 변경이 0건이면 항목을 생략**한다(빈 항목을 만들지 않는다). 이 경우 `CHANGELOG[0]` 이 그대로라 빨간 점(미확인 알림)도 켜지지 않는다. changelog 의 버전 목록은 package.json 전체 버전의 부분집합일 수 있다(1:1 미러가 아니어도 된다).

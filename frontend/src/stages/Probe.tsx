@@ -14,6 +14,7 @@ import { MathText } from "../lib/mathText";
 interface Props {
   concept: string;
   materials: string;
+  mode: string;
   probes: ProbeAnswers;
   setProbes: (updater: (prev: ProbeAnswers) => ProbeAnswers) => void;
   setEstimatedLevel: (v: number) => void;
@@ -121,6 +122,7 @@ function TextRow({
 export function StageProbe({
   concept,
   materials,
+  mode,
   probes,
   setProbes,
   setEstimatedLevel,
@@ -167,7 +169,7 @@ export function StageProbe({
     if (probes.p1 === 0) {
       setCheckingOverwhelm(true);
       try {
-        const decision = await detectOverwhelm(concept, materials, buildProbeSummary());
+        const decision = await detectOverwhelm(concept, materials, buildProbeSummary(), mode);
         setCheckingOverwhelm(false);
         if (decision.shouldRetreat) {
           setRetreat(decision);
