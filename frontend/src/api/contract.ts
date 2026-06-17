@@ -5,6 +5,8 @@
 export const ApiPaths = {
   // Firebase Functions 로 이전된 엔드포인트 (함수명 = 경로)
   OVERWHELM: "/overwhelm",
+  // 개념이 너무 어려울 때 다단계 선행 개념 트리(이름 지도)를 생성한다.
+  PREREQ_TREE: "/prereqTree",
   PROBE: "/probe",
   OUTLINE: "/outline",
   STEP_DETAIL: "/stepDetail",
@@ -55,6 +57,32 @@ export interface OverwhelmDecision {
   shouldRetreat: boolean;
   reason: string;
   suggestedConcept: string;
+}
+
+/**
+ * POST /prereqTree 요청. 개념이 너무 어려울 때 다단계 선행 개념 트리(이름 지도)를 생성한다.
+ * probeSummary 는 probe 단계 호출 시에만 채워지고, learn 단계 호출 시엔 생략 가능.
+ */
+export interface PrereqTreeRequest {
+  concept: string;
+  materials?: string;
+  probeSummary?: string;
+  mode?: LearnMode;
+}
+
+/** 선행 개념 트리 노드. children 으로 '선행의 선행'을 표현한다(서버는 최대 3단계로 제한). */
+export interface PrereqNode {
+  /** 선행 개념 이름. 설명이 아니라 그대로 학습 주제로 쓸 한 줄. */
+  concept: string;
+  /** 왜 이것이 선행인지 1문장. */
+  reason: string;
+  /** 더 깊은 선행 개념들. 가장 깊은 노드는 빈 배열. */
+  children: PrereqNode[];
+}
+
+/** POST /prereqTree 응답. prerequisites 가 비면 선행 학습이 불필요하다는 뜻. */
+export interface PrereqTreeResponse {
+  prerequisites: PrereqNode[];
 }
 
 /**
