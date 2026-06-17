@@ -1987,7 +1987,9 @@ body {
 
 /* 세로일 때 제출 버튼은 흐름 하단에 (sticky 불필요) */
 .lvv-submit-row { display: flex; justify-content: flex-end; gap: 8px; padding-top: 2px; }
-.lv-reanswer { display: inline-flex; align-items: center; gap: 6px; }
+/* 불투명 배경: 뒤 본문/텍스트가 버튼 영역에 비쳐 겹쳐 보이는 것을 막는다. */
+.lv-reanswer { display: inline-flex; align-items: center; gap: 6px; background: var(--bg-elev-2); }
+.lv-reanswer:hover { background: var(--bg-elev-3, var(--bg-elev-2)); }
 
 .lv-foot {
   display: flex;
