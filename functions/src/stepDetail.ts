@@ -97,8 +97,6 @@ export const stepDetail = onRequest(
       return;
     }
 
-    const testMode = await isTestMode(uid);
-
     const { concept, level, outline, stepIdx, mode } = (req.body ?? {}) as {
       concept?: string;
       level?: number;
@@ -128,6 +126,9 @@ export const stepDetail = onRequest(
     const outlineText = outline
       .map((s, i) => `${i + 1}. ${s.title} - ${s.desc}${i === stepIdx ? "  ← (이번 단계)" : ""}`)
       .join("\n");
+
+    // 테스트 모드는 사용자가 직접 mode='test' 를 골랐을 때만, 그리고 자격(testModeUsers)이 있을 때만 적용.
+    const testMode = mode === "test" && (await isTestMode(uid));
 
     try {
       const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY.value() });

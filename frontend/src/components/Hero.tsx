@@ -1,5 +1,5 @@
 import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
-import { HOW_STEPS } from "../stages/data";
+import { HOW_STEPS, modesFor } from "../stages/data";
 import { ModeMenu } from "./ModeMenu";
 import { I } from "./icons";
 
@@ -9,9 +9,11 @@ interface Props {
   concept: string;
   setConcept: (v: string) => void;
   onStart: () => void;
+  /** 테스트 모드 자격 계정이면 드롭다운에 "테스트" 항목을 노출한다. */
+  testEligible?: boolean;
 }
 
-export function Hero({ mode, onMode, concept, setConcept, onStart }: Props) {
+export function Hero({ mode, onMode, concept, setConcept, onStart, testEligible = false }: Props) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const [guideOpen, setGuideOpen] = useState(true);
   const grow = (el: HTMLTextAreaElement | null) => {
@@ -33,7 +35,7 @@ export function Hero({ mode, onMode, concept, setConcept, onStart }: Props) {
       <p className="sub">한 줄로 입력하시면 도와드릴게요</p>
 
       <form className="input-bar has-lead" onSubmit={submit}>
-        <ModeMenu value={mode} onChange={onMode} />
+        <ModeMenu value={mode} onChange={onMode} modes={modesFor(testEligible)} />
         <textarea
           ref={ref}
           rows={1}

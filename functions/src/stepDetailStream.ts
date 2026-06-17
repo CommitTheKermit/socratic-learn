@@ -43,8 +43,6 @@ export const stepDetailStream = onRequest(
       return;
     }
 
-    const testMode = await isTestMode(uid);
-
     const { concept, level, outline, stepIdx, mode } = (req.body ?? {}) as {
       concept?: string;
       level?: number;
@@ -73,6 +71,9 @@ export const stepDetailStream = onRequest(
     const outlineText = outline
       .map((s, i) => `${i + 1}. ${s.title} - ${s.desc}${i === stepIdx ? "  ← (이번 단계)" : ""}`)
       .join("\n");
+
+    // 테스트 모드는 사용자가 직접 mode='test' 를 골랐을 때만, 그리고 자격(testModeUsers)이 있을 때만 적용.
+    const testMode = mode === "test" && (await isTestMode(uid));
 
     // SSE 스트리밍 헤더. X-Accel-Buffering: no 로 프록시 버퍼링 방지.
     res.setHeader("Content-Type", "text/event-stream; charset=utf-8");

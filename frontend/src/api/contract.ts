@@ -11,6 +11,8 @@ export const ApiPaths = {
   ANSWER_EVAL: "/answerEval",
   BRANCH_EVAL: "/branchEval",
   STEP_DETAIL_STREAM: "/stepDetailStream",
+  // 테스트 모드 자격 조회(Anthropic 미사용). 로그인 직후 1회 호출해 입력창 모드 노출 게이팅에 쓴다.
+  TEST_ELIGIBLE: "/testEligible",
   // 학습 세션 Firestore 영속화 (Anthropic 미사용. 함수명=경로, :id 대신 query param).
   SESSION_SAVE: "/sessionSave",
   SESSION_LIST: "/sessionList",
@@ -46,6 +48,7 @@ export interface OverwhelmRequest {
   concept: string;
   materials?: string;
   probeSummary: string;
+  mode?: LearnMode;
 }
 
 export interface OverwhelmDecision {
@@ -54,8 +57,17 @@ export interface OverwhelmDecision {
   suggestedConcept: string;
 }
 
-/** 답변 모드. 학습 강도(질문 난이도·분기·채점·설명 깊이)를 정한다. frontend ANSWER_MODES id 와 동일. */
-export type LearnMode = "light" | "socratic" | "deep";
+/**
+ * 답변 모드. 학습 강도(질문 난이도·분기·채점·설명 깊이)를 정한다. frontend ANSWER_MODES id 와 동일.
+ * "test" 는 빠른 점검용 축소 모드로, testModeUsers 자격 계정에만 입력창 드롭다운에 노출되고
+ * 서버도 isTestMode(uid) 로 게이트한다(자격 없는 uid 가 보내면 무시되고 일반 모드로 처리).
+ */
+export type LearnMode = "light" | "socratic" | "deep" | "test";
+
+/** GET /testEligible 응답. uid 가 testModeUsers 컬렉션에 있으면 eligible=true. */
+export interface TestEligibleResponse {
+  eligible: boolean;
+}
 
 export interface ProbeRequest {
   concept: string;

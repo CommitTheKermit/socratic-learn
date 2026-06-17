@@ -5,22 +5,24 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
-import { ANSWER_MODES } from "../stages/data";
+import { ANSWER_MODES, type AnswerMode } from "../stages/data";
 import { I } from "./icons";
 
 interface Props {
   value: string;
   onChange: (id: string) => void;
+  /** 드롭다운에 표시할 모드 목록. 미지정 시 기본 3개(light/socratic/deep). */
+  modes?: AnswerMode[];
 }
 
 // 입력바 왼쪽 답변 모드 드롭다운 (미니멀 알약 + 팝오버 listbox).
 // 선택 모드가 --accent-pick 을 정해 트리거 텍스트·선택표시·학습 시작 버튼 색에 반영된다.
-export function ModeMenu({ value, onChange }: Props) {
+export function ModeMenu({ value, onChange, modes = ANSWER_MODES }: Props) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
-  const sel = ANSWER_MODES.find((m) => m.id === value) ?? ANSWER_MODES[1];
+  const sel = modes.find((m) => m.id === value) ?? modes[1] ?? modes[0];
 
   const close = useCallback((focusBtn: boolean) => {
     setOpen(false);
@@ -44,8 +46,8 @@ export function ModeMenu({ value, onChange }: Props) {
   }, [open]);
 
   useEffect(() => {
-    if (open) setActive(Math.max(0, ANSWER_MODES.findIndex((m) => m.id === value)));
-  }, [open, value]);
+    if (open) setActive(Math.max(0, modes.findIndex((m) => m.id === value)));
+  }, [open, value, modes]);
 
   // 선택 모드가 전역 시그니처 액센트를 결정한다.
   useEffect(() => {
@@ -64,19 +66,19 @@ export function ModeMenu({ value, onChange }: Props) {
       close(true);
     } else if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActive((i) => (i + 1) % ANSWER_MODES.length);
+      setActive((i) => (i + 1) % modes.length);
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setActive((i) => (i - 1 + ANSWER_MODES.length) % ANSWER_MODES.length);
+      setActive((i) => (i - 1 + modes.length) % modes.length);
     } else if (e.key === "Home") {
       e.preventDefault();
       setActive(0);
     } else if (e.key === "End") {
       e.preventDefault();
-      setActive(ANSWER_MODES.length - 1);
+      setActive(modes.length - 1);
     } else if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      choose(ANSWER_MODES[active].id);
+      choose(modes[active].id);
     }
   };
 
@@ -99,7 +101,7 @@ export function ModeMenu({ value, onChange }: Props) {
       </button>
       {open && (
         <div className="mode-menu" role="listbox" aria-label="답변 모드">
-          {ANSWER_MODES.map((m, i) => (
+          {modes.map((m, i) => (
             <button
               key={m.id}
               type="button"

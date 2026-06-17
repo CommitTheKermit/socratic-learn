@@ -50,13 +50,14 @@ export async function detectOverwhelm(
   concept: string,
   materials: string | undefined,
   probeSummary: string,
+  mode?: string,
 ): Promise<OverwhelmDecision> {
   let res: Response;
   try {
     res = await fetch(`${API_BASE_URL}${ApiPaths.OVERWHELM}`, {
       method: "POST",
       headers: await authHeaders(),
-      body: JSON.stringify({ concept, materials, probeSummary }),
+      body: JSON.stringify({ concept, materials, probeSummary, mode }),
     });
   } catch (e) {
     throw new ClaudeContentError("CLAUDE_API_ERROR", (e as Error)?.message ?? "네트워크 오류");
