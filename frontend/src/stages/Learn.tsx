@@ -13,6 +13,7 @@ import type { BranchOption } from "../api/contract";
 import { logEvent } from "../lib/analytics";
 import { getLabelForStep } from "../lib/stepLabel";
 import { canInsertBranchStep } from "../lib/stepInsertGuard";
+import { loadOrient, saveOrient, type Orient } from "../state/orientSetting";
 
 /**
  * LLM 이 돌려준 분기 옵션을 결정론적으로 보정한다.
@@ -108,8 +109,6 @@ const GRADE_LABEL: Record<Grade, string> = {
   wrong: "오답",
 };
 
-type Orient = "vertical" | "horizontal";
-
 const IcoRows = () => (
   <svg className="ico" viewBox="0 0 16 16" fill="none" aria-hidden>
     <rect x="1.5" y="2" width="13" height="4" rx="1.2" fill="currentColor" />
@@ -161,8 +160,12 @@ export function StageLearn({
   const [branchVisible, setBranchVisible] = useState(false);
   // 분기 옵션 선택 완료 step.id 집합(branchedStepIds)과 분기 스냅샷(stepBranches)은
   // LearnContent 가 보유·영속화한다. markBranched 로만 추가되며 새로고침/세션 복원 시 유지된다.
-  // 레이아웃 방향: 기본 세로(접이식 설명 ▸ 질문). 저장값 의존 없이 항상 세로로 시작.
-  const [orient, setOrient] = useState<Orient>("vertical");
+  // 레이아웃 방향: 기본 세로(접이식 설명 ▸ 질문). 저장값(localStorage)이 있으면 복원한다.
+  const [orient, setOrientState] = useState<Orient>(loadOrient);
+  const setOrient = (o: Orient) => {
+    setOrientState(o);
+    saveOrient(o);
+  };
   // 세로 모드에서 개념 설명 카드 접힘 여부 (기본 펼침).
   const [explainOpen, setExplainOpen] = useState(true);
   const safeLevel = level ?? 2;
@@ -829,17 +832,20 @@ export function StageLearn({
           /* ── 세로형: 접이식 설명 ▸ 질문 (기본) ── */
           <div className="lv-body lvv-body">
             <section className={"lvv-explain" + (explainOpen ? "" : " is-closed")}>
-              <button
-                className="lvv-explain-head"
-                type="button"
-                onClick={() => setExplainOpen((v) => !v)}
-              >
+              <div className="lvv-explain-head">
                 <span className="eyebrow">개념 설명</span>
                 <span className="ttl">{step.title}</span>
                 <span className="grow" />
-                <span className="toggle">{explainOpen ? "접기" : "펼쳐 보기"}</span>
-                <span className="chev">▾</span>
-              </button>
+                <button
+                  className="lvv-explain-toggle"
+                  type="button"
+                  aria-expanded={explainOpen}
+                  onClick={() => setExplainOpen((v) => !v)}
+                >
+                  <span className="toggle">{explainOpen ? "접기" : "펼쳐 보기"}</span>
+                  <span className="chev">▾</span>
+                </button>
+              </div>
               <div className="lvv-explain-summary">{step.desc}</div>
               <div className="lvv-explain-body">
                 <p className="lvv-sub">{step.desc}</p>
