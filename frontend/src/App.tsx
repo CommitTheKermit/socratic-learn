@@ -23,6 +23,7 @@ import { createSessionState, type SessionState } from "./state/sessionState";
 import { fetchAndMerge, persistWithSync } from "./state/sessionSync";
 import { generatePrereqTree } from "./api/claudeContent";
 import { PrereqModal, type PrereqStatus } from "./components/prereq/PrereqModal";
+import { buildHistoryForest } from "./state/historyForest";
 import { useDebouncedPersist } from "./state/useDebouncedPersist";
 import { useAuth } from "./state/useAuth";
 import { useTestEligible } from "./state/useTestEligible";
@@ -664,6 +665,32 @@ function AppWorkspace({
     if (pid) void switchSession(pid);
   };
 
+  // 사이드바 부모-하위 트리(방향 A). 활성 세션의 트리는 live state, 그 외는 캐시에서 읽는다.
+  const getPrereqTree = useCallback(
+    (id: string) => (id === sessionId ? prereqTree ?? [] : loadSession(id)?.prereqTree ?? []),
+    [sessionId, prereqTree],
+  );
+  const historyForest = useMemo(
+    () => (sessions ? buildHistoryForest(sessions, getPrereqTree) : undefined),
+    [sessions, getPrereqTree],
+  );
+  // 임의 세션의 부모 체인 깊이(원개념=0).
+  const depthOf = (id: string): number => {
+    let d = 0;
+    let cur = sessionsById.get(id)?.parentSessionId;
+    const seen = new Set<string>();
+    while (cur && !seen.has(cur)) {
+      seen.add(cur);
+      d += 1;
+      cur = sessionsById.get(cur)?.parentSessionId;
+    }
+    return d;
+  };
+  // 사이드바 placeholder "이 개념부터 학습": 부모가 깊이 2 미만이면 하위로, 아니면 독립 새 세션.
+  const startPlaceholder = (parentId: string, conceptName: string) => {
+    void startChildLearning(depthOf(parentId) < 2 ? parentId : undefined, conceptName);
+  };
+
   const prereq = {
     depth: sessionDepth,
     parentConcept,
@@ -701,6 +728,8 @@ function AppWorkspace({
           void switchSession(id);
         }}
         onDeleteSession={deleteSession}
+        forest={historyForest}
+        onStartPlaceholder={startPlaceholder}
         authPending={authLoading}
         loggedIn={!!user}
         userName={githubId ?? user?.displayName ?? user?.email ?? undefined}
