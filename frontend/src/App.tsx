@@ -19,7 +19,7 @@ import { LearnContentProvider, useLearnContent } from "./state/LearnContent";
 import { loadSession } from "./state/sessionPersist";
 import { loadSidebarPinned, saveSidebarPinned } from "./state/sidebarSetting";
 import { SessionListProvider, useSessionList } from "./state/SessionListContext";
-import type { SessionState } from "./state/sessionState";
+import { createSessionState, type SessionState } from "./state/sessionState";
 import { fetchAndMerge, persistWithSync } from "./state/sessionSync";
 import { useDebouncedPersist } from "./state/useDebouncedPersist";
 import { useAuth } from "./state/useAuth";
@@ -159,6 +159,8 @@ function AppWorkspace({
     stage === "learn" ? Math.max(0, Number.parseInt(params.stepIdx ?? "0", 10) || 0) : 0;
 
   const createdAtRef = useRef(loaded?.createdAt ?? Date.now());
+  // 선행 개념 하위 세션의 부모 링크(불변). 복원 시 loaded 에서 시드해 buildSnapshot 이 매 저장마다 보존한다.
+  const parentSessionIdRef = useRef(loaded?.parentSessionId);
   // "학습 시작" 재진입 가드(중복 세션 발급 방지).
   const startingRef = useRef(false);
 
@@ -363,6 +365,7 @@ function AppWorkspace({
   const buildSnapshot = (): SessionState => ({
     sessionId: sessionId ?? "",
     createdAt: createdAtRef.current,
+    parentSessionId: parentSessionIdRef.current,
     conceptSummary: concept,
     stage,
     mode,
@@ -479,20 +482,7 @@ function AppWorkspace({
       }
     }
     const newId = createSessionId();
-    const snap: SessionState = {
-      sessionId: newId,
-      createdAt: Date.now(),
-      conceptSummary: concept,
-      stage: "probe",
-      mode,
-      concept,
-      materials: "",
-      probes: {},
-      estimatedLevel: null,
-      stepIdx: 0,
-      answers: {},
-      skips: {},
-    };
+    const snap = createSessionState({ sessionId: newId, createdAt: Date.now(), concept, mode });
     try {
       localStorage.setItem(ACTIVE_SESSION_KEY, newId);
       localStorage.removeItem(DRAFT_CONCEPT_KEY);

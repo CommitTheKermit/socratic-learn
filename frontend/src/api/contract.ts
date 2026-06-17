@@ -193,6 +193,8 @@ export interface SessionIndexEntry {
   conceptSummary: string;
   stage: Stage;
   updatedAt: number;
+  /** 선행 개념 하위 세션이면 부모 세션 id(서버가 state 에서 평면화해 실어 보낸다). */
+  parentSessionId?: string;
 }
 
 /** GET /sessionList 응답. updatedAt 내림차순 정렬된 메타 목록. */

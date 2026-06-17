@@ -99,6 +99,7 @@ export function mergeSessionLists(
         createdAt: r.updatedAt,
         conceptSummary: r.conceptSummary,
         stage: r.stage,
+        parentSessionId: r.parentSessionId,
       });
     }
   }

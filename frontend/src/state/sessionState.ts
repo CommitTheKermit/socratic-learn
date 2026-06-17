@@ -30,6 +30,11 @@ export type FieldUpdatedAt = Record<string, string>;
 export interface SessionState {
   sessionId: string;
   createdAt: number;
+  /**
+   * 선행 개념 학습용 "하위 세션"이면 부모(원개념) 세션 id. 최상위(독립) 세션이면 undefined.
+   * 세션 생성 시 한 번 정해지는 불변 식별 필드라 sessionId/createdAt 처럼 병합 대상(fieldUpdatedAt)이 아니다.
+   */
+  parentSessionId?: string;
   conceptSummary: string;
   stage: Stage;
   /** 답변 모드(light/socratic/deep). 학습 강도(질문 난이도·분기·채점·설명 깊이)를 정한다. */
@@ -258,6 +263,8 @@ export function serializeSessionState(state: SessionState): string {
     answers: state.answers,
     skips: state.skips,
   };
+  // 하위 세션일 때만 부모 링크를 포함한다(최상위 세션은 키 자체를 생략).
+  if (state.parentSessionId) payload.parentSessionId = state.parentSessionId;
   // 산출물은 존재할 때만 직렬화에 포함한다(undefined 는 JSON 에서 자동 생략되지만 명시적으로 둔다).
   if (state.probeReady && state.probeQuestions?.length) {
     payload.probeQuestions = state.probeQuestions;
@@ -300,6 +307,8 @@ export function deserializeSessionState(json: string): SessionState {
   return {
     sessionId: asString(o.sessionId),
     createdAt: asNumber(o.createdAt),
+    parentSessionId:
+      typeof o.parentSessionId === "string" && o.parentSessionId ? o.parentSessionId : undefined,
     conceptSummary: asString(o.conceptSummary),
     stage: asStage(o.stage),
     // 구 세션엔 mode 가 없으므로(과거 depth 필드와 무관) 기본 socratic 으로 복원한다.
@@ -319,5 +328,34 @@ export function deserializeSessionState(json: string): SessionState {
     stepBranches,
     branchedStepIds,
     fieldUpdatedAt,
+  };
+}
+
+/**
+ * 새 학습 세션의 초기 상태를 만든다(stage="probe"). "학습 시작"과 선행 개념 하위 세션 생성이 공유한다.
+ * parentSessionId 를 주면 선행 개념 학습용 하위 세션으로 표식된다(주지 않으면 최상위 세션).
+ * 순수 함수(부수효과 없음). createdAt/sessionId 는 호출 측이 생성해 주입한다.
+ */
+export function createSessionState(args: {
+  sessionId: string;
+  createdAt: number;
+  concept: string;
+  mode: string;
+  parentSessionId?: string;
+}): SessionState {
+  return {
+    sessionId: args.sessionId,
+    createdAt: args.createdAt,
+    conceptSummary: args.concept,
+    stage: "probe",
+    mode: args.mode,
+    concept: args.concept,
+    materials: "",
+    probes: {},
+    estimatedLevel: null,
+    stepIdx: 0,
+    answers: {},
+    skips: {},
+    ...(args.parentSessionId ? { parentSessionId: args.parentSessionId } : {}),
   };
 }
