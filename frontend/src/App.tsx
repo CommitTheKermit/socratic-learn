@@ -25,7 +25,7 @@ import { useDebouncedPersist } from "./state/useDebouncedPersist";
 import { useAuth } from "./state/useAuth";
 import { useTestEligible } from "./state/useTestEligible";
 import { hasSynced, markSynced } from "./state/fetchOncePerSession";
-import type { LearnMode } from "./api/contract";
+import type { LearnMode, PrereqNode } from "./api/contract";
 import { logEvent } from "./lib/analytics";
 
 type AccentVars = CSSProperties & {
@@ -294,6 +294,8 @@ function AppWorkspace({
   );
   const [answers, setAnswers] = useState<Record<string, string>>(() => loaded?.answers ?? {});
   const [skips, setSkips] = useState<Record<string, boolean>>(() => loaded?.skips ?? {});
+  // 이 개념에 대해 생성한 선행 개념 트리(사이드바 placeholder 렌더 + 모달 표시용). 세션에 영속화된다.
+  const [prereqTree, setPrereqTree] = useState<PrereqNode[] | undefined>(() => loaded?.prereqTree);
   // 사이드바 세션 목록은 App 레벨 SessionListProvider(Routes 바깥)가 보유한다. 단계 전환으로
   // 이 워크스페이스가 재마운트되어도 sessions/원격 fetch 상태가 유지되어 목록이 깜빡이지 않는다.
   // 원격 fetch(user 구독)와 목록 mutation 은 Provider 가 담당하고, 여기서는 소비만 한다.
@@ -382,6 +384,7 @@ function AppWorkspace({
     stepEvaluations: Object.keys(stepEvaluations).length ? stepEvaluations : undefined,
     stepBranches: Object.keys(stepBranches).length ? stepBranches : undefined,
     branchedStepIds: branchedStepIds.size ? [...branchedStepIds] : undefined,
+    prereqTree: prereqTree && prereqTree.length ? prereqTree : undefined,
   });
 
   // answers 디바운스 hook. 입력 완료 신호(textarea onBlur)에 flush 를 연결하고,
@@ -439,6 +442,7 @@ function AppWorkspace({
     stepEvaluations,
     stepBranches,
     branchedStepIds,
+    prereqTree,
   ]);
 
   const accentStyle = useMemo<AccentVars>(() => {

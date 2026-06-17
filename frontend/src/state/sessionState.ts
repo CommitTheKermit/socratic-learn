@@ -1,6 +1,6 @@
 import type { ProbeAnswers, ProbeQuestion, Stage, Step } from "../stages/data";
 import type { StepEvaluation } from "../api/claudeContent";
-import type { BranchOption } from "../api/contract";
+import type { BranchOption, PrereqNode } from "../api/contract";
 
 /**
  * 한 단계에서 생성된 분기 평가 스냅샷. 다이얼로그의 평가 텍스트/선택지/병합 여부를 담는다.
@@ -59,6 +59,12 @@ export interface SessionState {
   stepBranches?: Record<number, StepBranchResult>;
   /** 분기 선택이 완료된 step.id 목록. 게이트 해제 상태(다음 개념 진행 허용)를 복원한다. */
   branchedStepIds?: number[];
+  /**
+   * 이 세션(개념)에 대해 "선행 개념 보기"로 생성한 선행 개념 트리(이름 지도).
+   * 사이드바 하위 트리에서 아직 학습 안 한 placeholder 노드를 렌더하는 데 쓴다.
+   * 생성 전이면 누락(undefined).
+   */
+  prereqTree?: PrereqNode[];
   /** 최상위 필드별 마지막 변경 시각(ISO8601). 누락 시 빈 객체로 취급한다. */
   fieldUpdatedAt?: FieldUpdatedAt;
 }
@@ -228,6 +234,26 @@ function asBranchedStepIds(v: unknown): number[] | undefined {
 }
 
 /**
+ * 선행 개념 트리(이름 지도)를 보정한다. 각 노드는 concept(string) 필수, reason/children 은 보정.
+ * children 으로 재귀하되 깊이를 제한해 손상 입력의 폭주를 막는다. 빈 배열이면 undefined.
+ */
+function asPrereqNodes(v: unknown, depth = 0): PrereqNode[] | undefined {
+  if (!Array.isArray(v) || depth > 4) return undefined;
+  const out: PrereqNode[] = [];
+  for (const x of v) {
+    if (x == null || typeof x !== "object") continue;
+    const o = x as Record<string, unknown>;
+    if (typeof o.concept !== "string" || !o.concept) continue;
+    out.push({
+      concept: o.concept,
+      reason: typeof o.reason === "string" ? o.reason : "",
+      children: asPrereqNodes(o.children, depth + 1) ?? [],
+    });
+  }
+  return out.length ? out : undefined;
+}
+
+/**
  * 필드별 변경 시각 맵을 보정한다. 값이 문자열인 항목만 신뢰한다.
  *
  * 누락(undefined/null)되었거나 손상된(비객체/배열 등 잘못된 타입) 입력은
@@ -280,6 +306,9 @@ export function serializeSessionState(state: SessionState): string {
   if (state.branchedStepIds && state.branchedStepIds.length) {
     payload.branchedStepIds = state.branchedStepIds;
   }
+  if (state.prereqTree && state.prereqTree.length) {
+    payload.prereqTree = state.prereqTree;
+  }
   if (state.fieldUpdatedAt && Object.keys(state.fieldUpdatedAt).length) {
     payload.fieldUpdatedAt = state.fieldUpdatedAt;
   }
@@ -303,6 +332,7 @@ export function deserializeSessionState(json: string): SessionState {
   const stepEvaluations = asStepEvaluations(o.stepEvaluations);
   const stepBranches = asStepBranches(o.stepBranches);
   const branchedStepIds = asBranchedStepIds(o.branchedStepIds);
+  const prereqTree = asPrereqNodes(o.prereqTree);
   const fieldUpdatedAt = asFieldUpdatedAt(o.fieldUpdatedAt);
   return {
     sessionId: asString(o.sessionId),
@@ -327,6 +357,7 @@ export function deserializeSessionState(json: string): SessionState {
     stepEvaluations,
     stepBranches,
     branchedStepIds,
+    prereqTree,
     fieldUpdatedAt,
   };
 }
