@@ -89,6 +89,43 @@ describe("sessionState 직렬화/역직렬화", () => {
     expect(restored.branchedStepIds).toEqual([1, 3]);
   });
 
+  test("분기 단계의 _meta 가 round-trip 보존된다(라벨 1.1 계산 근거)", () => {
+    const state: SessionState = {
+      ...fullState(),
+      steps: [
+        { id: 1, title: "메인", desc: "d", body: "b", questions: [] },
+        {
+          id: 101,
+          title: "분기",
+          desc: "d",
+          body: "b",
+          questions: [],
+          _meta: { parentMainStepId: 1, siblingIndex: 0 },
+        },
+      ],
+    };
+    const restored = deserializeSessionState(serializeSessionState(state));
+    expect(restored.steps?.[0]._meta).toBeUndefined();
+    expect(restored.steps?.[1]._meta).toEqual({ parentMainStepId: 1, siblingIndex: 0 });
+  });
+
+  test("손상된 _meta(타입 불일치)는 복원에서 제거된다", () => {
+    const json = JSON.stringify({
+      ...fullState(),
+      steps: [
+        {
+          id: 1,
+          title: "t",
+          desc: "",
+          body: "",
+          questions: [],
+          _meta: { parentMainStepId: "1", siblingIndex: 0 },
+        },
+      ],
+    });
+    expect(deserializeSessionState(json).steps?.[0]._meta).toBeUndefined();
+  });
+
   test("options 가 빈 분기 스냅샷(에러/전이 잔여)은 역직렬화에서 버려진다", () => {
     const json = JSON.stringify({
       ...fullState(),

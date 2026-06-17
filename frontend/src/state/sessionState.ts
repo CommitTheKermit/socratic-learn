@@ -138,12 +138,23 @@ function asSteps(v: unknown): Step[] | undefined {
             typeof (q as { q?: unknown }).q === "string",
         )
       : [];
+    // 분기(삽입) 단계의 _meta 는 라벨(1.1 등) 계산의 유일한 근거이므로 복원해야 한다.
+    // 누락하면 재로딩 시 분기 단계가 원본으로 인식되어 번호가 어긋난다(1.1 → 2).
+    const m = o._meta as Record<string, unknown> | undefined;
+    const _meta =
+      m != null &&
+      typeof m === "object" &&
+      typeof m.parentMainStepId === "number" &&
+      typeof m.siblingIndex === "number"
+        ? { parentMainStepId: m.parentMainStepId, siblingIndex: m.siblingIndex }
+        : undefined;
     out.push({
       id: o.id,
       title: o.title,
       desc: typeof o.desc === "string" ? o.desc : "",
       body: typeof o.body === "string" ? o.body : "",
       questions,
+      ...(_meta ? { _meta } : {}),
     });
   }
   return out.length ? out : undefined;
