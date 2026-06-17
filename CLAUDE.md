@@ -79,6 +79,7 @@ Firebase 프로젝트 `socratic-learn-web`(`.firebaserc`), region `us-central1`.
 - GitHub 로그인(Firebase Auth GitHub provider) + 사용량 기록(Firestore `usage` 컬렉션) 은 **도입됨**. 학습 시작은 로그인 필수(게이팅): 프론트는 ID 토큰을 `Authorization: Bearer` 로 싣고(`api/authHeaders.ts`), Functions 는 `requireAuth` 로 검증(무효 시 401)하며 `recordUsage(uid, endpoint)` 로 적재한다.
 - 배포(Hosting + Functions)는 **도입됨**. 구조/절차는 위 "배포" 섹션 참고.
 - 여전히 범위 제외(별도 합의 없이 추가 금지): 학습 세션의 서버 DB 저장(현재 세션은 localStorage), 토큰 제한/BYOK, 서버 자동 회귀 테스트, 사용량 분석 대시보드/조회 UI.
+- 프론트엔드 함정(React ref 세션 복원, CSS `position:fixed` containing block 등)은 `docs/frontend-gotchas.md` 참조.
 
 <!-- ooo:START -->
 <!-- ooo:VERSION:0.39.2 -->
