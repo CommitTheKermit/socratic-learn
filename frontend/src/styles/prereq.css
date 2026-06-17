@@ -48,6 +48,8 @@
   display: flex; align-items: flex-start; justify-content: space-between;
   gap: 14px; flex-wrap: wrap;
 }
+/* 세로형: 설명 카드와 질문 사이의 선행 어포던스 행 */
+.lvv-prereq-row { margin: 2px 0 12px; display: flex; flex-direction: column; gap: 10px; }
 
 /* ── 모달 (방향 A) — 선행 개념 트리 ──────────────────────────────────── */
 .pq-modal-backdrop {

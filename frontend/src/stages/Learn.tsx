@@ -13,6 +13,10 @@ import type { BranchOption } from "../api/contract";
 import { logEvent } from "../lib/analytics";
 import { getLabelForStep } from "../lib/stepLabel";
 import { canInsertBranchStep } from "../lib/stepInsertGuard";
+import { PrereqTrigger } from "../components/prereq/PrereqTrigger";
+import { ParentReturnBanner } from "../components/prereq/ParentReturnBanner";
+import { DepthLimitCard } from "../components/prereq/DepthLimitCard";
+import type { PrereqStageControls } from "../components/prereq/types";
 
 /**
  * LLM 이 돌려준 분기 옵션을 결정론적으로 보정한다.
@@ -99,6 +103,8 @@ interface Props {
   onPrev: () => void;
   onDone: () => void;
   onRetry: () => void;
+  /** 선행 개념 트리 컨트롤(트리거·복귀·깊이). */
+  prereq: PrereqStageControls;
 }
 
 const GRADE_LABEL: Record<Grade, string> = {
@@ -138,6 +144,7 @@ export function StageLearn({
   onPrev,
   onDone,
   onRetry,
+  prereq,
 }: Props) {
   const {
     steps,
@@ -165,6 +172,8 @@ export function StageLearn({
   const [orient, setOrient] = useState<Orient>("vertical");
   // 세로 모드에서 개념 설명 카드 접힘 여부 (기본 펼침).
   const [explainOpen, setExplainOpen] = useState(true);
+  // 깊이 2(한계) 안내 카드를 닫았는지. 닫으면 이 단계에서 다시 표시하지 않는다.
+  const [limitDismissed, setLimitDismissed] = useState(false);
   const safeLevel = level ?? 2;
   // "가볍게" 모드는 분기 시스템을 끄고 평가만 한 뒤 바로 다음 개념으로 진행한다.
   const branchEnabled = mode !== "light";
@@ -755,8 +764,27 @@ export function StageLearn({
       </li>
     ));
 
+  // 선행 개념 어포던스: 깊이 2 미만이면 트리거, 한계(2)면 안내 카드(독립 새 세션 분리).
+  const prereqTrigger =
+    prereq.depth < 2 ? <PrereqTrigger inline onClick={prereq.onOpen} /> : null;
+  const prereqLimit =
+    prereq.depth >= 2 && !limitDismissed ? (
+      <DepthLimitCard
+        onNewSession={prereq.onNewIndependent}
+        onDismiss={() => setLimitDismissed(true)}
+      />
+    ) : null;
+
   return (
     <div className="lv-board">
+      {prereq.parentConcept && (
+        <ParentReturnBanner
+          parentConcept={prereq.parentConcept}
+          currentConcept={concept}
+          depth={prereq.depth}
+          onReturn={prereq.onReturnToParent}
+        />
+      )}
       <header className="lv-bar" ref={headRef}>
         <div className="lv-bar-top">
           <span className="lv-bar-eyebrow">학습 진행</span>
@@ -808,9 +836,15 @@ export function StageLearn({
           <div className="lv-body lv2-body">
             <div className="lv2-left">
               <div className="lv2-left-inner">
-                <span className="lv2-eyebrow">개념 설명</span>
-                <h3>{step.title}</h3>
+                <div className="lv2-left-head">
+                  <div>
+                    <span className="lv2-eyebrow">개념 설명</span>
+                    <h3>{step.title}</h3>
+                  </div>
+                  {prereqTrigger}
+                </div>
                 <p className="lv2-sub">{step.desc}</p>
+                {prereqLimit}
                 {explainDetail}
               </div>
             </div>
@@ -846,6 +880,13 @@ export function StageLearn({
                 {explainDetail}
               </div>
             </section>
+
+            {(prereqTrigger || prereqLimit) && (
+              <div className="lvv-prereq-row">
+                {prereqTrigger}
+                {prereqLimit}
+              </div>
+            )}
 
             <section className="lvv-questions">
               <div className="lvv-q-head">

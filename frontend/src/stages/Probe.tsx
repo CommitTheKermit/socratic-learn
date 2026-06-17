@@ -10,6 +10,10 @@ import { useLearnContent } from "../state/LearnContent";
 import { describeErrorCode } from "../lib/errors";
 import { detectOverwhelm, type OverwhelmDecision } from "../api/claudeContent";
 import { MathText } from "../lib/mathText";
+import { PrereqTrigger } from "../components/prereq/PrereqTrigger";
+import { ParentReturnBanner } from "../components/prereq/ParentReturnBanner";
+import { PI } from "../components/prereq/prereqIcons";
+import type { PrereqStageControls } from "../components/prereq/types";
 
 interface Props {
   concept: string;
@@ -20,7 +24,8 @@ interface Props {
   setEstimatedLevel: (v: number) => void;
   onPrev: () => void;
   onNext: () => void;
-  onRetreat: (suggestedConcept?: string) => void;
+  /** 선행 개념 트리 컨트롤(트리거·복귀·깊이). */
+  prereq: PrereqStageControls;
   onRetry: () => void;
 }
 
@@ -128,7 +133,7 @@ export function StageProbe({
   setEstimatedLevel,
   onPrev,
   onNext,
-  onRetreat,
+  prereq,
   onRetry,
 }: Props) {
   const {
@@ -185,6 +190,14 @@ export function StageProbe({
 
   return (
     <section className="stage">
+      {prereq.parentConcept && (
+        <ParentReturnBanner
+          parentConcept={prereq.parentConcept}
+          currentConcept={concept}
+          depth={prereq.depth}
+          onReturn={prereq.onReturnToParent}
+        />
+      )}
       <header className="stage-head">
         <div className="stage-eyebrow">01 · 수준 확인</div>
         <h2 className="stage-title">{concept}, 몇 가지만 짧게 여쭐게요</h2>
@@ -264,6 +277,7 @@ export function StageProbe({
           ← 개념 다시 입력
         </button>
         <span className="grow" />
+        {prereq.depth < 2 && <PrereqTrigger onClick={prereq.onOpen} />}
         <button
           className="btn-holo"
           type="button"
@@ -286,25 +300,25 @@ export function StageProbe({
             )}
             <div className="retreat-actions">
               <button
-                className="btn-ghost"
+                className="rd-ghost"
                 type="button"
                 onClick={() => {
                   setRetreat(null);
                   onNext();
                 }}
               >
-                그래도 계속할게요
+                계속 진행할게요
               </button>
               <button
-                className="btn-holo"
+                className="rd-primary"
                 type="button"
                 onClick={() => {
-                  const s = retreat.suggestedConcept;
                   setRetreat(null);
-                  onRetreat(s);
+                  prereq.onOpen();
                 }}
               >
-                네, 새로 시작
+                <span style={{ display: "inline-flex" }}>{PI.branch}</span>
+                선행 개념 트리 보기
               </button>
             </div>
           </div>

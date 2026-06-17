@@ -21,6 +21,8 @@ import { loadSidebarPinned, saveSidebarPinned } from "./state/sidebarSetting";
 import { SessionListProvider, useSessionList } from "./state/SessionListContext";
 import { createSessionState, type SessionState } from "./state/sessionState";
 import { fetchAndMerge, persistWithSync } from "./state/sessionSync";
+import { generatePrereqTree } from "./api/claudeContent";
+import { PrereqModal, type PrereqStatus } from "./components/prereq/PrereqModal";
 import { useDebouncedPersist } from "./state/useDebouncedPersist";
 import { useAuth } from "./state/useAuth";
 import { useTestEligible } from "./state/useTestEligible";
@@ -296,6 +298,9 @@ function AppWorkspace({
   const [skips, setSkips] = useState<Record<string, boolean>>(() => loaded?.skips ?? {});
   // 이 개념에 대해 생성한 선행 개념 트리(사이드바 placeholder 렌더 + 모달 표시용). 세션에 영속화된다.
   const [prereqTree, setPrereqTree] = useState<PrereqNode[] | undefined>(() => loaded?.prereqTree);
+  // 선행 트리 모달 상태(열림 + 생성 상태머신).
+  const [pqOpen, setPqOpen] = useState(false);
+  const [pqStatus, setPqStatus] = useState<PrereqStatus>("loading");
   // 사이드바 세션 목록은 App 레벨 SessionListProvider(Routes 바깥)가 보유한다. 단계 전환으로
   // 이 워크스페이스가 재마운트되어도 sessions/원격 fetch 상태가 유지되어 목록이 깜빡이지 않는다.
   // 원격 fetch(user 구독)와 목록 mutation 은 Provider 가 담당하고, 여기서는 소비만 한다.
@@ -560,6 +565,116 @@ function AppWorkspace({
     }
   }, [sessionId, navigate, removeSession]);
 
+  // ── 선행 개념 트리 오케스트레이션 ──────────────────────────────────────
+  const sessionsById = useMemo(() => {
+    const m = new Map<string, { parentSessionId?: string; conceptSummary: string }>();
+    for (const s of sessions ?? []) m.set(s.sessionId, s);
+    return m;
+  }, [sessions]);
+  // 현재 세션의 부모 체인 깊이(원개념=0, 하위=1, 하위의 하위=2=한계).
+  const sessionDepth = (() => {
+    let d = 0;
+    let cur = parentSessionIdRef.current;
+    const seen = new Set<string>();
+    while (cur && !seen.has(cur)) {
+      seen.add(cur);
+      d += 1;
+      cur = sessionsById.get(cur)?.parentSessionId;
+    }
+    return d;
+  })();
+  const parentConcept = parentSessionIdRef.current
+    ? sessionsById.get(parentSessionIdRef.current)?.conceptSummary
+    : undefined;
+  // 이 세션의 선행으로 이미 시작된 하위 세션 개념명(트리에서 "이어서"로 표시).
+  const startedConcepts = useMemo(
+    () =>
+      new Set(
+        (sessions ?? [])
+          .filter((s) => s.parentSessionId === sessionId)
+          .map((s) => s.conceptSummary),
+      ),
+    [sessions, sessionId],
+  );
+
+  const buildProbeSummaryForPrereq = (): string | undefined => {
+    const lines: string[] = [];
+    if (typeof probes.p1 === "number") lines.push(`친숙도(p1): ${probes.p1} / 3`);
+    if (probes.p2?.length) lines.push(`p2 키워드: ${probes.p2.join(", ")}`);
+    if (probes.p3?.trim()) lines.push(`p3: ${probes.p3.trim()}`);
+    return lines.length ? lines.join("\n") : undefined;
+  };
+
+  const openPrereq = async () => {
+    setPqOpen(true);
+    setPqStatus("loading");
+    try {
+      const tree = await generatePrereqTree(
+        concept,
+        materials || undefined,
+        buildProbeSummaryForPrereq(),
+        mode,
+      );
+      setPrereqTree(tree);
+      setPqStatus(tree.length ? "loaded" : "empty");
+    } catch {
+      setPqStatus("error");
+    }
+  };
+
+  /** 새 하위/독립 세션을 발급해 probe 로 이동한다. parentId 가 있으면 선행 하위 세션. */
+  const startChildLearning = async (parentId: string | undefined, childConcept: string) => {
+    if (startingRef.current) return;
+    startingRef.current = true;
+    if (!user) {
+      try {
+        await login();
+      } catch {
+        startingRef.current = false;
+        return;
+      }
+    }
+    const newId = createSessionId();
+    const snap = createSessionState({
+      sessionId: newId,
+      createdAt: Date.now(),
+      concept: childConcept,
+      mode,
+      parentSessionId: parentId,
+    });
+    try {
+      localStorage.setItem(ACTIVE_SESSION_KEY, newId);
+      persistWithSync(snap, undefined, { remote: true });
+    } catch {
+      // 무시
+    }
+    upsertSession(snap);
+    navigate(pathFor(newId, "probe"));
+  };
+
+  // 트리 노드 학습 시작: 깊이 2 미만이면 현재 세션의 하위로, 한계(2)면 독립 새 세션으로 분리.
+  const startPrereqChild = (node: PrereqNode) => {
+    setPqOpen(false);
+    void startChildLearning(sessionDepth < 2 ? sessionId : undefined, node.concept);
+  };
+
+  // 하위 세션 → 상위(부모) 개념 세션으로 복귀.
+  const returnToParent = () => {
+    const pid = parentSessionIdRef.current;
+    if (pid) void switchSession(pid);
+  };
+
+  const prereq = {
+    depth: sessionDepth,
+    parentConcept,
+    onOpen: () => void openPrereq(),
+    onReturnToParent: returnToParent,
+    onNewIndependent: () => {
+      closeDrawerOnMobile();
+      newSession();
+    },
+  };
+
   return (
     <div
       className="app"
@@ -658,7 +773,7 @@ function AppWorkspace({
               setEstimatedLevel={setEstimatedLevel}
               onPrev={() => goStage("input")}
               onNext={() => goStage("learn", 0)}
-              onRetreat={(suggestedConcept) => newSession(suggestedConcept)}
+              prereq={prereq}
               onRetry={() => loadProbe(concept, materials)}
             />
           )}
@@ -686,6 +801,7 @@ function AppWorkspace({
                     void loadOutline(concept, estimatedLevel, mode);
                   }
                 }}
+                prereq={prereq}
               />
             </>
           )}
@@ -705,6 +821,19 @@ function AppWorkspace({
           </div>
         )}
       </main>
+
+      {pqOpen && (
+        <PrereqModal
+          status={pqStatus}
+          concept={concept}
+          tree={prereqTree ?? []}
+          startedConcepts={startedConcepts}
+          depthLimited={sessionDepth >= 2}
+          onClose={() => setPqOpen(false)}
+          onStart={startPrereqChild}
+          onRetry={() => void openPrereq()}
+        />
+      )}
 
       <SessionLoadOverlay open={loadingTitle !== null} title={loadingTitle ?? undefined} />
     </div>

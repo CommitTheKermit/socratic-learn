@@ -76,7 +76,7 @@ function renderProbe() {
       setEstimatedLevel={vi.fn()}
       onPrev={vi.fn()}
       onNext={vi.fn()}
-      onRetreat={vi.fn()}
+      prereq={{ depth: 0, onOpen: vi.fn(), onReturnToParent: vi.fn(), onNewIndependent: vi.fn() }}
       onRetry={vi.fn()}
     />,
   );
