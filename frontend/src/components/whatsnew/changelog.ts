@@ -49,6 +49,15 @@ export const CHANGE_TYPE_ORDER: ChangeType[] = ["feature", "improve", "fix"];
 /** 전체 버전 히스토리 (최신 → 과거). 맨 앞이 현재 버전. */
 export const CHANGELOG: VersionEntry[] = [
   {
+    version: "0.14.0",
+    date: "2026.06.18",
+    changes: [
+      { type: "feature", text: "학습 설명에서 '선행 개념 보기'로 필요한 선행 개념을 트리로 확인하고, 막히는 개념만 따로 파고들어 학습할 수 있어요." },
+      { type: "feature", text: "사이드바에서 학습들이 부모-하위 관계의 트리로 정리돼, 어디서 갈라져 나온 학습인지 한눈에 보여요." },
+      { type: "improve", text: "모바일에서 개념 입력창을 위쪽 전체 폭으로 키우고 모드·'학습 시작' 버튼을 아래 줄에 배치해, 좁은 화면에서 더 쓰기 편해졌어요." },
+    ],
+  },
+  {
     version: "0.12.2",
     date: "2026.06.16",
     changes: [
