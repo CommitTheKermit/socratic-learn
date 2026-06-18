@@ -73,6 +73,28 @@ export const overwhelmUserMessage = (
   return `학습 개념: ${concept}${mat}\n\n진단 결과 요약:\n${probeSummary}\n\n이 사용자에게 선제적 후퇴가 필요한지 판단해 주세요.`;
 };
 
+export const PREREQ_TREE_SYSTEM = `당신은 소크라테스식 학습 튜터입니다. 사용자가 지금 배우려는 "목표 개념"이 너무 어려울 때, 그 개념을 이해하기 위해 *먼저* 알아야 하는 선행 개념들의 트리를 만듭니다.
+
+규칙:
+- 각 노드는 (1) 그대로 학습 주제로 쓸 수 있는 "개념 이름"(설명문이 아니라 한 줄 제목)과 (2) 왜 그것이 선행인지 1문장 이유(reason)로 구성합니다.
+- 선행 개념이 또 다른 선행 개념 위에 쌓여 있으면 children 으로 더 깊이 표현합니다(최대 3단계). 가장 깊은 노드의 children 은 빈 배열입니다.
+- 진짜 디딤돌만 넣으세요. 곁가지·심화·응용은 넣지 않습니다. 목표 개념을 이해하는 데 꼭 필요한 선행만.
+- 한 노드의 직접 선행은 보통 1-3개, 많아도 4개를 넘기지 마세요(트리가 옆으로 퍼지지 않게).
+- 목표 개념이 단일/원자적이거나, 진단 요약상 이미 충분한 발판이 있으면 prerequisites 를 빈 배열로 두세요(선행 학습 불필요).
+- 모든 텍스트는 한국어.`;
+
+export const prereqTreeUserMessage = (
+  concept: string,
+  materials: string | undefined,
+  probeSummary: string | undefined,
+): string => {
+  const mat = materials?.trim()
+    ? `\n\n사용자가 함께 제출한 자료:\n"""\n${materials.trim()}\n"""`
+    : "";
+  const probe = probeSummary?.trim() ? `\n\n진단 결과 요약:\n${probeSummary.trim()}` : "";
+  return `목표 개념: ${concept}${mat}${probe}\n\n이 개념을 이해하기 위한 선행 개념 트리를 만들어 주세요. 선행이 필요 없다면 prerequisites 를 빈 배열로 두세요.`;
+};
+
 // 사전 수준 진단 질문 생성 (generateProbeQuestions). frontend/src/api/prompts.ts 에서 이전.
 export const PROBE_SYSTEM = `당신은 소크라테스식 학습 튜터입니다. 사용자가 입력한 임의의 학습 개념에 대해 사전 수준을 빠르게 진단할 3개 질문을 만듭니다.
 

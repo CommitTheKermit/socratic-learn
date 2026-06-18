@@ -1,0 +1,402 @@
+/* ══════════════════════════════════════════════════════════════════════
+   선행 개념 트리 (Prerequisite Concept Tree) — 방향 A
+   Claude Design 핸드오프(prereq.css + guardrails.css)를 프론트로 이식.
+   v3.css 의 디자인 토큰(--holo/--line/--bg-elev-1/--fg-* …)을 재사용한다.
+   접두사: pq- (트리/모달/트리거) · sb-sub, sb-tree (사이드바 하위 트리)
+           g- (가드레일: 복귀 배너 · 깊이 한계 · 완료 복귀)
+   ────────────────────────────────────────────────────────────────────── */
+
+/* ── 트리거 버튼 - "선행 개념 보기" (학습 설명 헤더에 박히는 컴팩트 알약) ──
+   소크라틱(핑크) 액센트 기반. 헤더 토글(접기/펼치기) 옆에 인라인으로 정렬된다. */
+.pq-trigger {
+  position: relative;
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 34px; padding: 0 13px 0 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--mode-socratic) 9%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--mode-socratic) 38%, transparent);
+  color: var(--fg-mut);
+  font-size: 12.5px; letter-spacing: -0.005em; white-space: nowrap;
+  cursor: pointer;
+  transition: color .16s ease, box-shadow .2s ease, background .16s ease;
+}
+.pq-trigger:hover {
+  color: var(--fg);
+  background: color-mix(in srgb, var(--mode-socratic) 16%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--mode-socratic) 60%, transparent),
+              0 6px 20px -12px color-mix(in srgb, var(--mode-socratic) 70%, transparent);
+}
+.pq-trigger:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--mode-socratic) 70%, transparent),
+              0 0 0 3px color-mix(in srgb, var(--mode-socratic) 25%, transparent);
+}
+.pq-trigger-ico {
+  flex: 0 0 auto; width: 20px; height: 20px;
+  display: grid; place-items: center; border-radius: 6px;
+  color: color-mix(in srgb, var(--mode-socratic) 88%, white);
+  background: color-mix(in srgb, var(--mode-socratic) 18%, transparent);
+}
+.pq-trigger-ico svg { width: 13px; height: 13px; display: block; }
+.pq-trigger b { font-weight: 600; color: var(--fg); }
+
+/* 신규 기능 강조 — 업데이트 소식과 동일한 핑 도트(자체 키프레임으로 자급) */
+.pq-trigger-dot {
+  position: absolute; top: -3px; right: -3px;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: oklch(0.68 0.2 25);
+  box-shadow: 0 0 0 2px var(--bg), 0 0 8px -1px oklch(0.68 0.2 25);
+}
+.pq-trigger-dot.is-ping::after {
+  content: ""; position: absolute; inset: 0; border-radius: 50%;
+  background: oklch(0.68 0.2 25);
+  animation: pq-ping 1.8s ease-out infinite;
+}
+@keyframes pq-ping {
+  0%        { transform: scale(1);   opacity: 0.6; }
+  70%, 100% { transform: scale(2.6); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pq-trigger-dot.is-ping::after { animation: none; }
+}
+
+/* 깊이 2(한계)에서 비활성 */
+.pq-trigger.is-disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+.pq-trigger.is-disabled .pq-trigger-ico { background: oklch(1 0 0 / 0.06); color: var(--fg-dim); box-shadow: none; }
+
+/* 설명 제목 로우 안에서 toggle/chev 와 정렬 */
+.lvv-explain-head .pq-trigger { margin-right: 4px; }
+.lvv-explain-head .toggle { white-space: nowrap; flex: 0 0 auto; }
+
+/* 학습 개념 설명 카드 머리말의 트리거 배치 */
+.lv2-left-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap;
+}
+/* 세로형: 설명 카드와 질문 사이의 선행 어포던스 행 */
+.lvv-prereq-row { margin: 2px 0 12px; display: flex; flex-direction: column; gap: 10px; }
+
+/* ── 모달 (방향 A) — 선행 개념 트리 ──────────────────────────────────── */
+.pq-modal-backdrop {
+  position: fixed; inset: 0; z-index: 200;
+  display: grid; place-items: center;
+  padding: 28px;
+  background: oklch(0 0 0 / 0.55);
+  backdrop-filter: blur(3px);
+  animation: pqFade .18s ease both;
+}
+@keyframes pqFade { from { opacity: 0; } to { opacity: 1; } }
+.pq-modal {
+  width: min(560px, 100%);
+  max-height: 100%;
+  display: flex; flex-direction: column;
+  background: var(--bg-elev-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 1px 0 oklch(1 0 0 / 0.05) inset,
+              0 40px 90px -30px oklch(0 0 0 / 0.85);
+  animation: pqRise .22s cubic-bezier(.2,.8,.2,1) both;
+  overflow: hidden;
+}
+@keyframes pqRise { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: none; } }
+.pq-modal-head {
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 20px 22px 16px;
+  border-bottom: 1px solid var(--line-2);
+}
+.pq-modal-head .pq-trigger-ico { width: 30px; height: 30px; border-radius: 9px; }
+.pq-modal-head .pq-trigger-ico svg { width: 17px; height: 17px; }
+.pq-modal-htext { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.pq-modal-eyebrow {
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--fg-dim);
+}
+.pq-modal-title { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
+.pq-modal-sub { font-size: 12.5px; color: var(--fg-mut); line-height: 1.5; text-wrap: pretty; }
+.pq-modal-close {
+  flex: 0 0 auto; width: 30px; height: 30px; border-radius: 8px;
+  display: grid; place-items: center; color: var(--fg-dim);
+  transition: color .14s, background .14s;
+}
+.pq-modal-close:hover { color: var(--fg); background: var(--line-2); }
+.pq-modal-body { padding: 14px 18px 8px; overflow-y: auto; min-height: 0; }
+.pq-modal-foot {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 20px 18px;
+  border-top: 1px solid var(--line-2);
+}
+.pq-modal-foot .grow { flex: 1; }
+.pq-modal-hint { font-size: 12px; color: var(--fg-dim); }
+
+/* ── 트리 ────────────────────────────────────────────────────────────── */
+.pq-tree { display: flex; flex-direction: column; }
+.pq-children {
+  margin-left: 19px; padding-left: 0;
+  border-left: 1px solid var(--line);
+  display: flex; flex-direction: column;
+}
+.pq-node { position: relative; }
+.pq-children > .pq-node::before {
+  content: ""; position: absolute;
+  left: -19px; top: 25px; width: 15px; height: 1px;
+  background: var(--line);
+}
+.pq-node-row {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 11px 12px; margin-left: 4px;
+  border-radius: 12px;
+  transition: background .14s ease;
+}
+.pq-children .pq-node-row { margin-left: 8px; }
+.pq-node-row:hover { background: oklch(1 0 0 / 0.03); }
+.pq-bullet {
+  flex: 0 0 auto; width: 16px; height: 16px; margin-top: 3px;
+  border-radius: 50%;
+  background: oklch(1 0 0 / 0.05);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.pq-node.is-root > .pq-node-row .pq-bullet {
+  background: var(--holo);
+  box-shadow: 0 0 0 4px oklch(0.72 0.13 290 / 0.16), 0 0 14px -2px rgba(200,182,255,0.6);
+}
+.pq-node-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.pq-node-name {
+  font-size: 14.5px; font-weight: 650; letter-spacing: -0.01em; color: var(--fg);
+  word-break: keep-all; overflow-wrap: break-word;
+}
+.pq-node.is-root > .pq-node-row .pq-node-name { display: flex; align-items: center; gap: 8px; }
+.pq-node-reason {
+  font-size: 12.5px; line-height: 1.5; color: var(--fg-dim);
+  text-wrap: pretty; word-break: keep-all;
+}
+.pq-tag {
+  flex: 0 0 auto; white-space: nowrap;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 7px; border-radius: 999px;
+  color: var(--holo-on); background: var(--holo);
+}
+.pq-start {
+  flex: 0 0 auto; align-self: center;
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 32px; padding: 0 13px;
+  border-radius: 999px;
+  background: oklch(1 0 0 / 0.05);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--fg-mut);
+  font-size: 12px; white-space: nowrap;
+  opacity: 0; transform: translateX(-3px);
+  transition: opacity .15s ease, transform .15s ease, color .15s, box-shadow .2s, background .15s;
+}
+.pq-node-row:hover .pq-start { opacity: 1; transform: none; }
+.pq-start:hover {
+  color: var(--fg); background: oklch(1 0 0 / 0.08);
+  box-shadow: inset 0 0 0 1px oklch(0.72 0.13 290 / 0.5);
+}
+.pq-start svg { width: 13px; height: 13px; }
+.pq-node.is-started > .pq-node-row .pq-bullet {
+  background: linear-gradient(135deg, #C8B6FF, #7DE3FF);
+  box-shadow: 0 0 8px oklch(0.72 0.13 290 / 0.7);
+}
+.pq-node.is-started > .pq-node-row .pq-start { opacity: 1; transform: none; color: var(--fg-mut); }
+.pq-state-meta {
+  font-family: var(--font-mono); font-size: 10.5px; color: var(--fg-dim); white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 5px; margin-top: 1px;
+}
+
+/* ── 상태: 로딩 / 빈 / 에러 ──────────────────────────────────────────── */
+.pq-loading { display: flex; flex-direction: column; gap: 14px; padding: 18px 12px 26px; }
+.pq-loading-head { display: flex; align-items: center; gap: 11px; font-size: 13px; color: var(--fg-mut); }
+.pq-loading-dot {
+  width: 12px; height: 12px; border-radius: 999px;
+  background: var(--holo); box-shadow: 0 0 20px 3px rgba(125,227,255,0.4);
+  animation: pqPulse 1.1s ease-in-out infinite;
+}
+@keyframes pqPulse { 0%,100% { transform: scale(.78); opacity: .6; } 50% { transform: scale(1.12); opacity: 1; } }
+.pq-skel-row { display: flex; align-items: center; gap: 12px; padding: 11px 12px; margin-left: 4px; }
+.pq-skel-row.lvl1 { margin-left: 31px; }
+.pq-skel-row.lvl2 { margin-left: 58px; }
+.pq-skel-dot { width: 16px; height: 16px; border-radius: 50%; background: oklch(1 0 0 / 0.06); flex: 0 0 auto; }
+.pq-skel-lines { flex: 1; display: flex; flex-direction: column; gap: 7px; }
+.pq-skel-bar { height: 11px; border-radius: 6px; background: oklch(1 0 0 / 0.06); position: relative; overflow: hidden; }
+.pq-skel-bar.w1 { width: 42%; }
+.pq-skel-bar.w2 { width: 78%; height: 9px; }
+.pq-skel-bar::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.08), transparent);
+  transform: translateX(-100%); animation: pqShimmer 1.5s ease-in-out infinite;
+}
+@keyframes pqShimmer { to { transform: translateX(100%); } }
+.pq-msg { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; padding: 38px 24px 40px; }
+.pq-msg-ico {
+  width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center;
+  color: var(--fg-mut); background: oklch(1 0 0 / 0.04); box-shadow: inset 0 0 0 1px var(--line);
+}
+.pq-msg.is-empty .pq-msg-ico { color: oklch(0.84 0.13 150); background: oklch(0.7 0.16 150 / 0.12); box-shadow: inset 0 0 0 1px oklch(0.7 0.16 150 / 0.3); }
+.pq-msg.is-error .pq-msg-ico { color: oklch(0.8 0.15 25); background: oklch(0.7 0.18 25 / 0.12); box-shadow: inset 0 0 0 1px oklch(0.7 0.18 25 / 0.3); }
+.pq-msg-title { font-size: 15.5px; font-weight: 650; letter-spacing: -0.01em; word-break: keep-all; }
+.pq-msg-sub { font-size: 13px; color: var(--fg-mut); line-height: 1.55; max-width: 320px; text-wrap: pretty; word-break: keep-all; }
+.pq-retry {
+  margin-top: 6px; display: inline-flex; align-items: center; gap: 7px;
+  height: 38px; padding: 0 18px; border-radius: 999px;
+  background: oklch(1 0 0 / 0.05); box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--fg); font-size: 13px; white-space: nowrap;
+  transition: background .15s, box-shadow .2s;
+}
+.pq-retry:hover { background: oklch(1 0 0 / 0.09); box-shadow: inset 0 0 0 1px var(--fg-dim); }
+.pq-retry svg { width: 14px; height: 14px; }
+
+/* ── 사이드바: 하위 세션 트리 (방향 A — 미학습 placeholder 포함) ──────── */
+.sb-subtree {
+  margin: 1px 2px 3px 17px;
+  border-left: 1px solid var(--line);
+  display: flex; flex-direction: column;
+}
+.sb-sub-item {
+  position: relative;
+  display: grid; grid-template-columns: 1fr auto;
+  align-items: center; gap: 6px;
+  padding: 8px 9px 8px 14px; margin-left: 6px;
+  border-radius: var(--radius-sm);
+  width: calc(100% - 6px); text-align: left;
+  transition: background .14s ease;
+}
+.sb-sub-item::before {
+  content: ""; position: absolute; left: -6px; top: 50%; width: 11px; height: 1px;
+  background: var(--line);
+}
+.sb-sub-item:hover { background: var(--line-2); }
+.sb-sub-item.is-active { background: oklch(1 0 0 / 0.055); }
+.sb-sub-open { display: flex; min-width: 0; width: 100%; text-align: left; }
+.sb-sub-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; width: 100%; }
+.sb-sub-title { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--fg); letter-spacing: -0.008em; overflow: hidden; }
+.sb-sub-title .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sb-sub-meta { font-family: var(--font-mono); font-size: 10.5px; color: var(--fg-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 미학습(placeholder) 노드 */
+.sb-sub-item.is-placeholder { opacity: 0.92; }
+.sb-sub-item.is-placeholder .sb-sub-title .nm { color: var(--fg-mut); }
+.sb-ph-dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 9px; box-shadow: inset 0 0 0 1.4px var(--fg-faint); background: transparent; }
+.sb-sub-item.is-placeholder .sb-sub-meta { color: var(--fg-faint); }
+.sb-ph-start {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: 7px; color: var(--fg-dim); opacity: 0;
+  transition: opacity .14s, color .14s, background .14s;
+}
+.sb-sub-item.is-placeholder:hover .sb-ph-start { opacity: 1; }
+.sb-ph-start:hover { color: var(--fg); background: var(--line-2); }
+.sb-ph-start svg { width: 14px; height: 14px; }
+.sb-hi-livedot.is-sub { background: linear-gradient(135deg, #C8B6FF, #7DE3FF); }
+/* 트리 토글 셰브론 (부모 아이템) */
+.sb-tree-chev {
+  flex: 0 0 auto; width: 16px; height: 16px; margin-right: 2px;
+  display: grid; place-items: center; color: var(--fg-dim);
+  transition: transform .18s ease;
+}
+.sb-tree-chev.is-open { transform: rotate(90deg); }
+.sb-hi-title .sb-tree-chev svg { width: 12px; height: 12px; }
+
+/* ── 회피 다이얼로그 1차 버튼 (동작: 선행 트리 보기) ─────────────────── */
+.retreat-actions .rd-primary {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 42px; padding: 0 18px; border-radius: 999px;
+  background: var(--holo); color: var(--holo-on);
+  font-size: 13.5px; font-weight: 700; white-space: nowrap;
+  box-shadow: var(--holo-glow); transition: filter .15s, transform .15s;
+}
+.retreat-actions .rd-primary:hover { filter: brightness(1.05) saturate(1.05); }
+.retreat-actions .rd-primary:active { transform: translateY(1px); }
+.retreat-actions .rd-primary svg { width: 15px; height: 15px; }
+.retreat-actions .rd-ghost {
+  height: 42px; padding: 0 16px; border-radius: 999px; white-space: nowrap;
+  background: oklch(1 0 0 / 0.04); color: var(--fg-mut); font-size: 13px;
+  transition: background .15s, color .15s;
+}
+.retreat-actions .rd-ghost:hover { background: oklch(1 0 0 / 0.08); color: var(--fg); }
+
+/* ── 복귀 배너 (breadcrumb 시안 2) — 하위 세션 상단 고정 ───────────────── */
+.g-bc2 {
+  display: flex; align-items: center; gap: 13px;
+  padding: 12px 14px; margin-bottom: 14px;
+  background: var(--bg-elev-1); border-radius: 16px;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.g-bc2-back {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 8px;
+  height: 38px; padding: 0 15px 0 12px; border-radius: 999px;
+  background: oklch(0.72 0.13 290 / 0.1); box-shadow: inset 0 0 0 1px oklch(0.72 0.13 290 / 0.32);
+  color: var(--fg); font-size: 12.5px; font-weight: 600; white-space: nowrap;
+  transition: background .15s, box-shadow .2s, transform .12s;
+}
+.g-bc2-back:hover { background: oklch(0.72 0.13 290 / 0.16); box-shadow: inset 0 0 0 1px oklch(0.72 0.13 290 / 0.5); }
+.g-bc2-back:active { transform: translateY(1px); }
+.g-bc2-back svg { width: 14px; height: 14px; }
+.g-bc2-main { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.g-bc2-label { font-size: 10.5px; font-family: var(--font-mono); letter-spacing: 0.04em; color: var(--fg-faint); }
+.g-bc2-parent { font-size: 13px; font-weight: 600; color: var(--fg); letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.g-bc2-now { margin-left: auto; flex: 0 0 auto; text-align: right; }
+.g-bc2-now .l { font-size: 10px; font-family: var(--font-mono); color: var(--fg-faint); display: block; }
+.g-bc2-now .v { font-size: 12px; color: var(--fg-mut); }
+.g-bc2-depth {
+  flex: 0 0 auto; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.04em;
+  color: oklch(0.84 0.07 290); background: oklch(0.62 0.17 273 / 0.18);
+  padding: 3px 8px; border-radius: 999px; white-space: nowrap;
+}
+
+/* ── 깊이 한계 (깊이 2) — 트리거 대체 카드 + 깊이 메터 ────────────────── */
+.g-depthbar { display: inline-flex; align-items: center; gap: 5px; }
+.g-depthbar .seg { width: 18px; height: 4px; border-radius: 999px; background: oklch(1 0 0 / 0.08); }
+.g-depthbar .seg.on { background: linear-gradient(90deg, #C8B6FF, #7DE3FF); }
+.g-depthbar .cap { font-family: var(--font-mono); font-size: 10px; color: var(--fg-faint); margin-left: 3px; }
+.g-trig-limit {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 14px 15px; border-radius: 14px;
+  background: oklch(0.7 0.16 150 / 0.08); box-shadow: inset 0 0 0 1px oklch(0.7 0.16 150 / 0.28);
+}
+.g-trig-limit .ic {
+  flex: 0 0 auto; width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center;
+  color: oklch(0.85 0.13 150); background: oklch(0.7 0.16 150 / 0.14); box-shadow: inset 0 0 0 1px oklch(0.7 0.16 150 / 0.3);
+}
+.g-trig-limit .ic svg { width: 16px; height: 16px; }
+.g-trig-limit-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.g-trig-limit-title { font-size: 13.5px; font-weight: 650; letter-spacing: -0.01em; word-break: keep-all; }
+.g-trig-limit-sub { font-size: 12px; color: var(--fg-mut); line-height: 1.5; text-wrap: pretty; word-break: keep-all; }
+.g-trig-limit-actions { display: flex; align-items: center; gap: 9px; margin-top: 11px; flex-wrap: wrap; }
+.g-newsession {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 38px; padding: 0 16px 0 13px; border-radius: 999px;
+  background: var(--holo); color: var(--holo-on); font-size: 12.5px; font-weight: 700;
+  box-shadow: var(--holo-glow); white-space: nowrap; transition: filter .15s, transform .12s;
+}
+.g-newsession:hover { filter: brightness(1.05) saturate(1.05); }
+.g-newsession:active { transform: translateY(1px); }
+.g-newsession svg { width: 14px; height: 14px; }
+.g-stayhere {
+  height: 38px; padding: 0 14px; border-radius: 999px;
+  background: oklch(1 0 0 / 0.04); color: var(--fg-mut); font-size: 12.5px; white-space: nowrap;
+  box-shadow: inset 0 0 0 1px var(--line); transition: color .15s, background .15s;
+}
+.g-stayhere:hover { color: var(--fg); background: oklch(1 0 0 / 0.07); }
+
+/* ── 완료 화면 복귀 (시안 1 · 단일 주 버튼) ──────────────────────────── */
+.g-done-cta { margin-top: 20px; display: flex; flex-direction: column; gap: 9px; align-items: center; }
+.g-return-primary {
+  display: inline-flex; align-items: center; gap: 9px;
+  height: 46px; padding: 0 22px; border-radius: 999px;
+  background: var(--holo); color: var(--holo-on); font-size: 14px; font-weight: 700;
+  box-shadow: var(--holo-glow); white-space: nowrap; transition: filter .15s, transform .12s;
+}
+.g-return-primary:hover { filter: brightness(1.05) saturate(1.05); }
+.g-return-primary:active { transform: translateY(1px); }
+.g-return-primary svg { width: 16px; height: 16px; }
+.g-done-secondary { background: none; color: var(--fg-dim); font-size: 12.5px; padding: 4px 8px; border-radius: 8px; transition: color .15s; }
+.g-done-secondary:hover { color: var(--fg-mut); }
+
+/* ── 모바일 보강 ──────────────────────────────────────────────────────── */
+@media (max-width: 760px) {
+  .pq-modal-backdrop { place-items: end center; padding: 0; }
+  .pq-modal { width: 100%; max-height: 90%; border-radius: 20px 20px 0 0; animation: pqSheet .26s cubic-bezier(.2,.8,.2,1) both; }
+  @keyframes pqSheet { from { transform: translateY(100%); } to { transform: none; } }
+  .pq-children { margin-left: 14px; }
+  .pq-children > .pq-node::before { left: -14px; width: 11px; }
+  .pq-start { opacity: 1; transform: none; }   /* 터치엔 hover 없음 → 항상 노출 */
+}

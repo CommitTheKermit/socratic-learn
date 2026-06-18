@@ -50,6 +50,7 @@ function upsertVisible(
     createdAt: snapshot.createdAt,
     conceptSummary: snapshot.conceptSummary,
     stage: snapshot.stage,
+    parentSessionId: snapshot.parentSessionId,
   };
   const base = prev ?? [];
   const others = base.filter((m) => m.sessionId !== meta.sessionId);

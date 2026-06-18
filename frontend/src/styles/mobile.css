@@ -163,16 +163,20 @@
   .hero h1 { font-size: 27px; line-height: 1.28; }
   .hero .sub { font-size: 13.5px; }
 
-  /* 입력바: 모드 / 입력 / 버튼 세로 스택 */
+  /* 입력바: 텍스트는 윗줄 전체 폭, 아랫줄에 [모드]·[학습 시작] — 버튼은 폭에 맞춰 컴팩트하게 */
   .input-bar.has-lead {
-    grid-template-columns: 1fr;
-    gap: 8px;
+    grid-template-columns: auto 1fr;
+    grid-template-areas: "ta ta" "mode btn";
+    gap: 8px 10px;
     padding: 8px;
+    align-items: center;
   }
-  .input-bar.has-lead .mode-dd { justify-self: start; }
-  .input-bar.has-lead textarea { grid-column: 1; min-height: 44px; }
+  .input-bar.has-lead .mode-dd { grid-area: mode; justify-self: start; align-self: center; }
+  .input-bar.has-lead textarea { grid-area: ta; min-height: 44px; }
+  /* 학습 시작: 전체 폭 stretch만 해제해 컴팩트하게 — 흐르는 그라데이션은 유지 */
   .input-bar.has-lead .btn-capture {
-    grid-column: 1; justify-self: stretch; justify-content: center; height: 46px;
+    grid-area: btn; justify-self: end;
+    width: auto; height: 40px; padding: 0 18px; justify-content: center;
   }
   .mode-menu { min-width: min(272px, 80vw); }
 

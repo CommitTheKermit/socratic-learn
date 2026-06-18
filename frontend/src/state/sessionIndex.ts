@@ -13,6 +13,8 @@ export interface SessionMeta {
   createdAt: number;
   conceptSummary: string;
   stage: Stage;
+  /** 선행 개념 하위 세션이면 부모 세션 id. 사이드바 트리(부모 아래 들여쓰기)를 그리는 데 쓴다. */
+  parentSessionId?: string;
 }
 
 /**

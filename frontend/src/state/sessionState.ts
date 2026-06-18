@@ -1,6 +1,6 @@
 import type { ProbeAnswers, ProbeQuestion, Stage, Step } from "../stages/data";
 import type { StepEvaluation } from "../api/claudeContent";
-import type { BranchOption } from "../api/contract";
+import type { BranchOption, PrereqNode } from "../api/contract";
 
 /**
  * 한 단계에서 생성된 분기 평가 스냅샷. 다이얼로그의 평가 텍스트/선택지/병합 여부를 담는다.
@@ -30,6 +30,11 @@ export type FieldUpdatedAt = Record<string, string>;
 export interface SessionState {
   sessionId: string;
   createdAt: number;
+  /**
+   * 선행 개념 학습용 "하위 세션"이면 부모(원개념) 세션 id. 최상위(독립) 세션이면 undefined.
+   * 세션 생성 시 한 번 정해지는 불변 식별 필드라 sessionId/createdAt 처럼 병합 대상(fieldUpdatedAt)이 아니다.
+   */
+  parentSessionId?: string;
   conceptSummary: string;
   stage: Stage;
   /** 답변 모드(light/socratic/deep). 학습 강도(질문 난이도·분기·채점·설명 깊이)를 정한다. */
@@ -54,6 +59,12 @@ export interface SessionState {
   stepBranches?: Record<number, StepBranchResult>;
   /** 분기 선택이 완료된 step.id 목록. 게이트 해제 상태(다음 개념 진행 허용)를 복원한다. */
   branchedStepIds?: number[];
+  /**
+   * 이 세션(개념)에 대해 "선행 개념 보기"로 생성한 선행 개념 트리(이름 지도).
+   * 사이드바 하위 트리에서 아직 학습 안 한 placeholder 노드를 렌더하는 데 쓴다.
+   * 생성 전이면 누락(undefined).
+   */
+  prereqTree?: PrereqNode[];
   /** 최상위 필드별 마지막 변경 시각(ISO8601). 누락 시 빈 객체로 취급한다. */
   fieldUpdatedAt?: FieldUpdatedAt;
 }
@@ -223,6 +234,26 @@ function asBranchedStepIds(v: unknown): number[] | undefined {
 }
 
 /**
+ * 선행 개념 트리(이름 지도)를 보정한다. 각 노드는 concept(string) 필수, reason/children 은 보정.
+ * children 으로 재귀하되 깊이를 제한해 손상 입력의 폭주를 막는다. 빈 배열이면 undefined.
+ */
+function asPrereqNodes(v: unknown, depth = 0): PrereqNode[] | undefined {
+  if (!Array.isArray(v) || depth > 4) return undefined;
+  const out: PrereqNode[] = [];
+  for (const x of v) {
+    if (x == null || typeof x !== "object") continue;
+    const o = x as Record<string, unknown>;
+    if (typeof o.concept !== "string" || !o.concept) continue;
+    out.push({
+      concept: o.concept,
+      reason: typeof o.reason === "string" ? o.reason : "",
+      children: asPrereqNodes(o.children, depth + 1) ?? [],
+    });
+  }
+  return out.length ? out : undefined;
+}
+
+/**
  * 필드별 변경 시각 맵을 보정한다. 값이 문자열인 항목만 신뢰한다.
  *
  * 누락(undefined/null)되었거나 손상된(비객체/배열 등 잘못된 타입) 입력은
@@ -258,6 +289,8 @@ export function serializeSessionState(state: SessionState): string {
     answers: state.answers,
     skips: state.skips,
   };
+  // 하위 세션일 때만 부모 링크를 포함한다(최상위 세션은 키 자체를 생략).
+  if (state.parentSessionId) payload.parentSessionId = state.parentSessionId;
   // 산출물은 존재할 때만 직렬화에 포함한다(undefined 는 JSON 에서 자동 생략되지만 명시적으로 둔다).
   if (state.probeReady && state.probeQuestions?.length) {
     payload.probeQuestions = state.probeQuestions;
@@ -272,6 +305,9 @@ export function serializeSessionState(state: SessionState): string {
   }
   if (state.branchedStepIds && state.branchedStepIds.length) {
     payload.branchedStepIds = state.branchedStepIds;
+  }
+  if (state.prereqTree && state.prereqTree.length) {
+    payload.prereqTree = state.prereqTree;
   }
   if (state.fieldUpdatedAt && Object.keys(state.fieldUpdatedAt).length) {
     payload.fieldUpdatedAt = state.fieldUpdatedAt;
@@ -296,10 +332,13 @@ export function deserializeSessionState(json: string): SessionState {
   const stepEvaluations = asStepEvaluations(o.stepEvaluations);
   const stepBranches = asStepBranches(o.stepBranches);
   const branchedStepIds = asBranchedStepIds(o.branchedStepIds);
+  const prereqTree = asPrereqNodes(o.prereqTree);
   const fieldUpdatedAt = asFieldUpdatedAt(o.fieldUpdatedAt);
   return {
     sessionId: asString(o.sessionId),
     createdAt: asNumber(o.createdAt),
+    parentSessionId:
+      typeof o.parentSessionId === "string" && o.parentSessionId ? o.parentSessionId : undefined,
     conceptSummary: asString(o.conceptSummary),
     stage: asStage(o.stage),
     // 구 세션엔 mode 가 없으므로(과거 depth 필드와 무관) 기본 socratic 으로 복원한다.
@@ -318,6 +357,36 @@ export function deserializeSessionState(json: string): SessionState {
     stepEvaluations,
     stepBranches,
     branchedStepIds,
+    prereqTree,
     fieldUpdatedAt,
+  };
+}
+
+/**
+ * 새 학습 세션의 초기 상태를 만든다(stage="probe"). "학습 시작"과 선행 개념 하위 세션 생성이 공유한다.
+ * parentSessionId 를 주면 선행 개념 학습용 하위 세션으로 표식된다(주지 않으면 최상위 세션).
+ * 순수 함수(부수효과 없음). createdAt/sessionId 는 호출 측이 생성해 주입한다.
+ */
+export function createSessionState(args: {
+  sessionId: string;
+  createdAt: number;
+  concept: string;
+  mode: string;
+  parentSessionId?: string;
+}): SessionState {
+  return {
+    sessionId: args.sessionId,
+    createdAt: args.createdAt,
+    conceptSummary: args.concept,
+    stage: "probe",
+    mode: args.mode,
+    concept: args.concept,
+    materials: "",
+    probes: {},
+    estimatedLevel: null,
+    stepIdx: 0,
+    answers: {},
+    skips: {},
+    ...(args.parentSessionId ? { parentSessionId: args.parentSessionId } : {}),
   };
 }

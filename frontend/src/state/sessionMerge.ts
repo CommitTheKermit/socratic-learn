@@ -28,6 +28,7 @@ export const MERGEABLE_FIELDS = [
   "stepEvaluations",
   "stepBranches",
   "branchedStepIds",
+  "prereqTree",
 ] as const satisfies readonly (keyof SessionState)[];
 
 export type MergeableField = (typeof MERGEABLE_FIELDS)[number];
@@ -142,6 +143,8 @@ export function mergeSessions(
   const merged: SessionState = {
     sessionId: a.sessionId || b.sessionId,
     createdAt: a.createdAt || b.createdAt,
+    // 부모 링크는 생성 시점 불변 식별 필드라 mergeable 이 아니다(어느 쪽이든 값이 있으면 보존).
+    parentSessionId: a.parentSessionId ?? b.parentSessionId,
     // 아래 mergeable 필드들은 루프에서 덮어쓴다. 타입 충족을 위한 초기값.
     conceptSummary: a.conceptSummary,
     stage: a.stage,

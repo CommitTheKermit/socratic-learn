@@ -1,5 +1,11 @@
 import { API_BASE_URL, ApiPaths } from "./contract";
-import type { EvaluationResponse, OverwhelmDecision, ParseFailure } from "./contract";
+import type {
+  EvaluationResponse,
+  OverwhelmDecision,
+  ParseFailure,
+  PrereqNode,
+  PrereqTreeResponse,
+} from "./contract";
 import type { ProbeQuestion, Step } from "../stages/data";
 import { authHeaders } from "./authHeaders";
 
@@ -75,6 +81,46 @@ export async function detectOverwhelm(
     throw new ClaudeContentError(code, message);
   }
   return (await res.json()) as OverwhelmDecision;
+}
+
+// PrereqNode 는 contract.ts 로부터 re-export (선행 트리 UI 가 이 모듈에서 import).
+export type { PrereqNode };
+
+/**
+ * 개념이 너무 어려울 때 다단계 선행 개념 트리(이름 지도)를 생성한다.
+ * 반환은 목표 개념 바로 아래 선행들의 배열(각 노드는 children 으로 더 깊은 선행 보유).
+ * 빈 배열이면 선행 학습이 불필요하다는 뜻. probeSummary 는 probe 단계에서만 전달.
+ */
+export async function generatePrereqTree(
+  concept: string,
+  materials?: string,
+  probeSummary?: string,
+  mode?: string,
+): Promise<PrereqNode[]> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE_URL}${ApiPaths.PREREQ_TREE}`, {
+      method: "POST",
+      headers: await authHeaders(),
+      body: JSON.stringify({ concept, materials, probeSummary, mode }),
+    });
+  } catch (e) {
+    throw new ClaudeContentError("CLAUDE_API_ERROR", (e as Error)?.message ?? "네트워크 오류");
+  }
+  if (!res.ok) {
+    let code = "CLAUDE_API_ERROR";
+    let message = `선행 개념 트리 요청 실패: HTTP ${res.status}`;
+    try {
+      const body = await res.json();
+      if (body?.code) code = body.code as string;
+      if (body?.message) message = body.message as string;
+    } catch {
+      /* ignore */
+    }
+    throw new ClaudeContentError(code, message);
+  }
+  const body = (await res.json()) as PrereqTreeResponse;
+  return body.prerequisites ?? [];
 }
 
 export interface RoadmapOutlineItem {

@@ -96,6 +96,7 @@ function renderLearn(props: Partial<Parameters<typeof StageLearn>[0]> = {}) {
     onPrev: vi.fn(),
     onDone: vi.fn(),
     onRetry: vi.fn(),
+    prereq: { depth: 0, onOpen: vi.fn(), onReturnToParent: vi.fn(), onNewIndependent: vi.fn() },
   };
   return render(<StageLearn {...base} {...props} />);
 }
@@ -228,6 +229,7 @@ describe("AC4: 분기 완료 후 다음 개념 버튼 활성화", () => {
       onPrev: vi.fn(),
       onDone: vi.fn(),
       onRetry: vi.fn(),
+      prereq: { depth: 0, onOpen: vi.fn(), onReturnToParent: vi.fn(), onNewIndependent: vi.fn() },
     };
     const { rerender } = render(<StageLearn {...props} />);
 

@@ -15,6 +15,8 @@ interface SessionDoc {
   state: Record<string, unknown>;
   conceptSummary: string;
   stage: string;
+  /** 선행 개념 하위 세션이면 부모 세션 id(목록 조회용 평면화). 최상위 세션은 키 자체를 생략. */
+  parentSessionId?: string;
   serverUpdatedAt: Timestamp;
 }
 
@@ -57,6 +59,10 @@ export const sessionSave = onRequest(
         // upsert 시점의 서버 수신 시각. 동률(fieldUpdatedAt 동일) tiebreaker 의 진실 출처.
         serverUpdatedAt: FieldValue.serverTimestamp() as unknown as Timestamp,
       };
+      // Firestore 는 undefined 값을 거부하므로, 하위 세션일 때만 부모 링크를 평면화해 싣는다.
+      if (typeof state.parentSessionId === "string" && state.parentSessionId) {
+        doc.parentSessionId = state.parentSessionId;
+      }
       await itemsCol(uid).doc(sessionId).set(doc);
       res.json({ ok: true });
     } catch (e) {
@@ -93,6 +99,9 @@ export const sessionList = onRequest(
           conceptSummary: typeof data.conceptSummary === "string" ? data.conceptSummary : "",
           stage: typeof data.stage === "string" ? data.stage : "input",
           updatedAt: toMillis(data.serverUpdatedAt),
+          // 하위 세션이면 부모 링크를 함께 반환(JSON 은 undefined 키를 생략).
+          parentSessionId:
+            typeof data.parentSessionId === "string" ? data.parentSessionId : undefined,
         };
       });
       res.json({ sessions });

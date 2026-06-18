@@ -105,6 +105,7 @@ function renderLearn(steps: Step[], stepIdx = 0) {
       onPrev={vi.fn()}
       onDone={vi.fn()}
       onRetry={vi.fn()}
+      prereq={{ depth: 0, onOpen: vi.fn(), onReturnToParent: vi.fn(), onNewIndependent: vi.fn() }}
     />,
   );
 }
