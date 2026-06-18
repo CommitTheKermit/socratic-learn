@@ -1723,6 +1723,8 @@ body {
   padding: 22px;
   min-width: 0;
 }
+/* 좌(설명)·우(질문) 두 컬럼을 각자 뷰포트 높이에 고정해 독립적으로 내부 스크롤시킨다.
+   한쪽을 스크롤해도 다른 쪽은 따라 움직이지 않는다. */
 .lv2-left { position: sticky; top: 12px; max-height: calc(100vh - 120px); overflow: auto; }
 .lv2-left-inner { display: flex; flex-direction: column; gap: 10px; }
 .lv2-eyebrow {
@@ -1739,7 +1741,10 @@ body {
   letter-spacing: -0.02em;
 }
 .lv2-sub { margin: 0 0 8px; font-size: 13.5px; color: var(--fg-mut); }
-.lv2-right { display: flex; flex-direction: column; gap: 14px; }
+.lv2-right {
+  display: flex; flex-direction: column; gap: 14px;
+  position: sticky; top: 12px; max-height: calc(100vh - 120px); overflow: auto;
+}
 .lv2-right-head {
   display: flex;
   align-items: baseline;

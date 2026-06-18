@@ -211,7 +211,7 @@
   .lvv-explain-head .ttl { flex: 1 1 auto; min-width: 0; }
   .lv-seg { display: none; }   /* 가로 모드는 모바일에서 무의미 → 세로 고정 */
   .lv2-left, .lv2-right { padding: 16px; border-radius: 16px; }
-  .lv2-left { position: static; max-height: none; }
+  .lv2-left, .lv2-right { position: static; max-height: none; overflow: visible; }
   .lv2-left h3 { font-size: 19px; }
   .lvv-explain-head { padding: 14px 16px; gap: 8px; flex-wrap: wrap; }
   .lvv-explain-head .ttl { font-size: 15px; }
