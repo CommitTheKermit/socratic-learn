@@ -7,6 +7,7 @@ import * as logger from "firebase-functions/logger";
 import Anthropic from "@anthropic-ai/sdk";
 import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
 import { EVAL_SYSTEM, evalUserMessage } from "./prompts";
+import { logUsage } from "./usageLog";
 
 // Secret Manager 로 주입되는 Anthropic 키. 브라우저에는 절대 노출되지 않는다.
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
@@ -116,6 +117,7 @@ export const answerEval = onRequest(
         ],
         output_config: { format: jsonSchemaOutputFormat(evalSchema) },
       });
+      logUsage("answerEval", CLAUDE_MODEL, resp.usage);
       const parsed = resp.parsed_output as StepEvaluation | undefined;
       if (!parsed?.evaluations) {
         res.status(502).json({ code: "INVALID_RESPONSE", message: "평가 응답이 비어 있습니다." });

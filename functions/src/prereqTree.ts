@@ -6,7 +6,13 @@ import { defineSecret } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import Anthropic from "@anthropic-ai/sdk";
 import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
-import { PREREQ_TREE_SYSTEM, prereqTreeUserMessage } from "./prompts";
+import { logUsage } from "./usageLog";
+import {
+  PREREQ_TREE_SYSTEM_PROBE,
+  PREREQ_TREE_SYSTEM_LEARN,
+  prereqTreeUserMessage,
+  prereqTreeLearnUserMessage,
+} from "./prompts";
 
 // Secret Manager 로 주입되는 Anthropic 키. 브라우저에는 절대 노출되지 않는다.
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
@@ -70,11 +76,26 @@ export const prereqTree = onRequest(
       return;
     }
 
-    const { concept, materials, probeSummary, mode } = (req.body ?? {}) as {
+    const {
+      concept,
+      materials,
+      probeSummary,
+      mode,
+      stage,
+      level,
+      roadmapTitles,
+      currentStepTitle,
+      probePrereqConcepts,
+    } = (req.body ?? {}) as {
       concept?: string;
       materials?: string;
       probeSummary?: string;
       mode?: string;
+      stage?: "probe" | "learn";
+      level?: number;
+      roadmapTitles?: string[];
+      currentStepTitle?: string;
+      probePrereqConcepts?: string[];
     };
 
     if (!concept) {
@@ -91,15 +112,23 @@ export const prereqTree = onRequest(
       return;
     }
 
+    const isLearn = stage === "learn";
+    // learn 선행은 "단계 한 점" 디딤돌만이라 더 가볍게(토큰·트리 폭/깊이) 생성한다.
+    const systemText = isLearn ? PREREQ_TREE_SYSTEM_LEARN : PREREQ_TREE_SYSTEM_PROBE;
+    const userText = isLearn
+      ? prereqTreeLearnUserMessage(concept, level, roadmapTitles, currentStepTitle, probePrereqConcepts)
+      : prereqTreeUserMessage(concept, materials, probeSummary);
+
     try {
       const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY.value() });
       const resp = await client.messages.parse({
         model: CLAUDE_MODEL,
-        max_tokens: 2500,
-        system: [{ type: "text", text: PREREQ_TREE_SYSTEM, cache_control: { type: "ephemeral" } }],
-        messages: [{ role: "user", content: prereqTreeUserMessage(concept, materials, probeSummary) }],
+        max_tokens: isLearn ? 1500 : 2500,
+        system: [{ type: "text", text: systemText, cache_control: { type: "ephemeral" } }],
+        messages: [{ role: "user", content: userText }],
         output_config: { format: jsonSchemaOutputFormat(prereqTreeSchema) },
       });
+      logUsage("prereqTree", CLAUDE_MODEL, resp.usage);
       const parsed = resp.parsed_output as { prerequisites: PrereqNode[] } | undefined;
       if (!parsed) {
         res.status(502).json({ code: "INVALID_RESPONSE", message: "선행 개념 트리 응답이 비어 있습니다." });

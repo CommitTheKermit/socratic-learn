@@ -7,6 +7,7 @@ import * as logger from "firebase-functions/logger";
 import Anthropic from "@anthropic-ai/sdk";
 import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
 import { OVERWHELM_SYSTEM, overwhelmUserMessage } from "./prompts";
+import { logUsage } from "./usageLog";
 
 // Secret Manager 로 주입되는 Anthropic 키. 브라우저에는 절대 노출되지 않는다.
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
@@ -82,6 +83,7 @@ export const overwhelm = onRequest(
         messages: [{ role: "user", content: overwhelmUserMessage(concept, materials, probeSummary) }],
         output_config: { format: jsonSchemaOutputFormat(overwhelmSchema) },
       });
+      logUsage("overwhelm", CLAUDE_MODEL, resp.usage);
       const parsed = resp.parsed_output as OverwhelmDecision | undefined;
       if (!parsed) {
         res.status(502).json({ code: "INVALID_RESPONSE", message: "후퇴 판단 응답이 비어 있습니다." });

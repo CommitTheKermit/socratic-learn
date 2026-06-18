@@ -60,11 +60,16 @@ export interface SessionState {
   /** 분기 선택이 완료된 step.id 목록. 게이트 해제 상태(다음 개념 진행 허용)를 복원한다. */
   branchedStepIds?: number[];
   /**
-   * 이 세션(개념)에 대해 "선행 개념 보기"로 생성한 선행 개념 트리(이름 지도).
-   * 사이드바 하위 트리에서 아직 학습 안 한 placeholder 노드를 렌더하는 데 쓴다.
-   * 생성 전이면 누락(undefined).
+   * probe 단계에서 "선행 개념 보기"로 생성한 본개념 선행 트리(이름 지도).
+   * 모달 표시 + learn 선행 생성 시 컨텍스트(중복 분석 회피)로 재사용한다. 생성 전이면 누락(undefined).
    */
   prereqTree?: PrereqNode[];
+  /** prereqTree 의 입력 시그니처(개념/자료/진단요약). 입력이 바뀌면 재호출하기 위한 캐시 키. */
+  prereqSig?: string;
+  /** learn 단계 선행 트리(선택된 로드맵 단계용). stepIdx → 그 단계의 선행 트리. */
+  stepPrereqTrees?: Record<number, PrereqNode[]>;
+  /** stepPrereqTrees 의 stepIdx 별 입력 시그니처(수준/로드맵/단계제목). */
+  stepPrereqSigs?: Record<number, string>;
   /** 최상위 필드별 마지막 변경 시각(ISO8601). 누락 시 빈 객체로 취급한다. */
   fieldUpdatedAt?: FieldUpdatedAt;
 }
@@ -254,6 +259,36 @@ function asPrereqNodes(v: unknown, depth = 0): PrereqNode[] | undefined {
 }
 
 /**
+ * stepIdx 별 선행 트리 맵을 보정한다. 각 항목을 asPrereqNodes 로 보정하고 빈 트리는 버린다.
+ * 항목이 0개면 undefined.
+ */
+function asStepPrereqTrees(v: unknown): Record<number, PrereqNode[]> | undefined {
+  if (v == null || typeof v !== "object") return undefined;
+  const out: Record<number, PrereqNode[]> = {};
+  for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+    const idx = Number(k);
+    if (!Number.isInteger(idx)) continue;
+    const nodes = asPrereqNodes(val);
+    if (nodes) out[idx] = nodes;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+/**
+ * stepIdx 별 시그니처 문자열 맵을 보정한다. 값이 문자열인 항목만 신뢰하며 0개면 undefined.
+ */
+function asStepPrereqSigs(v: unknown): Record<number, string> | undefined {
+  if (v == null || typeof v !== "object") return undefined;
+  const out: Record<number, string> = {};
+  for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+    const idx = Number(k);
+    if (!Number.isInteger(idx)) continue;
+    if (typeof val === "string") out[idx] = val;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+/**
  * 필드별 변경 시각 맵을 보정한다. 값이 문자열인 항목만 신뢰한다.
  *
  * 누락(undefined/null)되었거나 손상된(비객체/배열 등 잘못된 타입) 입력은
@@ -308,6 +343,13 @@ export function serializeSessionState(state: SessionState): string {
   }
   if (state.prereqTree && state.prereqTree.length) {
     payload.prereqTree = state.prereqTree;
+    if (state.prereqSig) payload.prereqSig = state.prereqSig;
+  }
+  if (state.stepPrereqTrees && Object.keys(state.stepPrereqTrees).length) {
+    payload.stepPrereqTrees = state.stepPrereqTrees;
+    if (state.stepPrereqSigs && Object.keys(state.stepPrereqSigs).length) {
+      payload.stepPrereqSigs = state.stepPrereqSigs;
+    }
   }
   if (state.fieldUpdatedAt && Object.keys(state.fieldUpdatedAt).length) {
     payload.fieldUpdatedAt = state.fieldUpdatedAt;
@@ -333,6 +375,7 @@ export function deserializeSessionState(json: string): SessionState {
   const stepBranches = asStepBranches(o.stepBranches);
   const branchedStepIds = asBranchedStepIds(o.branchedStepIds);
   const prereqTree = asPrereqNodes(o.prereqTree);
+  const stepPrereqTrees = asStepPrereqTrees(o.stepPrereqTrees);
   const fieldUpdatedAt = asFieldUpdatedAt(o.fieldUpdatedAt);
   return {
     sessionId: asString(o.sessionId),
@@ -358,6 +401,9 @@ export function deserializeSessionState(json: string): SessionState {
     stepBranches,
     branchedStepIds,
     prereqTree,
+    prereqSig: typeof o.prereqSig === "string" && prereqTree ? o.prereqSig : undefined,
+    stepPrereqTrees,
+    stepPrereqSigs: stepPrereqTrees ? asStepPrereqSigs(o.stepPrereqSigs) : undefined,
     fieldUpdatedAt,
   };
 }

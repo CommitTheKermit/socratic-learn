@@ -29,6 +29,9 @@ export const MERGEABLE_FIELDS = [
   "stepBranches",
   "branchedStepIds",
   "prereqTree",
+  "prereqSig",
+  "stepPrereqTrees",
+  "stepPrereqSigs",
 ] as const satisfies readonly (keyof SessionState)[];
 
 export type MergeableField = (typeof MERGEABLE_FIELDS)[number];

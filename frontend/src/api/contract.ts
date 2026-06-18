@@ -61,13 +61,27 @@ export interface OverwhelmDecision {
 
 /**
  * POST /prereqTree 요청. 개념이 너무 어려울 때 다단계 선행 개념 트리(이름 지도)를 생성한다.
- * probeSummary 는 probe 단계 호출 시에만 채워지고, learn 단계 호출 시엔 생략 가능.
+ *
+ * stage 로 두 가지 의미를 분리한다:
+ * - "probe"(기본): 본개념을 배우기 전에 알아야 할 선수지식. probeSummary 만 함께 쓴다.
+ * - "learn": 선택된 로드맵 단계가 (이 사용자 수준에) 너무 어려울 때 그 단계를 이해하기 위한 선행.
+ *   level/roadmapTitles/currentStepTitle 를 함께 주고, 로드맵에 이미 있는 개념은 제외한다.
  */
 export interface PrereqTreeRequest {
   concept: string;
   materials?: string;
   probeSummary?: string;
   mode?: LearnMode;
+  /** 선행의 의미를 가르는 단계. 누락 시 "probe" 로 취급. */
+  stage?: "probe" | "learn";
+  /** learn 단계: 사용자 추정 수준(0=입문 ~ 3=능숙). */
+  level?: number;
+  /** learn 단계: 전체 로드맵 단계 제목 목록(이미 다루는 개념을 선행에서 제외하는 근거). */
+  roadmapTitles?: string[];
+  /** learn 단계: 선택된(현재) 로드맵 단계 제목. 선행은 이 단계 한 점을 위한 디딤돌만. */
+  currentStepTitle?: string;
+  /** learn 단계: probe 단계에서 만든 본개념 선행 개념명(평탄화). 중복 분석을 줄여 토큰 절감. */
+  probePrereqConcepts?: string[];
 }
 
 /** 선행 개념 트리 노드. children 으로 '선행의 선행'을 표현한다(서버는 최대 3단계로 제한). */
