@@ -297,11 +297,22 @@ function AppWorkspace({
   );
   const [answers, setAnswers] = useState<Record<string, string>>(() => loaded?.answers ?? {});
   const [skips, setSkips] = useState<Record<string, boolean>>(() => loaded?.skips ?? {});
-  // 이 개념에 대해 생성한 선행 개념 트리(사이드바 placeholder 렌더 + 모달 표시용). 세션에 영속화된다.
+  // probe 단계에서 생성한 본개념 선행 트리. 모달 표시 + learn 선행 생성 컨텍스트로 재사용. 세션에 영속화.
   const [prereqTree, setPrereqTree] = useState<PrereqNode[] | undefined>(() => loaded?.prereqTree);
-  // 선행 트리 모달 상태(열림 + 생성 상태머신).
+  const [prereqSig, setPrereqSig] = useState<string | undefined>(() => loaded?.prereqSig);
+  // learn 단계 선행 트리(선택된 로드맵 단계용). stepIdx → 그 단계 선행 트리/시그니처.
+  const [stepPrereqTrees, setStepPrereqTrees] = useState<Record<number, PrereqNode[]>>(
+    () => loaded?.stepPrereqTrees ?? {},
+  );
+  const [stepPrereqSigs, setStepPrereqSigs] = useState<Record<number, string>>(
+    () => loaded?.stepPrereqSigs ?? {},
+  );
+  // 선행 트리 모달 상태(열림 + 생성 상태머신 + 현재 표시 대상).
   const [pqOpen, setPqOpen] = useState(false);
   const [pqStatus, setPqStatus] = useState<PrereqStatus>("loading");
+  // 모달에 보여줄 트리/루트 라벨. probe 면 본개념, learn 이면 선택된 단계 제목.
+  const [pqConcept, setPqConcept] = useState<string>("");
+  const [pqTree, setPqTree] = useState<PrereqNode[]>([]);
   // 사이드바 세션 목록은 App 레벨 SessionListProvider(Routes 바깥)가 보유한다. 단계 전환으로
   // 이 워크스페이스가 재마운트되어도 sessions/원격 fetch 상태가 유지되어 목록이 깜빡이지 않는다.
   // 원격 fetch(user 구독)와 목록 mutation 은 Provider 가 담당하고, 여기서는 소비만 한다.
@@ -391,6 +402,9 @@ function AppWorkspace({
     stepBranches: Object.keys(stepBranches).length ? stepBranches : undefined,
     branchedStepIds: branchedStepIds.size ? [...branchedStepIds] : undefined,
     prereqTree: prereqTree && prereqTree.length ? prereqTree : undefined,
+    prereqSig: prereqTree && prereqTree.length ? prereqSig : undefined,
+    stepPrereqTrees: Object.keys(stepPrereqTrees).length ? stepPrereqTrees : undefined,
+    stepPrereqSigs: Object.keys(stepPrereqSigs).length ? stepPrereqSigs : undefined,
   });
 
   // answers 디바운스 hook. 입력 완료 신호(textarea onBlur)에 flush 를 연결하고,
@@ -449,6 +463,7 @@ function AppWorkspace({
     stepBranches,
     branchedStepIds,
     prereqTree,
+    stepPrereqTrees,
   ]);
 
   const accentStyle = useMemo<AccentVars>(() => {
@@ -606,17 +621,71 @@ function AppWorkspace({
     return lines.length ? lines.join("\n") : undefined;
   };
 
+  // 선행 트리를 평탄화해 개념명만 모은다(learn 선행 생성 시 probe 트리를 참고 컨텍스트로 넘겨 토큰 절감).
+  const flattenPrereqConcepts = (nodes: PrereqNode[] | undefined): string[] => {
+    const out: string[] = [];
+    const walk = (ns: PrereqNode[]) => {
+      for (const n of ns) {
+        out.push(n.concept);
+        if (n.children?.length) walk(n.children);
+      }
+    };
+    if (nodes) walk(nodes);
+    return out;
+  };
+
+  /**
+   * 선행 트리 모달을 연다. stage 로 의미가 갈린다:
+   * - probe: 본개념 전 선수지식(현행). 캐시는 세션 단위(prereqTree).
+   * - learn: 선택된 로드맵 단계용 선행(더 가볍게, 로드맵 개념 제외). 캐시는 stepIdx 단위.
+   * 입력 시그니처가 캐시와 같으면 모델 호출 없이 표시하고(#1), 입력이 바뀌었을 때만 재생성한다.
+   */
   const openPrereq = async () => {
     setPqOpen(true);
+    const isLearn = stage === "learn";
+    const rootLabel = isLearn ? steps[stepIdx]?.title ?? concept : concept;
+    setPqConcept(rootLabel);
+
+    const roadmapTitles = steps.map((s) => s.title);
+    const sig = isLearn
+      ? JSON.stringify(["learn", concept, estimatedLevel, rootLabel, roadmapTitles])
+      : JSON.stringify(["probe", concept, materials, buildProbeSummaryForPrereq() ?? ""]);
+
+    const cached = isLearn ? stepPrereqTrees[stepIdx] : prereqTree;
+    const cachedSig = isLearn ? stepPrereqSigs[stepIdx] : prereqSig;
+    if (cached && cachedSig === sig) {
+      setPqTree(cached);
+      setPqStatus(cached.length ? "loaded" : "empty");
+      return;
+    }
+
     setPqStatus("loading");
     try {
-      const tree = await generatePrereqTree(
-        concept,
-        materials || undefined,
-        buildProbeSummaryForPrereq(),
-        mode,
-      );
-      setPrereqTree(tree);
+      const tree = isLearn
+        ? await generatePrereqTree({
+            concept,
+            mode,
+            stage: "learn",
+            level: estimatedLevel ?? undefined,
+            roadmapTitles,
+            currentStepTitle: rootLabel,
+            probePrereqConcepts: flattenPrereqConcepts(prereqTree),
+          })
+        : await generatePrereqTree({
+            concept,
+            materials: materials || undefined,
+            probeSummary: buildProbeSummaryForPrereq(),
+            mode,
+            stage: "probe",
+          });
+      setPqTree(tree);
+      if (isLearn) {
+        setStepPrereqTrees((prev) => ({ ...prev, [stepIdx]: tree }));
+        setStepPrereqSigs((prev) => ({ ...prev, [stepIdx]: sig }));
+      } else {
+        setPrereqTree(tree);
+        setPrereqSig(sig);
+      }
       setPqStatus(tree.length ? "loaded" : "empty");
     } catch {
       setPqStatus("error");
@@ -665,31 +734,11 @@ function AppWorkspace({
     if (pid) void switchSession(pid);
   };
 
-  // 사이드바 부모-하위 트리(방향 A). 활성 세션의 트리는 live state, 그 외는 캐시에서 읽는다.
-  const getPrereqTree = useCallback(
-    (id: string) => (id === sessionId ? prereqTree ?? [] : loadSession(id)?.prereqTree ?? []),
-    [sessionId, prereqTree],
-  );
+  // 사이드바 부모-하위 트리(방향 A). 실제로 시작된 하위 세션만 중첩한다(미시작 선행은 히스토리 미노출).
   const historyForest = useMemo(
-    () => (sessions ? buildHistoryForest(sessions, getPrereqTree) : undefined),
-    [sessions, getPrereqTree],
+    () => (sessions ? buildHistoryForest(sessions) : undefined),
+    [sessions],
   );
-  // 임의 세션의 부모 체인 깊이(원개념=0).
-  const depthOf = (id: string): number => {
-    let d = 0;
-    let cur = sessionsById.get(id)?.parentSessionId;
-    const seen = new Set<string>();
-    while (cur && !seen.has(cur)) {
-      seen.add(cur);
-      d += 1;
-      cur = sessionsById.get(cur)?.parentSessionId;
-    }
-    return d;
-  };
-  // 사이드바 placeholder "이 개념부터 학습": 부모가 깊이 2 미만이면 하위로, 아니면 독립 새 세션.
-  const startPlaceholder = (parentId: string, conceptName: string) => {
-    void startChildLearning(depthOf(parentId) < 2 ? parentId : undefined, conceptName);
-  };
 
   const prereq = {
     depth: sessionDepth,
@@ -729,7 +778,6 @@ function AppWorkspace({
         }}
         onDeleteSession={deleteSession}
         forest={historyForest}
-        onStartPlaceholder={startPlaceholder}
         authPending={authLoading}
         loggedIn={!!user}
         userName={githubId ?? user?.displayName ?? user?.email ?? undefined}
@@ -854,8 +902,8 @@ function AppWorkspace({
       {pqOpen && (
         <PrereqModal
           status={pqStatus}
-          concept={concept}
-          tree={prereqTree ?? []}
+          concept={pqConcept}
+          tree={pqTree}
           startedConcepts={startedConcepts}
           depthLimited={sessionDepth >= 2}
           onClose={() => setPqOpen(false)}

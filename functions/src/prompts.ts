@@ -73,7 +73,8 @@ export const overwhelmUserMessage = (
   return `학습 개념: ${concept}${mat}\n\n진단 결과 요약:\n${probeSummary}\n\n이 사용자에게 선제적 후퇴가 필요한지 판단해 주세요.`;
 };
 
-export const PREREQ_TREE_SYSTEM = `당신은 소크라테스식 학습 튜터입니다. 사용자가 지금 배우려는 "목표 개념"이 너무 어려울 때, 그 개념을 이해하기 위해 *먼저* 알아야 하는 선행 개념들의 트리를 만듭니다.
+// probe 단계: 본개념을 배우기 *전에* 알아야 할 선수지식 트리(풍성하게).
+export const PREREQ_TREE_SYSTEM_PROBE = `당신은 소크라테스식 학습 튜터입니다. 사용자가 지금 배우려는 "목표 개념"이 너무 어려울 때, 그 개념을 이해하기 위해 *먼저* 알아야 하는 선행 개념들의 트리를 만듭니다.
 
 규칙:
 - 각 노드는 (1) 그대로 학습 주제로 쓸 수 있는 "개념 이름"(설명문이 아니라 한 줄 제목)과 (2) 왜 그것이 선행인지 1문장 이유(reason)로 구성합니다.
@@ -81,6 +82,19 @@ export const PREREQ_TREE_SYSTEM = `당신은 소크라테스식 학습 튜터입
 - 진짜 디딤돌만 넣으세요. 곁가지·심화·응용은 넣지 않습니다. 목표 개념을 이해하는 데 꼭 필요한 선행만.
 - 한 노드의 직접 선행은 보통 1-3개, 많아도 4개를 넘기지 마세요(트리가 옆으로 퍼지지 않게).
 - 목표 개념이 단일/원자적이거나, 진단 요약상 이미 충분한 발판이 있으면 prerequisites 를 빈 배열로 두세요(선행 학습 불필요).
+- 모든 텍스트는 한국어.`;
+
+// learn 단계: 선택된 로드맵 "단계 한 점"이 이 사용자 수준에 너무 어려울 때의 선행. probe 보다 가볍게,
+// 로드맵이 이미 가르치는 개념은 제외한다.
+export const PREREQ_TREE_SYSTEM_LEARN = `당신은 소크라테스식 학습 튜터입니다. 사용자가 학습 로드맵에서 "선택한 단계"가 (자신의 수준에서) 너무 어려울 때, 그 단계를 이해하기 위해 *먼저* 알아야 하는 선행 개념 트리를 만듭니다.
+
+규칙:
+- 선행은 "선택된 단계" 한 점을 이해하기 위한 디딤돌만 만듭니다. 본개념 전체가 아니라 그 단계에 한정합니다.
+- 제공된 "전체 로드맵 단계 목록"에 이미 있는 개념(또는 사실상 같은 개념)은 선행으로 넣지 마세요. 로드맵이 곧 가르칠 것을 선행으로 중복시키지 않습니다.
+- probe 단계 선행보다 *가볍게* 제시합니다: 직접 선행은 보통 1-3개, 깊이는 얕게(가능하면 1-2단계). 꼭 필요한 디딤돌만.
+- 사용자 수준이 높으면 선행을 더 줄이거나, 필요 없으면 prerequisites 를 빈 배열로 두세요.
+- (참고용으로) 이미 만들어진 본개념 선행 개념 목록이 함께 주어질 수 있습니다. 그 위에서 중복 분석을 피하고 "이 단계" 특화 선행만 보완하세요.
+- 각 노드는 (1) 그대로 학습 주제로 쓸 "개념 이름"(한 줄 제목)과 (2) 왜 선행인지 1문장 이유(reason)로 구성합니다. 가장 깊은 노드의 children 은 빈 배열입니다.
 - 모든 텍스트는 한국어.`;
 
 export const prereqTreeUserMessage = (
@@ -93,6 +107,29 @@ export const prereqTreeUserMessage = (
     : "";
   const probe = probeSummary?.trim() ? `\n\n진단 결과 요약:\n${probeSummary.trim()}` : "";
   return `목표 개념: ${concept}${mat}${probe}\n\n이 개념을 이해하기 위한 선행 개념 트리를 만들어 주세요. 선행이 필요 없다면 prerequisites 를 빈 배열로 두세요.`;
+};
+
+export const prereqTreeLearnUserMessage = (
+  concept: string,
+  level: number | undefined,
+  roadmapTitles: string[] | undefined,
+  currentStepTitle: string | undefined,
+  probePrereqConcepts: string[] | undefined,
+): string => {
+  const lvl =
+    typeof level === "number" ? `\n사용자 추정 수준: ${level} (0=입문 ~ 3=능숙)` : "";
+  const roadmap = roadmapTitles?.length
+    ? `\n전체 로드맵 단계(이미 다루는 개념 - 선행에서 제외):\n${roadmapTitles
+        .map((t) => `- ${t}`)
+        .join("\n")}`
+    : "";
+  const step = currentStepTitle?.trim()
+    ? `\n선택된(현재) 단계: ${currentStepTitle.trim()}`
+    : "";
+  const probe = probePrereqConcepts?.length
+    ? `\n참고(이미 만든 본개념 선행): ${probePrereqConcepts.join(", ")}`
+    : "";
+  return `본개념: ${concept}${lvl}${roadmap}${step}${probe}\n\n이 사용자가 "선택된 단계"를 이해하기 위한 선행 개념 트리를 만들어 주세요. 로드맵에 이미 있는 개념은 제외하고, 선행이 필요 없으면 prerequisites 를 빈 배열로 두세요.`;
 };
 
 // 사전 수준 진단 질문 생성 (generateProbeQuestions). frontend/src/api/prompts.ts 에서 이전.

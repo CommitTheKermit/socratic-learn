@@ -4,7 +4,6 @@ import { STAGE_LABELS, type Stage } from "../stages/data";
 import { getSessionItemKey } from "../state/sessionIndex";
 import type { SessionMeta } from "../state/sessionIndex";
 import type { HistoryNode } from "../state/historyForest";
-import { PI } from "./prereq/prereqIcons";
 
 export interface SessionItemProps {
   sessionId: string;
@@ -77,36 +76,14 @@ interface ForestHandlers {
   activeSessionId?: string;
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
-  onStartPlaceholder?: (parentSessionId: string, concept: string) => void;
 }
 
 /**
  * 부모-하위 트리(방향 A) 노드 1개를 재귀 렌더한다.
- * depth 0 = 일반 히스토리 항목(삭제 가능), 그 아래 = 하위 세션/미학습 placeholder 트리.
+ * depth 0 = 일반 히스토리 항목(삭제 가능), 그 아래 = 실제 시작된 하위 세션 트리.
  */
 function renderHistoryNode(node: HistoryNode, h: ForestHandlers, key: string): ReactElement {
-  if (node.kind === "placeholder") {
-    const start = () => {
-      if (node.parentSessionId) h.onStartPlaceholder?.(node.parentSessionId, node.concept);
-    };
-    return (
-      <div className="sb-sub-item is-placeholder" key={key} title="아직 시작 안 한 선행 개념">
-        <button className="sb-sub-open" type="button" onClick={start}>
-          <span className="sb-sub-main">
-            <span className="sb-sub-title">
-              <span className="sb-ph-dot" aria-hidden />
-              <span className="nm">{node.concept}</span>
-            </span>
-            <span className="sb-sub-meta">미학습 · 추천</span>
-          </span>
-        </button>
-        <button className="sb-ph-start" type="button" title="이 개념부터 학습" onClick={start}>
-          {PI.plus}
-        </button>
-      </div>
-    );
-  }
-  const id = node.sessionId as string;
+  const id = node.sessionId;
   const isActive = id === h.activeSessionId;
   const subtree =
     node.children.length > 0 ? (
@@ -203,8 +180,6 @@ interface Props {
   wnUnseen?: boolean;
   /** 부모-하위 트리(방향 A) 표시 모델. 있으면 평면 목록 대신 트리로 렌더한다. */
   forest?: HistoryNode[];
-  /** placeholder(미학습 선행) "이 개념부터 학습" 클릭. */
-  onStartPlaceholder?: (parentSessionId: string, concept: string) => void;
 }
 
 export function Sidebar({
@@ -227,7 +202,6 @@ export function Sidebar({
   onWhatsNew,
   wnUnseen = false,
   forest,
-  onStartPlaceholder,
 }: Props) {
   const [historyOpen, setHistoryOpen] = useState(true);
   const isActive = stage !== "input";
@@ -303,7 +277,6 @@ export function Sidebar({
                         activeSessionId,
                         onSelect: onSelectSession ?? (() => {}),
                         onDelete: onDeleteSession ?? (() => {}),
-                        onStartPlaceholder,
                       },
                       String(i),
                     ),

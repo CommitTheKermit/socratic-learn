@@ -89,20 +89,29 @@ export type { PrereqNode };
 /**
  * 개념이 너무 어려울 때 다단계 선행 개념 트리(이름 지도)를 생성한다.
  * 반환은 목표 개념 바로 아래 선행들의 배열(각 노드는 children 으로 더 깊은 선행 보유).
- * 빈 배열이면 선행 학습이 불필요하다는 뜻. probeSummary 는 probe 단계에서만 전달.
+ * 빈 배열이면 선행 학습이 불필요하다는 뜻.
+ *
+ * stage 로 의미가 갈린다(contract.PrereqTreeRequest 참고):
+ * - "probe"(기본): 본개념 전 선수지식. probeSummary 와 함께.
+ * - "learn": 선택된 로드맵 단계용 선행(level/roadmapTitles/currentStepTitle/probePrereqConcepts 동반).
  */
-export async function generatePrereqTree(
-  concept: string,
-  materials?: string,
-  probeSummary?: string,
-  mode?: string,
-): Promise<PrereqNode[]> {
+export async function generatePrereqTree(args: {
+  concept: string;
+  materials?: string;
+  probeSummary?: string;
+  mode?: string;
+  stage?: "probe" | "learn";
+  level?: number;
+  roadmapTitles?: string[];
+  currentStepTitle?: string;
+  probePrereqConcepts?: string[];
+}): Promise<PrereqNode[]> {
   let res: Response;
   try {
     res = await fetch(`${API_BASE_URL}${ApiPaths.PREREQ_TREE}`, {
       method: "POST",
       headers: await authHeaders(),
-      body: JSON.stringify({ concept, materials, probeSummary, mode }),
+      body: JSON.stringify(args),
     });
   } catch (e) {
     throw new ClaudeContentError("CLAUDE_API_ERROR", (e as Error)?.message ?? "네트워크 오류");
