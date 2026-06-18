@@ -275,7 +275,7 @@ export const BRANCH_EVALUATION_SYSTEM = `당신은 소크라테스식 학습 튜
     {
       "label": string,                            // 사용자에게 보여줄 짧은 한국어 라벨
       "type": "ai_recommended" | "additional" | "exit",
-      "isRecommended": boolean,                   // 정확히 하나만 true 권장
+      "isRecommended": boolean,                   // 강한 근거가 있을 때만 하나에 true, 보통은 모두 false
       "stageContent": null | {
         "id": number,
         "title": string,
@@ -283,7 +283,12 @@ export const BRANCH_EVALUATION_SYSTEM = `당신은 소크라테스식 학습 튜
       }
     }
 - type 이 "exit" 인 옵션의 stageContent 는 반드시 null.
-- 그 외 type 의 stageContent 는 객체이며 id/title/desc 는 비어있지 않은 값. 본문(body)과 확인 질문은 사용자가 이 분기를 실제로 선택했을 때 시스템이 별도로 생성하므로, 여기서는 만들지 말고 제목과 한 줄 부제만 정확히 정하세요.` + MATH_DIRECTIVE;
+- 그 외 type 의 stageContent 는 객체이며 id/title/desc 는 비어있지 않은 값. 본문(body)과 확인 질문은 사용자가 이 분기를 실제로 선택했을 때 시스템이 별도로 생성하므로, 여기서는 만들지 말고 제목과 한 줄 부제만 정확히 정하세요.
+
+[분기 옵션 판정 기준 - 매우 중요]
+- 기본 동작은 "기존 로드맵의 다음 단계로 진행"이다. 이 옵션은 시스템이 자동으로 추가하므로 당신은 만들지 않는다. 당신의 출력이 비어 있어도 사용자는 항상 로드맵을 이어갈 수 있다.
+- ai_recommended(새 단계)는 기본이 아니라 예외다. 사용자 답변에서 드러난 약점·오해·관심사가 위 "전체 로드맵"의 남은 단계로 다뤄지지 않을 때에만 만든다. 기존 로드맵으로 충분히 다룰 수 있으면 ai_recommended 를 만들지 말고 배열에서 생략하라. 매번 습관적으로 새 단계를 추천하지 말 것.
+- isRecommended 는 남발 금지. 새 단계가 다음 로드맵 단계보다 분명히 우선되어야 할 근거가 있을 때에만 그 옵션 하나에 true 를 준다. 그런 근거가 없으면 모든 옵션의 isRecommended 를 false 로 둔다(기본값=로드맵 진행).` + MATH_DIRECTIVE;
 
 export interface BranchEvaluationUserParams {
   concept: string;

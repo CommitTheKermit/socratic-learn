@@ -40,7 +40,15 @@ type Block =
   | { kind: "list"; ordered: boolean; items: string[] }
   | { kind: "code"; lang: string; text: string }
   | { kind: "table"; header: string[]; rows: string[][] }
-  | { kind: "mathBlock"; latex: string };
+  | { kind: "mathBlock"; latex: string }
+  | { kind: "hr" };
+
+// 수평선(hr): `-`/`*`/`_` 3개 이상이 (사이 공백 허용) 한 줄을 이룰 때. em/en dash 는
+// parseBlocks 진입 시 이미 `-` 로 정규화된다. 표 구분선은 `|` 가 있어 별도 분기에서만 처리되므로 충돌 없음.
+function isHr(line: string): boolean {
+  const s = line.trim();
+  return /^([-*_])([ \t]*\1){2,}$/.test(s);
+}
 
 // 리스트 항목(`- `/`* `/`+ ` 또는 `1. `). 기호 뒤 공백 필수. ordered 는 숫자 마커.
 function parseListItem(line: string): { ordered: boolean; text: string } | null {
@@ -143,6 +151,12 @@ function parseBlocks(text: string): Block[] {
       blocks.push({ kind: "table", header, rows });
       continue;
     }
+    // 수평선(hr): 헤딩/리스트보다 먼저 본다(`---`, `***`, `___`, `- - -`).
+    if (isHr(line)) {
+      flush();
+      blocks.push({ kind: "hr" });
+      continue;
+    }
     // ATX 헤딩(# ~ ######). 기호 뒤 공백이 있어야 헤딩으로 본다(#tag 오인식 방지).
     const heading = /^(#{1,6})\s+(.*\S)\s*$/.exec(line);
     if (heading) {
@@ -187,10 +201,14 @@ function blockRawText(b: Block): string {
   if (b.kind === "table")
     return [b.header.join(" | "), ...b.rows.map((r) => r.join(" | "))].join("\n");
   if (b.kind === "mathBlock") return `$$${b.latex}$$`;
+  if (b.kind === "hr") return "---";
   return b.text;
 }
 
 function renderBlock(b: Block, key: number): ReactNode {
+  if (b.kind === "hr") {
+    return <hr key={key} className="md-hr" />;
+  }
   if (b.kind === "mathBlock") {
     const html = renderMath(b.latex, true);
     return <div key={key} dangerouslySetInnerHTML={{ __html: html }} />;
