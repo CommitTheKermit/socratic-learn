@@ -7,6 +7,7 @@ import * as logger from "firebase-functions/logger";
 import Anthropic from "@anthropic-ai/sdk";
 import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
 import { buildBranchEvaluationPrompt } from "./prompts";
+import { logUsage } from "./usageLog";
 
 // Secret Manager 로 주입되는 Anthropic 키. 브라우저에는 절대 노출되지 않는다.
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
@@ -142,6 +143,7 @@ export const branchEval = onRequest(
         messages: [{ role: "user", content: user }],
         output_config: { format: jsonSchemaOutputFormat(branchSchema) },
       });
+      logUsage("branchEval", CLAUDE_MODEL, resp.usage);
       const parsed = resp.parsed_output;
       if (!parsed) {
         // 기존 ParseFailure 계약 유지: 형식 해석 실패는 200 + {parseError}.

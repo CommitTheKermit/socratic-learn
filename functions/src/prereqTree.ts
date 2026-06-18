@@ -6,6 +6,7 @@ import { defineSecret } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import Anthropic from "@anthropic-ai/sdk";
 import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
+import { logUsage } from "./usageLog";
 import {
   PREREQ_TREE_SYSTEM_PROBE,
   PREREQ_TREE_SYSTEM_LEARN,
@@ -127,6 +128,7 @@ export const prereqTree = onRequest(
         messages: [{ role: "user", content: userText }],
         output_config: { format: jsonSchemaOutputFormat(prereqTreeSchema) },
       });
+      logUsage("prereqTree", CLAUDE_MODEL, resp.usage);
       const parsed = resp.parsed_output as { prerequisites: PrereqNode[] } | undefined;
       if (!parsed) {
         res.status(502).json({ code: "INVALID_RESPONSE", message: "선행 개념 트리 응답이 비어 있습니다." });

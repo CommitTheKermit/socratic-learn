@@ -7,6 +7,7 @@ import * as logger from "firebase-functions/logger";
 import Anthropic from "@anthropic-ai/sdk";
 import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
 import { STEP_DETAIL_SYSTEM, stepDetailUserMessage } from "./prompts";
+import { logUsage } from "./usageLog";
 
 // Secret Manager 로 주입되는 Anthropic 키. 브라우저에는 절대 노출되지 않는다.
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
@@ -153,6 +154,7 @@ export const stepDetail = onRequest(
         // 테스트 모드: 질문 2개 스키마로 LLM 호출
         output_config: { format: jsonSchemaOutputFormat(testMode ? stepDetailSchemaTest : stepDetailSchema) },
       });
+      logUsage("stepDetail", CLAUDE_MODEL, resp.usage);
       const parsed = resp.parsed_output as StepDetail | undefined;
       if (!parsed?.body || !parsed?.questions?.length) {
         res.status(502).json({ code: "INVALID_RESPONSE", message: "단계 상세 응답이 비어 있습니다." });

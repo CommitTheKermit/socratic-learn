@@ -10,6 +10,7 @@ import {
   STEP_DETAIL_STREAM_MARKER,
   stepDetailUserMessage,
 } from "./prompts";
+import { logUsage } from "./usageLog";
 
 // Secret Manager 로 주입되는 Anthropic 키. 브라우저에는 절대 노출되지 않는다.
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
@@ -134,7 +135,8 @@ export const stepDetailStream = onRequest(
         }
       });
 
-      await stream.finalMessage();
+      const finalMsg = await stream.finalMessage();
+      logUsage("stepDetailStream", CLAUDE_MODEL, finalMsg.usage);
 
       const markerIdx = full.indexOf(marker);
       const bodyText = markerIdx === -1 ? full : full.slice(0, markerIdx);
