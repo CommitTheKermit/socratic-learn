@@ -766,7 +766,7 @@ export function StageLearn({
 
   // 선행 개념 어포던스: 깊이 2 미만이면 트리거, 한계(2)면 안내 카드(독립 새 세션 분리).
   const prereqTrigger =
-    prereq.depth < 2 ? <PrereqTrigger inline onClick={prereq.onOpen} /> : null;
+    prereq.depth < 2 ? <PrereqTrigger onClick={prereq.onOpen} /> : null;
   const prereqLimit =
     prereq.depth >= 2 && !limitDismissed ? (
       <DepthLimitCard
@@ -871,7 +871,8 @@ export function StageLearn({
                 <span className="eyebrow">개념 설명</span>
                 <span className="ttl">{step.title}</span>
                 <span className="grow" />
-                <span className="toggle">{explainOpen ? "접기" : "펼쳐 보기"}</span>
+                {prereqTrigger}
+                <span className="toggle">{explainOpen ? "접기" : "펼치기"}</span>
                 <span className="chev">▾</span>
               </button>
               <div className="lvv-explain-summary">{step.desc}</div>
@@ -881,12 +882,7 @@ export function StageLearn({
               </div>
             </section>
 
-            {(prereqTrigger || prereqLimit) && (
-              <div className="lvv-prereq-row">
-                {prereqTrigger}
-                {prereqLimit}
-              </div>
-            )}
+            {prereqLimit && <div className="lvv-prereq-row">{prereqLimit}</div>}
 
             <section className="lvv-questions">
               <div className="lvv-q-head">
