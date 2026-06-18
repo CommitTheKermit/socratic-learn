@@ -49,6 +49,17 @@ export const CHANGE_TYPE_ORDER: ChangeType[] = ["feature", "improve", "fix"];
 /** 전체 버전 히스토리 (최신 → 과거). 맨 앞이 현재 버전. */
 export const CHANGELOG: VersionEntry[] = [
   {
+    version: "0.15.0",
+    date: "2026.06.18",
+    changes: [
+      { type: "improve", text: "선행 개념 확인이 '배우기 전 선수지식'과 '어려운 단계용 선행'으로 역할이 나뉘어 더 정확해지고, 선행 학습 내역이 안정적으로 저장돼요." },
+      { type: "improve", text: "답변 후 분기에서 AI가 불필요한 새 단계를 덜 추천하고, 기존 로드맵 이어가기를 기본으로 제안해요." },
+      { type: "improve", text: "개념 설명의 세로/가로 레이아웃 선택이 저장돼 다음에도 유지되고, 접기 버튼이 분리돼 더 다루기 쉬워졌어요." },
+      { type: "fix", text: "분기로 추가한 단계가 새로고침·재접속 후에도 단계 번호(1-1 등)가 어긋나지 않아요." },
+      { type: "fix", text: "'다시 답변하기' 버튼에 배경을 넣어 더 또렷하게 보여요." },
+    ],
+  },
+  {
     version: "0.14.0",
     date: "2026.06.18",
     changes: [
