@@ -14,28 +14,19 @@ const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
 
 const CLAUDE_MODEL = "claude-sonnet-4-6";
 
-// 분기 옵션이 품는 한 단계(Step) 구조. exit 옵션은 stageContent=null.
+// 분기 옵션이 품는 한 단계(Step) 메타. exit 옵션은 stageContent=null.
+// body/questions 는 LLM 이 생성하지 않는다: 삽입된 분기 단계는 프론트의 loadStepDetail 이
+// stepDetailStream 으로 본문/질문을 lazy 생성하므로(이미 그렇게 동작), 여기서 만들면 그대로
+// 폐기되는 출력 토큰일 뿐이다. id/title/desc(제목·부제)만 만들고, 응답에서 body:""/questions:[]
+// 로 채워 기존 Step 형태를 맞춘다.
 const stageContentSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["id", "title", "desc", "body", "questions"],
+  required: ["id", "title", "desc"],
   properties: {
     id: { type: "integer" },
     title: { type: "string" },
     desc: { type: "string" },
-    body: { type: "string" },
-    questions: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["id", "q"],
-        properties: {
-          id: { type: "string" },
-          q: { type: "string" },
-        },
-      },
-    },
   },
 } as const;
 
@@ -68,6 +59,25 @@ const branchSchema = {
     },
   },
 } as const;
+
+// LLM 이 생성하는 원시 분기 평가 응답. stageContent 에는 body/questions 가 없고(아래 응답에서 채움),
+// 제목·부제만 담는다.
+interface RawStageContent {
+  id: number;
+  title: string;
+  desc: string;
+}
+interface RawBranchOption {
+  label: string;
+  type: "ai_recommended" | "additional" | "exit";
+  isRecommended: boolean;
+  stageContent: RawStageContent | null;
+}
+interface BranchEvalRaw {
+  evaluationText: string;
+  isMerged: boolean;
+  branchOptions: RawBranchOption[];
+}
 
 interface EvalQuestionInput {
   id: string;
@@ -144,13 +154,23 @@ export const branchEval = onRequest(
         output_config: { format: jsonSchemaOutputFormat(branchSchema) },
       });
       logUsage("branchEval", CLAUDE_MODEL, resp.usage);
-      const parsed = resp.parsed_output;
+      const parsed = resp.parsed_output as BranchEvalRaw | undefined;
       if (!parsed) {
         // 기존 ParseFailure 계약 유지: 형식 해석 실패는 200 + {parseError}.
         res.json({ parseError: "응답을 분기 형식으로 해석하지 못했습니다." });
         return;
       }
-      res.json(parsed);
+      // stageContent 의 body/questions 는 LLM 이 만들지 않으므로, 삽입 시 프론트가 lazy 생성할
+      // 빈 값으로 채워 기존 Step 형태(EvaluationResponse) 계약을 유지한다.
+      const shaped = {
+        evaluationText: parsed.evaluationText,
+        isMerged: parsed.isMerged,
+        branchOptions: (parsed.branchOptions ?? []).map((o) => ({
+          ...o,
+          stageContent: o.stageContent ? { ...o.stageContent, body: "", questions: [] } : null,
+        })),
+      };
+      res.json(shaped);
     } catch (e) {
       logger.error("branchEval function failed", e);
       const status = e instanceof Anthropic.APIError ? e.status ?? 502 : 500;

@@ -279,13 +279,11 @@ export const BRANCH_EVALUATION_SYSTEM = `당신은 소크라테스식 학습 튜
       "stageContent": null | {
         "id": number,
         "title": string,
-        "desc": string,
-        "body": string,
-        "questions": []
+        "desc": string
       }
     }
 - type 이 "exit" 인 옵션의 stageContent 는 반드시 null.
-- 그 외 type 의 stageContent 는 객체이며 id/title/desc/body 는 비어있지 않은 값.` + MATH_DIRECTIVE;
+- 그 외 type 의 stageContent 는 객체이며 id/title/desc 는 비어있지 않은 값. 본문(body)과 확인 질문은 사용자가 이 분기를 실제로 선택했을 때 시스템이 별도로 생성하므로, 여기서는 만들지 말고 제목과 한 줄 부제만 정확히 정하세요.` + MATH_DIRECTIVE;
 
 export interface BranchEvaluationUserParams {
   concept: string;
