@@ -72,6 +72,14 @@ Firebase 프로젝트 `socratic-learn-web`(`.firebaserc`), region `us-central1`.
 - E2E 는 로그인 게이팅을 우회하려 Auth emulator + 자동 익명 로그인을 쓴다. emulator 를 `--only functions,auth,firestore` 로 띄우고, dev 를 `VITE_AUTH_EMULATOR_URL=http://127.0.0.1:9099 VITE_E2E_AUTO_SIGNIN=true npm run dev` 로 실행한 뒤 `E2E_BASE_URL=http://localhost:<port> node e2e/<file>.cjs`. 두 env 는 실서비스 빌드엔 없으므로 영향이 없다(`firebase.ts` 의 `connectAuthEmulator`, `useAuth` 의 익명 로그인은 해당 env 가 있을 때만 동작).
 - 위 오케스트레이션은 **`bash frontend/e2e/run.sh`** 가 한 번에 한다(functions 빌드 → emulator+dev 기동/readiness 대기 → e2e 실행 → 띄운 프로세스 정리. 인자로 슬라이스 파일명 지정 가능, `--smoke` 는 기동/배선만 점검하고 Anthropic 호출 없음). E2E 본 실행은 emulator 를 통해 실제 Anthropic API 를 호출하므로 비용이 발생한다. 전체 검증 절차(타입체크+vitest+선택적 E2E)는 `verify-all` 스킬을 따른다.
 
+### 핸드오프 CSS 가드 (claude.ai/design export 적용 검증)
+
+빌드/타입체크/vitest 가 못 잡는 "문법상 valid 인데 규칙이 통째로 죽는" CSS 잠복 버그(주석 안 `*/` 조기종료 등)를 막는 자동화 가드. 사람용 체크리스트는 두지 않고 **자동화 도구만** 쓴다(사람 눈 확인 항목은 TODO 에).
+
+- **편집 즉시(훅)**: PostToolUse(`.claude/hooks/css-guard.sh`)가 수정된 `frontend/**/*.css` 를 `frontend/scripts/css-guard.mjs` 로 검사. 검사 2종 = ① 구문 무결성(주석 조기종료·미종료·괄호 불균형 + postcss 로 깨진 셀렉터 탐지) ② 누락 CSS 변수(`var(--x)` 가 정의·`setProperty` 어디에도 없고 폴백도 없음). 실패 시 **block**(exit 2).
+- **핸드오프 직후(수동)**: `cd frontend && npm run validate-handoff`. 위 가드 전체 스윕 + stylelint(일반 품질, 최소 규칙) + 셀렉터 불일치 리포트(참고) + stale 번들 검사. css-guard/stylelint 오류는 실패, 셀렉터/stale 은 참고(휴리스틱).
+- **stale 번들**: `npm run validate-handoff -- --live live-files.json`. node 는 MCP 를 못 부르므로 Claude 가 DesignSync `list_files` 결과(경로 배열)를 JSON 으로 저장해 `--live` 로 넘기면, 디스크 번들(`.design-handoff/`)에 없는 라이브 파일을 경고한다.
+
 ## 작업 시 유의사항
 
 - 경로/DTO 변경은 `contract.ts` 와 `functions/` 를 같은 PR 에서 함께 수정한다.

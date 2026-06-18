@@ -20,6 +20,11 @@
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/typecheck.sh\"",
             "statusMessage": "타입체크 중"
+          },
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/css-guard.sh\"",
+            "statusMessage": "CSS 가드 점검 중"
           }
         ]
       }
