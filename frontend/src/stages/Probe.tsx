@@ -45,7 +45,11 @@ function ChoiceRow({
       <div className="probe-q">
         <MathText text={p.q} /> <span className="probe-badge probe-badge--required">필수</span>
       </div>
-      {p.sub && <div className="probe-sub">{p.sub}</div>}
+      {p.sub && (
+        <div className="probe-sub">
+          <MathText text={p.sub} />
+        </div>
+      )}
       {highlightRequired && (
         <div className="probe-error">선택지를 하나 골라주세요.</div>
       )}
@@ -58,7 +62,9 @@ function ChoiceRow({
             onClick={() => onChange(o.value)}
           >
             <span className="probe-radio" aria-hidden />
-            <span className="probe-label">{o.label}</span>
+            <span className="probe-label">
+              <MathText text={o.label} />
+            </span>
           </button>
         ))}
       </div>
@@ -81,7 +87,9 @@ function MultiRow({
       <div className="probe-q">
         <MathText text={p.q} /> <span className="probe-badge">선택</span>
       </div>
-      <div className="probe-sub">{p.sub ?? "건너뛰셔도 괜찮아요."}</div>
+      <div className="probe-sub">
+        <MathText text={p.sub ?? "건너뛰셔도 괜찮아요."} />
+      </div>
       <div className="probe-chips">
         {p.options.map((o) => (
           <button
@@ -90,7 +98,7 @@ function MultiRow({
             className={"probe-chip" + (picked.includes(o.value) ? " is-active" : "")}
             onClick={() => onToggle(o.value)}
           >
-            {o.label}
+            <MathText text={o.label} />
           </button>
         ))}
       </div>
