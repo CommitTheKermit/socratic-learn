@@ -49,6 +49,16 @@ export const CHANGE_TYPE_ORDER: ChangeType[] = ["feature", "improve", "fix"];
 /** 전체 버전 히스토리 (최신 → 과거). 맨 앞이 현재 버전. */
 export const CHANGELOG: VersionEntry[] = [
   {
+    version: "0.16.0",
+    date: "2026.06.22",
+    changes: [
+      { type: "feature", text: "학습 중 생긴 의문을 '질문하기'로 물으면 그 자리에서 답변과 함께 선행 개념·보충 단계까지 안내해요. 답변에 이어 최대 2번 더 물어볼 수 있고, 본문을 드래그해 바로 질문할 수도 있어요." },
+      { type: "improve", text: "가로형 학습 화면에서 개념 설명과 확인 질문 칸이 각각 따로 스크롤돼요." },
+      { type: "improve", text: "진단 문항을 만드는 동안 그라데이션 로딩 화면으로 진행 상태를 보여줘요." },
+      { type: "fix", text: "진단 문항의 선택지·칩·보조 설명에서 수식이 깨지지 않고 제대로 표시돼요." },
+    ],
+  },
+  {
     version: "0.15.0",
     date: "2026.06.18",
     changes: [
