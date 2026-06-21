@@ -206,7 +206,10 @@ export function StageProbe({
 
       <div className="stage-body">
         {loading && (
-          <p className="stage-sub">개념에 맞는 진단 문항을 만들고 있습니다…</p>
+          <div className="lv-loading">
+            <span className="lv-loading-dot" />
+            <p className="stage-sub">개념에 맞는 진단 문항을 만들고 있습니다…</p>
+          </div>
         )}
 
         {probeStatus === "error" && probeError && (
