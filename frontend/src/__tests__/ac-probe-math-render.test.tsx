@@ -18,9 +18,10 @@ const mathChoiceQ = {
   id: "p1" as const,
   kind: "choice" as const,
   q: "에너지 $E=mc^2$ 를 아시나요?",
+  sub: "힌트: $a^2 + b^2 = c^2$ 를 떠올려 보세요",
   options: [
-    { value: 0, label: "모름" },
-    { value: 1, label: "앎" },
+    { value: 0, label: "속도 $v$ 만 압니다" },
+    { value: 1, label: "가속도 $a = dv/dt$ 도 압니다" },
   ],
 };
 
@@ -28,9 +29,10 @@ const mathMultiQ = {
   id: "p2" as const,
   kind: "multi" as const,
   q: "함수 $f(x)=x^2$ 와 연관된 것은?",
+  sub: "예: $\\int_0^1 x\\,dx$",
   options: [
-    { value: "a", label: "A", correct: true },
-    { value: "b", label: "B", correct: false },
+    { value: "a", label: "미분 $f'(x)$", correct: true },
+    { value: "b", label: "적분 $\\int f\\,dx$", correct: false },
   ],
 };
 
@@ -165,5 +167,52 @@ describe("StageProbe - 질문 텍스트 수식 렌더링", () => {
     expect(container.querySelector("em")).toBeNull();
     expect(container.querySelector("code")).toBeNull();
     expect(container.querySelector("strong")).toBeNull();
+  });
+});
+
+// ─── 3. 선택지 라벨·칩·서브텍스트 수식 렌더 검증 (회귀: $ 원문 노출 버그) ──────────
+// 버그: 질문 본문(p.q)만 MathText 를 거치고 선택지 라벨(choice/multi)·probe-sub 는
+// raw 로 렌더돼 "$v$" 같은 원문이 그대로 노출됐다. 라벨/칩/서브도 MathText 로 라우팅.
+describe("StageProbe - 선택지 라벨·칩·서브 수식 렌더링", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("choice 선택지 라벨의 $...$ 가 KaTeX 로 렌더되고 원문 $ 가 남지 않는다", () => {
+    const { container } = renderProbe();
+    const labels = container.querySelectorAll(".probe-label");
+    expect(labels.length).toBe(2);
+    labels.forEach((el) => {
+      expect(el.querySelector(".katex")).not.toBeNull();
+      expect(el.textContent).not.toContain("$");
+    });
+  });
+
+  it("multi 칩 라벨의 $...$ 가 KaTeX 로 렌더되고 원문 $ 가 남지 않는다", () => {
+    const { container } = renderProbe();
+    const chips = container.querySelectorAll(".probe-chip");
+    expect(chips.length).toBe(2);
+    chips.forEach((el) => {
+      expect(el.querySelector(".katex")).not.toBeNull();
+      expect(el.textContent).not.toContain("$");
+    });
+  });
+
+  it("probe-sub 서브텍스트의 $...$ 가 KaTeX 로 렌더된다 (choice·multi 서브)", () => {
+    const { container } = renderProbe();
+    const mathSubs = Array.from(container.querySelectorAll(".probe-sub")).filter(
+      (el) => el.querySelector(".katex"),
+    );
+    expect(mathSubs.length).toBeGreaterThanOrEqual(2);
+    mathSubs.forEach((el) => expect(el.textContent).not.toContain("$"));
+  });
+
+  it("선택지 라벨·칩에 마크다운 해석 없음 (em/strong/code 태그 없음)", () => {
+    const { container } = renderProbe();
+    container.querySelectorAll(".probe-label, .probe-chip").forEach((el) => {
+      expect(el.querySelector("em")).toBeNull();
+      expect(el.querySelector("strong")).toBeNull();
+      expect(el.querySelector("code")).toBeNull();
+    });
   });
 });
