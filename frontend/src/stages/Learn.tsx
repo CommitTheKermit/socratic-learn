@@ -6,10 +6,12 @@ import { pickRandomPlaceholder } from "./placeholders";
 import { describeErrorCode } from "../lib/errors";
 import { I } from "../components/icons";
 import type { Grade } from "../api/claudeContent";
+import { askLearnQuestion, ClaudeContentError } from "../api/claudeContent";
 import { BranchDialog } from "../components/branch/BranchDialog";
 import { useBranchPhase } from "../state/useBranchPhase";
 import { MathText } from "../lib/mathText";
-import type { BranchOption } from "../api/contract";
+import type { AskRouteResponse, BranchOption, LearnMode } from "../api/contract";
+import { computeInsertedMeta, makeSupplementStep } from "../lib/supplementStep";
 import { logEvent } from "../lib/analytics";
 import { getLabelForStep } from "../lib/stepLabel";
 import { canInsertBranchStep } from "../lib/stepInsertGuard";
@@ -115,6 +117,13 @@ const GRADE_LABEL: Record<Grade, string> = {
   wrong: "오답",
 };
 
+// '질문하기' 라우팅 결과 배지 라벨.
+const ASK_ROUTE_LABEL: Record<AskRouteResponse["route"], string> = {
+  prereq: "선행 개념이 필요해요",
+  newStep: "보충 단계로 짚어볼게요",
+  none: "안내",
+};
+
 const IcoRows = () => (
   <svg className="ico" viewBox="0 0 16 16" fill="none" aria-hidden>
     <rect x="1.5" y="2" width="13" height="4" rx="1.2" fill="currentColor" />
@@ -208,6 +217,30 @@ export function StageLearn({
     if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
   }, []);
 
+  // ── learn '질문하기' (1회성 라우팅: prereq | newStep | none) ──
+  // 멀티턴 채팅이 아니라 단발 질문 → 분류 → 인라인 카드 1회 제시. 결과는 휘발(영속 안 함);
+  // 옵트인(바로 이동/로드맵에 추가/선행세션)만 기존 영속 기계로 반영된다. stepIdx 변경 시 리셋.
+  type AskStatus = "idle" | "loading" | "error" | "done";
+  const [askOpen, setAskOpen] = useState(false);
+  const [askText, setAskText] = useState("");
+  const [askStatus, setAskStatus] = useState<AskStatus>("idle");
+  const [askResult, setAskResult] = useState<AskRouteResponse | null>(null);
+  const [askError, setAskError] = useState<{ code: string; message: string } | null>(null);
+  const resetAsk = () => {
+    setAskOpen(false);
+    setAskText("");
+    setAskStatus("idle");
+    setAskResult(null);
+    setAskError(null);
+  };
+  const openAsk = () => {
+    setAskText("");
+    setAskStatus("idle");
+    setAskResult(null);
+    setAskError(null);
+    setAskOpen(true);
+  };
+
   // ── 학습 로드맵 미니 바 (스크롤 시 헤더가 사라지면 위에서 슬라이드+페이드 등장) ──
   // 트리거: 실제 헤더(lv-bar)가 스크롤 컨테이너(.main-inner) 위로 완전히 벗어나면 표시.
   const [miniVisible, setMiniVisible] = useState(false);
@@ -274,6 +307,12 @@ export function StageLearn({
   // (영속값에서 즉시 복원하므로 LLM 재호출 비용이 없다.)
   useEffect(() => {
     setBranchVisible(false);
+    // '질문하기' 인라인 상태도 단계 이동마다 초기화(단발성·휘발 유지).
+    setAskOpen(false);
+    setAskText("");
+    setAskStatus("idle");
+    setAskResult(null);
+    setAskError(null);
     const persisted = stepBranches[stepIdx];
     if (branchEnabled && persisted) branch.hydrate(persisted);
     else branch.closeBranch();
@@ -316,6 +355,65 @@ export function StageLearn({
     clearEvaluation(stepIdx);
     setBranchVisible(false);
     branch.closeBranch();
+  };
+
+  // '질문하기' 제출: 한 줄 질문을 라우터로 분류한다(1회성). 결과 후 후속 입력 UI 는 없다.
+  const submitAsk = async () => {
+    const q = askText.trim();
+    if (!q || !step || askStatus === "loading") return;
+    setAskStatus("loading");
+    setAskError(null);
+    if (sessionId) logEvent("sl_ask_submit", { session_id: sessionId, step_idx: stepIdx });
+    try {
+      const result = await askLearnQuestion({
+        question: q,
+        concept,
+        level: safeLevel,
+        currentStepTitle: step.title,
+        currentStepDesc: step.desc,
+        stepBody: step.body,
+        roadmapTitles: steps.map((s) => s.title),
+        mode: mode as LearnMode | undefined,
+      });
+      setAskResult(result);
+      setAskStatus("done");
+      if (sessionId) {
+        logEvent("sl_ask_result", { session_id: sessionId, step_idx: stepIdx, route: result.route });
+      }
+    } catch (e) {
+      const code = e instanceof ClaudeContentError ? e.code : "CLAUDE_API_ERROR";
+      setAskError({ code, message: (e as Error)?.message ?? "알 수 없는 오류" });
+      setAskStatus("error");
+    }
+  };
+
+  // newStep '바로 이동': 보충 단계를 칩(1-1)으로 삽입하고 즉시 진입. 분기 선택과 동일하게
+  // markBranched 로 현재 단계 게이트를 해제하므로 isBranchGated 전진 잠금의 영향을 받지 않는다.
+  const handleAskNavigate = () => {
+    const suggestion = askResult?.suggestedStep;
+    if (!suggestion || !step) return;
+    if (sessionId) logEvent("sl_ask_navigate", { session_id: sessionId, step_idx: stepIdx });
+    markBranched(step.id);
+    insertStepAt(stepIdx + 1, makeSupplementStep(suggestion, computeInsertedMeta(steps, stepIdx)));
+    resetAsk();
+    setStepIdx(stepIdx + 1);
+  };
+
+  // newStep '로드맵에 추가': 보충 단계를 바로 다음(칩 1-1)으로 끼워만 두고 머문다.
+  // 게이트는 건드리지 않는다(정상 분기 흐름의 "로드맵 다음 단계"가 이 단계를 가리키게 됨).
+  const handleAskAddToRoadmap = () => {
+    const suggestion = askResult?.suggestedStep;
+    if (!suggestion || !step) return;
+    if (sessionId) logEvent("sl_ask_add", { session_id: sessionId, step_idx: stepIdx });
+    insertStepAt(stepIdx + 1, makeSupplementStep(suggestion, computeInsertedMeta(steps, stepIdx)));
+    resetAsk();
+    showToast("다음 단계로 로드맵에 추가했어요");
+  };
+
+  // prereq: 기존 선행 개념 모달을 그대로 연다(트리 생성 + '선행세션 학습' 재사용).
+  const handleAskPrereq = () => {
+    if (sessionId) logEvent("sl_ask_prereq", { session_id: sessionId, step_idx: stepIdx });
+    prereq.onOpen();
   };
 
   const handleChoose = (option: BranchOption) => {
@@ -361,16 +459,9 @@ export function StageLearn({
         return;
       }
 
-      const parentStep = steps[stepIdx];
-      // 분기의 분기는 같은 메인 아래 다음 형제로 평탄화 (3-depth 금지)
-      const parentMainStepId = parentStep?._meta
-        ? parentStep._meta.parentMainStepId
-        : parentStep?.id ?? 0;
-      // 같은 메인 아래 이미 삽입된 형제 수 = 새 단계의 siblingIndex
-      const siblingIndex = steps.filter(
-        (s) => s._meta?.parentMainStepId === parentMainStepId,
-      ).length;
-      insertStepAt(stepIdx + 1, { ...option.stageContent, _meta: { parentMainStepId, siblingIndex } });
+      // 분기의 분기는 같은 메인 아래 다음 형제로 평탄화(3-depth 금지). '질문하기' 보충 진입과 공유.
+      const meta = computeInsertedMeta(steps, stepIdx);
+      insertStepAt(stepIdx + 1, { ...option.stageContent, _meta: meta });
       setBranchVisible(false);
       setStepIdx(stepIdx + 1);
     }
@@ -778,6 +869,137 @@ export function StageLearn({
       />
     ) : null;
 
+  // '질문하기' 진입점: 선행 개념 트리거 옆 컴팩트 버튼. 패널이 열려 있으면 숨긴다(패널이 자체 컨트롤 보유).
+  const askTrigger =
+    step && !askOpen ? (
+      <button
+        type="button"
+        className="ask-trigger"
+        title="이 단계를 읽다가 생긴 의문을 물어보세요(채팅이 아니라 선행 개념·보충 단계로 안내)"
+        onClick={(e) => {
+          // 헤더 토글 등 상위 클릭과 충돌 방지(세로형 설명 헤더 내부에 위치).
+          e.stopPropagation();
+          openAsk();
+        }}
+      >
+        <span className="ask-trigger-ico" aria-hidden>
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+          </svg>
+        </span>
+        <span><b>질문하기</b></span>
+      </button>
+    ) : null;
+
+  // 선행 트리거 + 질문하기 트리거 묶음(헤더 우측 정렬).
+  const affordances = (
+    <span className="lv-affordances">
+      {prereqTrigger}
+      {askTrigger}
+    </span>
+  );
+
+  // '질문하기' 인라인 카드: 입력 → (로딩/에러) → 결과(route 별). 멀티턴 입력은 없다.
+  const askPanel =
+    step && askOpen ? (
+      <div className="lv-ask" role="region" aria-label="질문하기">
+        {askStatus === "idle" && (
+          <div className="lv-ask-compose">
+            <label className="lv-ask-label" htmlFor="lv-ask-input">
+              이 단계를 읽다가 생긴 의문을 한 줄로 적어보세요
+            </label>
+            <textarea
+              id="lv-ask-input"
+              className="lv-ask-input"
+              value={askText}
+              autoFocus
+              placeholder="예: 여기서 말하는 '상태'가 정확히 뭐예요?"
+              onChange={(e) => setAskText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault();
+                  void submitAsk();
+                }
+              }}
+            />
+            <div className="lv-ask-actions">
+              <button type="button" className="lv-btn-ghost" onClick={resetAsk}>
+                취소
+              </button>
+              <button
+                type="button"
+                className="lv-btn-holo lv-ask-send"
+                onClick={() => void submitAsk()}
+                disabled={!askText.trim()}
+              >
+                <span className="lv-submit-icon" aria-hidden>{I.brand}</span>
+                질문 보내기
+              </button>
+            </div>
+          </div>
+        )}
+        {askStatus === "loading" && (
+          <div className="lv-loading lv-loading-inline">
+            <span className="lv-loading-dot" />
+            <p className="stage-sub">질문을 살펴보고 있어요…</p>
+          </div>
+        )}
+        {askStatus === "error" && (
+          <div className="probe-result" role="alert">
+            <p className="pr-reason">
+              {askError ? describeErrorCode(askError.code, askError.message) : "알 수 없는 오류"}
+            </p>
+            <div className="lv-ask-actions">
+              <button type="button" className="lv-btn-ghost" onClick={resetAsk}>
+                닫기
+              </button>
+              <button type="button" className="btn-ghost" onClick={() => void submitAsk()}>
+                다시 시도
+              </button>
+            </div>
+          </div>
+        )}
+        {askStatus === "done" && askResult && (
+          <div className={"lv-ask-result lv-ask-" + askResult.route}>
+            <div className="lv-ask-result-head">
+              <span className="lv-ask-badge">{ASK_ROUTE_LABEL[askResult.route]}</span>
+            </div>
+            <p className="lv-ask-msg"><MathText text={askResult.message} /></p>
+            {askResult.route === "newStep" && askResult.suggestedStep && (
+              <div className="lv-ask-step">
+                <span className="lv-ask-step-t"><MathText text={askResult.suggestedStep.title} /></span>
+                <span className="lv-ask-step-d"><MathText text={askResult.suggestedStep.desc} /></span>
+              </div>
+            )}
+            <div className="lv-ask-actions">
+              {askResult.route === "prereq" && (
+                <button type="button" className="lv-btn-holo" onClick={handleAskPrereq}>
+                  선행 개념 보기
+                </button>
+              )}
+              {askResult.route === "newStep" && askResult.suggestedStep && (
+                <>
+                  <button type="button" className="lv-btn-holo" onClick={handleAskNavigate}>
+                    바로 이동
+                  </button>
+                  <button type="button" className="lv-btn-ghost" onClick={handleAskAddToRoadmap}>
+                    로드맵에 추가
+                  </button>
+                </>
+              )}
+              <span className="grow" />
+              <button type="button" className="lv-btn-ghost" onClick={openAsk}>
+                다른 질문하기
+              </button>
+              <button type="button" className="lv-btn-ghost" onClick={resetAsk}>
+                닫기
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    ) : null;
+
   return (
     <div className="lv-board">
       {prereq.parentConcept && (
@@ -844,11 +1066,12 @@ export function StageLearn({
                     <span className="lv2-eyebrow">개념 설명</span>
                     <h3>{step.title}</h3>
                   </div>
-                  {prereqTrigger}
+                  {affordances}
                 </div>
                 <p className="lv2-sub">{step.desc}</p>
                 {prereqLimit}
                 {explainDetail}
+                {askPanel && <div className="lvv-ask-row">{askPanel}</div>}
               </div>
             </div>
             <div className="lv2-right">
@@ -870,7 +1093,7 @@ export function StageLearn({
                 <span className="eyebrow">개념 설명</span>
                 <span className="ttl">{step.title}</span>
                 <span className="grow" />
-                {prereqTrigger}
+                {affordances}
                 <button
                   className="lvv-explain-toggle"
                   type="button"
@@ -887,6 +1110,8 @@ export function StageLearn({
                 {explainDetail}
               </div>
             </section>
+
+            {askPanel && <div className="lvv-ask-row">{askPanel}</div>}
 
             {prereqLimit && <div className="lvv-prereq-row">{prereqLimit}</div>}
 

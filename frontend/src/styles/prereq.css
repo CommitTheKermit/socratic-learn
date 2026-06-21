@@ -76,6 +76,84 @@
 /* 세로형: 설명 카드와 질문 사이의 선행 어포던스 행 */
 .lvv-prereq-row { margin: 2px 0 12px; display: flex; flex-direction: column; gap: 10px; }
 
+/* ══════════════════════════════════════════════════════════════════════
+   '질문하기' (learn 단계 1회성 라우팅: prereq | newStep | none)
+   선행(prereq, 핑크)과 색을 구분해 accent(퍼플) 기반. 트리거는 pq-trigger 와 같은 알약 형태.
+   ────────────────────────────────────────────────────────────────────── */
+/* 선행 + 질문하기 트리거 묶음(헤더 우측 정렬) */
+.lv-affordances { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.ask-trigger {
+  position: relative;
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 34px; padding: 0 13px 0 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 42%, transparent);
+  color: var(--fg-mut);
+  font-size: 12.5px; letter-spacing: -0.005em; white-space: nowrap;
+  cursor: pointer;
+  transition: color .16s ease, box-shadow .2s ease, background .16s ease;
+}
+.ask-trigger:hover {
+  color: var(--fg);
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 64%, transparent),
+              0 6px 20px -12px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+.ask-trigger:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 70%, transparent),
+              0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.ask-trigger-ico {
+  flex: 0 0 auto; width: 20px; height: 20px;
+  display: grid; place-items: center; border-radius: 6px;
+  color: color-mix(in srgb, var(--accent) 88%, white);
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.ask-trigger-ico svg { width: 13px; height: 13px; display: block; }
+.ask-trigger b { font-weight: 600; color: var(--fg); }
+
+/* 인라인 패널 (입력 → 결과 카드) */
+.lvv-ask-row { margin: 2px 0 12px; }
+.lv-ask {
+  border-radius: 14px;
+  background: var(--bg-elev-1);
+  box-shadow: inset 0 0 0 1px var(--line);
+  padding: 14px 15px;
+}
+.lv-ask-compose { display: flex; flex-direction: column; gap: 10px; }
+.lv-ask-label { font-size: 12.5px; color: var(--fg-mut); letter-spacing: -0.005em; }
+.lv-ask-input {
+  width: 100%; min-height: 64px; resize: vertical;
+  border-radius: 10px; padding: 10px 12px;
+  background: var(--bg); color: var(--fg);
+  border: 0; box-shadow: inset 0 0 0 1px var(--line);
+  font: inherit; font-size: 13.5px; line-height: 1.5;
+}
+.lv-ask-input:focus-visible { outline: none; box-shadow: inset 0 0 0 1px var(--accent); }
+.lv-ask-actions { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.lv-ask-actions .grow { flex: 1; }
+.lv-ask-send { white-space: nowrap; }
+
+.lv-ask-result { display: flex; flex-direction: column; gap: 11px; }
+.lv-ask-result-head { display: flex; align-items: center; gap: 8px; }
+.lv-ask-badge {
+  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--holo-on); background: var(--holo);
+  padding: 3px 9px; border-radius: 999px; white-space: nowrap;
+}
+.lv-ask-none .lv-ask-badge { color: var(--fg-mut); background: oklch(1 0 0 / 0.06); }
+.lv-ask-msg { font-size: 13.5px; line-height: 1.55; color: var(--fg); text-wrap: pretty; word-break: keep-all; }
+.lv-ask-step {
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 11px 13px; border-radius: 11px;
+  background: oklch(1 0 0 / 0.03); box-shadow: inset 0 0 0 1px var(--line);
+}
+.lv-ask-step-t { font-size: 14px; font-weight: 650; letter-spacing: -0.01em; color: var(--fg); }
+.lv-ask-step-d { font-size: 12.5px; color: var(--fg-dim); line-height: 1.5; }
+
 /* ── 모달 (방향 A) — 선행 개념 트리 ──────────────────────────────────── */
 .pq-modal-backdrop {
   position: fixed; inset: 0; z-index: 200;

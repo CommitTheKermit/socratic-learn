@@ -132,6 +132,50 @@ export const prereqTreeLearnUserMessage = (
   return `본개념: ${concept}${lvl}${roadmap}${step}${probe}\n\n이 사용자가 "선택된 단계"를 이해하기 위한 선행 개념 트리를 만들어 주세요. 로드맵에 이미 있는 개념은 제외하고, 선행이 필요 없으면 prerequisites 를 빈 배열로 두세요.`;
 };
 
+// learn 단계 '질문하기' 라우터: 학습자가 단계를 읽다가 던진 한 줄 질문을 prereq|newStep|none 으로 분류.
+// 분류 전용(질문에 산문으로 답하지 않음)이라 MATH_DIRECTIVE 를 붙이지 않는다.
+export const ASK_ROUTE_SYSTEM = `당신은 소크라테스식 학습 튜터입니다. 학습자가 한 학습 단계를 읽다가 입력한 "한 줄 질문"을 보고, 그 질문을 어떻게 풀어주는 게 가장 좋은지 분류만 합니다. 질문에 직접 산문으로 답하지 마세요. 분류와 짧은 안내만 합니다.
+
+[route 분류 - 정확히 셋 중 하나]
+- "prereq": 질문이 "이 단계를 이해하려면 먼저 알았어야 할 더 기초적인 개념"에 관한 것일 때. 학습자가 디딤돌(선행 지식)이 부족해 막힌 경우입니다(본문이 가정하는 배경 지식을 모름 등).
+- "newStep": 질문이 현재 단계 범위를 넘어서지만 이 본개념 학습에 가치 있는 "별도의 한 단계"로 다룰 만한 새 개념/심화/응용일 때. 단, 제공된 전체 로드맵의 다른 단계가 이미 다루는 내용이면 newStep 으로 만들지 마세요(그 경우 none).
+- "none": 질문이 (1) 현재 단계 본문이나 로드맵이 이미 충분히 다루는 내용이거나, (2) 이 학습 범위와 무관하거나, (3) 한 단계로 만들 만한 학습 주제가 아닐 때(단순 사실 확인 등).
+
+[message 작성 규칙 - 1-2문장 한국어, 이모지 금지]
+- prereq: "이건 ...를 먼저 알면 훨씬 수월해요. 아래에서 선행 개념을 살펴보세요." 톤.
+- newStep: "이건 따로 한 단계로 짚어볼 만해요. ..." 톤.
+- none: 질문에 대한 답을 길게 산문으로 쓰지 말고, 왜 별도 학습이 필요 없는지 한두 문장으로만. 이미 다루는 내용이면 본문/로드맵의 어느 부분을 다시 보면 되는지 짚어 주세요.
+
+[suggestedStep]
+- route 가 "newStep" 일 때만 채웁니다. title=그대로 학습 주제로 쓸 한 줄 제목, desc=한 줄 부제. 본문과 확인 질문은 만들지 마세요(학습자가 진입하면 시스템이 따로 생성합니다). 현재 단계나 로드맵에 이미 있는 제목과 겹치지 않게 하세요.
+- route 가 "prereq" 또는 "none" 이면 suggestedStep 은 반드시 null.`;
+
+export const askRouteUserMessage = (
+  question: string,
+  concept: string,
+  level: number | undefined,
+  currentStepTitle: string | undefined,
+  currentStepDesc: string | undefined,
+  stepBody: string | undefined,
+  roadmapTitles: string[] | undefined,
+): string => {
+  const lvl =
+    typeof level === "number" ? `\n사용자 추정 수준: ${level} (0=입문 ~ 3=능숙)` : "";
+  const stepLine = currentStepTitle?.trim()
+    ? `\n현재 단계: ${currentStepTitle.trim()}${
+        currentStepDesc?.trim() ? ` - ${currentStepDesc.trim()}` : ""
+      }`
+    : "";
+  // 본문은 "이미 다루는 내용" 판단에 도움되지만 길 수 있어 적당히 자른다(토큰 절약).
+  const body = stepBody?.trim()
+    ? `\n현재 단계 본문 요약:\n${stepBody.trim().slice(0, 1200)}`
+    : "";
+  const roadmap = roadmapTitles?.length
+    ? `\n전체 로드맵 단계:\n${roadmapTitles.map((t) => `- ${t}`).join("\n")}`
+    : "";
+  return `본개념: ${concept}${lvl}${stepLine}${body}${roadmap}\n\n학습자의 질문: "${question}"\n\n이 질문을 prereq | newStep | none 으로 분류하고, message 와 (newStep 이면) suggestedStep 을 작성해 주세요.`;
+};
+
 // 사전 수준 진단 질문 생성 (generateProbeQuestions). frontend/src/api/prompts.ts 에서 이전.
 export const PROBE_SYSTEM = `당신은 소크라테스식 학습 튜터입니다. 사용자가 입력한 임의의 학습 개념에 대해 사전 수준을 빠르게 진단할 3개 질문을 만듭니다.
 

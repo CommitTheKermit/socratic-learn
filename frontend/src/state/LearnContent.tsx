@@ -121,6 +121,21 @@ function deriveEvalStatus(evals?: Record<number, StepEvaluation>): Record<number
   return m;
 }
 
+/**
+ * 인덱스(stepIdx) 키 맵에서 from 이상 키를 +1 시프트한다.
+ * steps 배열 중간에 단계를 삽입하면 그 뒤 단계들의 위치 인덱스가 한 칸씩 밀리므로,
+ * 같은 인덱스로 귀속되던 상세/평가/분기 상태도 함께 밀어줘야 단계-상태 매핑이 어긋나지 않는다.
+ * (branchedStepIds 는 step.id 키라 시프트 대상이 아니다.)
+ */
+function shiftIndexKeys<T>(m: Record<number, T>, from: number): Record<number, T> {
+  const next: Record<number, T> = {};
+  for (const key of Object.keys(m)) {
+    const idx = Number(key);
+    next[idx >= from ? idx + 1 : idx] = m[idx];
+  }
+  return next;
+}
+
 export function LearnContentProvider({
   children,
   initial,
@@ -363,6 +378,14 @@ export function LearnContentProvider({
       const inserted: Step = { ...step, id: assignedId };
       const clampedIndex = Math.max(0, Math.min(index, cur.length));
       setSteps([...cur.slice(0, clampedIndex), inserted, ...cur.slice(clampedIndex)]);
+      // 삽입 지점 이후로 밀리는 단계들의 인덱스 키 상태도 함께 +1 시프트해 귀속을 유지한다.
+      // (branchedStepIds 는 step.id 키라 시프트하지 않는다.)
+      setStepDetailStatus((m) => shiftIndexKeys(m, clampedIndex));
+      setStepDetailErrors((m) => shiftIndexKeys(m, clampedIndex));
+      setStepEvaluations((m) => shiftIndexKeys(m, clampedIndex));
+      setStepEvalStatus((m) => shiftIndexKeys(m, clampedIndex));
+      setStepEvalErrors((m) => shiftIndexKeys(m, clampedIndex));
+      setStepBranches((m) => shiftIndexKeys(m, clampedIndex));
       return assignedId;
     },
     [setSteps],

@@ -8,5 +8,6 @@ export { stepDetailStream } from "./stepDetailStream";
 export { testEligible } from "./testEligible";
 export { answerEval } from "./answerEval";
 export { branchEval } from "./branchEval";
+export { askRoute } from "./askRoute";
 export { sessionSave, sessionList, sessionGet } from "./sessions";
 export { sessionDelete } from "./sessionDelete";

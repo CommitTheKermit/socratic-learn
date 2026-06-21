@@ -12,6 +12,8 @@ export const ApiPaths = {
   STEP_DETAIL: "/stepDetail",
   ANSWER_EVAL: "/answerEval",
   BRANCH_EVAL: "/branchEval",
+  // learn 단계 '질문하기' 라우터. 한 줄 질문을 prereq|newStep|none 으로 분류(분류 전용 LLM 콜).
+  ASK_ROUTE: "/askRoute",
   STEP_DETAIL_STREAM: "/stepDetailStream",
   // 테스트 모드 자격 조회(Anthropic 미사용). 로그인 직후 1회 호출해 입력창 모드 노출 게이팅에 쓴다.
   TEST_ELIGIBLE: "/testEligible",
@@ -149,6 +151,32 @@ export interface BranchEvalRequest {
   stepBody: string;
   questions: { id: string; q: string; answer: string }[];
   roadmapOutlineText: string;
+}
+
+/**
+ * POST /askRoute 요청. learn 단계에서 학습자의 한 줄 질문을 분류한다(멀티턴 채팅이 아닌 1회성).
+ * route 에 따라 프론트가 기존 선행 트리(prereq)·보충 단계(newStep) 기계를 재사용한다.
+ */
+export interface AskRouteRequest {
+  question: string;
+  concept: string;
+  level?: number;
+  currentStepTitle?: string;
+  currentStepDesc?: string;
+  /** 현재 단계 본문(이미 다루는 내용인지 판단용). 서버가 길이를 적당히 자른다. */
+  stepBody?: string;
+  roadmapTitles?: string[];
+  mode?: LearnMode;
+}
+
+/** POST /askRoute 응답. */
+export interface AskRouteResponse {
+  /** prereq=선행 개념 트리, newStep=보충 단계, none=안내만. */
+  route: "prereq" | "newStep" | "none";
+  /** 학습자에게 보여줄 1-2문장 한국어 안내. */
+  message: string;
+  /** route=newStep 일 때만 보충 단계 제안(title/desc). 본문/질문은 진입 시 기존 기계가 생성. 그 외엔 null. */
+  suggestedStep: { title: string; desc: string } | null;
 }
 
 import type { Stage, Step } from "../stages/data";
