@@ -12,6 +12,8 @@ export const ApiPaths = {
   STEP_DETAIL: "/stepDetail",
   ANSWER_EVAL: "/answerEval",
   BRANCH_EVAL: "/branchEval",
+  // learn 단계 '질문하기' 라우터. 한 줄 질문을 prereq|newStep|none 으로 분류(분류 전용 LLM 콜).
+  ASK_ROUTE: "/askRoute",
   STEP_DETAIL_STREAM: "/stepDetailStream",
   // 테스트 모드 자격 조회(Anthropic 미사용). 로그인 직후 1회 호출해 입력창 모드 노출 게이팅에 쓴다.
   TEST_ELIGIBLE: "/testEligible",
@@ -149,6 +151,47 @@ export interface BranchEvalRequest {
   stepBody: string;
   questions: { id: string; q: string; answer: string }[];
   roadmapOutlineText: string;
+}
+
+/** 질문하기 한 턴(이전 질문 + 그에 대한 산문 답변). 후속 질문 맥락 전달용. */
+export interface AskTurn {
+  question: string;
+  answer: string;
+}
+
+/**
+ * POST /askRoute 요청. learn 단계에서 학습자의 한 줄 질문에 "답변 + 안내"로 응답한다.
+ * 답변은 항상 산문으로 생성하고(현재 개념/로드맵 범위 안), 필요 시 route 로 기존
+ * 선행 트리(prereq)·보충 단계(newStep) 기계를 '안내'로 병행한다. 후속은 프론트가 최대 2회로 캡한다.
+ */
+export interface AskRouteRequest {
+  question: string;
+  concept: string;
+  level?: number;
+  currentStepTitle?: string;
+  currentStepDesc?: string;
+  /** 현재 단계 본문(이미 다루는 내용인지·답변 근거 판단용). 서버가 길이를 적당히 자른다. */
+  stepBody?: string;
+  roadmapTitles?: string[];
+  mode?: LearnMode;
+  /** 후속 질문용 직전 턴들(질문+답변). 프론트가 최대 2개(총 3턴)로 보낸다. */
+  priorTurns?: AskTurn[];
+}
+
+/** POST /askRoute 응답. 답변(산문) + 안내(라우팅) 구조. */
+export interface AskRouteResponse {
+  /**
+   * 흐름 안내(라우팅) 분류.
+   * prereq=선행 개념 트리, newStep=보충 단계, none=별도 학습 불필요(답변으로 충분),
+   * offtopic=현재 학습 범위 밖이라 답변하지 않고 복귀만 안내.
+   */
+  route: "prereq" | "newStep" | "none" | "offtopic";
+  /** 학습자 질문에 대한 산문 답변(한국어). route=offtopic 이면 빈 문자열. */
+  answer: string;
+  /** 답변에 곁들이는 1-2문장 흐름 안내(이 단계와의 연결/다음 학습). offtopic 이면 복귀 안내. */
+  message: string;
+  /** route=newStep 일 때만 보충 단계 제안(title/desc). 본문/질문은 진입 시 기존 기계가 생성. 그 외엔 null. */
+  suggestedStep: { title: string; desc: string } | null;
 }
 
 import type { Stage, Step } from "../stages/data";

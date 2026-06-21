@@ -1,5 +1,7 @@
 import { API_BASE_URL, ApiPaths } from "./contract";
 import type {
+  AskRouteRequest,
+  AskRouteResponse,
   EvaluationResponse,
   OverwhelmDecision,
   ParseFailure,
@@ -313,4 +315,37 @@ export async function generateBranchEvaluation(
     throw new ClaudeContentError(code, message);
   }
   return (await res.json()) as EvaluationResponse | ParseFailure;
+}
+
+// AskRouteResponse 는 contract.ts 로부터 re-export (Learn UI 가 이 모듈에서 import).
+export type { AskRouteResponse };
+
+/**
+ * learn 단계 '질문하기': 학습자의 한 줄 질문을 prereq | newStep | none 으로 분류한다(1회성).
+ * 분류 결과에 따라 프론트가 기존 선행 트리/보충 단계 기계를 재사용한다(멀티턴 채팅 아님).
+ */
+export async function askLearnQuestion(args: AskRouteRequest): Promise<AskRouteResponse> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE_URL}${ApiPaths.ASK_ROUTE}`, {
+      method: "POST",
+      headers: await authHeaders(),
+      body: JSON.stringify(args),
+    });
+  } catch (e) {
+    throw new ClaudeContentError("CLAUDE_API_ERROR", (e as Error)?.message ?? "네트워크 오류");
+  }
+  if (!res.ok) {
+    let code = "CLAUDE_API_ERROR";
+    let message = `질문 분류 요청 실패: HTTP ${res.status}`;
+    try {
+      const body = await res.json();
+      if (body?.code) code = body.code as string;
+      if (body?.message) message = body.message as string;
+    } catch {
+      /* ignore */
+    }
+    throw new ClaudeContentError(code, message);
+  }
+  return (await res.json()) as AskRouteResponse;
 }

@@ -44,6 +44,29 @@ describe("LearnContent.insertStepAt", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
+  test("중간 삽입 시 인덱스 키 상태(stepBranches)가 +1 시프트되어 단계-상태 귀속이 유지된다", () => {
+    const { result } = renderHook(() => useLearnContent(), { wrapper });
+    // steps: [a, b, c]
+    act(() => { result.current.insertStepAt(0, { ...baseStep, title: "a" }); });
+    act(() => { result.current.insertStepAt(1, { ...baseStep, title: "b" }); });
+    act(() => { result.current.insertStepAt(2, { ...baseStep, title: "c" }); });
+
+    const cId = result.current.steps[2].id;
+    const branchResult = { evaluationText: "c-branch", isMerged: false, options: [] };
+    act(() => { result.current.setStepBranch(2, branchResult); });
+    act(() => { result.current.markBranched(cId); });
+
+    // 인덱스 1 앞에 삽입 → c 는 인덱스 3 으로 밀린다
+    act(() => { result.current.insertStepAt(1, { ...baseStep, title: "inserted" }); });
+
+    expect(result.current.steps.map((s) => s.title)).toEqual(["a", "inserted", "b", "c"]);
+    // 분기 스냅샷 키가 2 → 3 으로 시프트되어 여전히 c 단계에 귀속
+    expect(result.current.stepBranches[3]).toEqual(branchResult);
+    expect(result.current.stepBranches[2]).toBeUndefined();
+    // branchedStepIds 는 step.id 키라 시프트와 무관하게 c.id 유지
+    expect(result.current.branchedStepIds.has(cId)).toBe(true);
+  });
+
   test("index 가 범위를 벗어나면 양 끝으로 clamp 된다", () => {
     const { result } = renderHook(() => useLearnContent(), { wrapper });
     act(() => {

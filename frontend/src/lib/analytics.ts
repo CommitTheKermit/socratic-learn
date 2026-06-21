@@ -68,6 +68,34 @@ export interface SlReanswerParams extends SlCommonParams {
   step_idx: number;
 }
 
+/** sl_ask_submit: learn '질문하기' 한 줄 질문 제출. turn=몇 번째 턴(0=최초, 1~2=후속). */
+export interface SlAskSubmitParams extends SlCommonParams {
+  step_idx: number;
+  turn: number;
+}
+
+/** sl_ask_result: '질문하기' 답변+안내 결과 수신. route 가 흐름 안내 분류. */
+export interface SlAskResultParams extends SlCommonParams {
+  step_idx: number;
+  route: "prereq" | "newStep" | "none" | "offtopic";
+  turn: number;
+}
+
+/** sl_ask_navigate: newStep '바로 이동'(보충 단계 즉시 진입). */
+export interface SlAskNavigateParams extends SlCommonParams {
+  step_idx: number;
+}
+
+/** sl_ask_add: newStep '로드맵에 추가'(보충 단계 큐잉). */
+export interface SlAskAddParams extends SlCommonParams {
+  step_idx: number;
+}
+
+/** sl_ask_prereq: '질문하기' 결과에서 선행 개념 모달 열기. */
+export interface SlAskPrereqParams extends SlCommonParams {
+  step_idx: number;
+}
+
 /**
  * sl_ 이벤트명 → 파라미터 타입 맵.
  * 계측 포인트가 사용하는 logEvent 의 타입 인자 출처.
@@ -81,6 +109,11 @@ export interface SlEventMap {
   sl_branch_select: SlBranchSelectParams;
   sl_step_navigate: SlStepNavigateParams;
   sl_reanswer: SlReanswerParams;
+  sl_ask_submit: SlAskSubmitParams;
+  sl_ask_result: SlAskResultParams;
+  sl_ask_navigate: SlAskNavigateParams;
+  sl_ask_add: SlAskAddParams;
+  sl_ask_prereq: SlAskPrereqParams;
 }
 
 // ─────────────────────────────────────────────────────────

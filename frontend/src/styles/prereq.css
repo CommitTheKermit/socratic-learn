@@ -76,6 +76,13 @@
 /* 세로형: 설명 카드와 질문 사이의 선행 어포던스 행 */
 .lvv-prereq-row { margin: 2px 0 12px; display: flex; flex-direction: column; gap: 10px; }
 
+/* ══════════════════════════════════════════════════════════════════════
+   '질문하기' (learn 단계 1회성 라우팅: prereq | newStep | none)
+   선행(prereq, 핑크)과 색을 구분해 accent(퍼플) 기반. 트리거는 pq-trigger 와 같은 알약 형태.
+   ────────────────────────────────────────────────────────────────────── */
+/* 선행 + 질문하기 트리거 묶음(헤더 우측 정렬). 질문하기 트리거/패널 스타일은 ask-routing.css. */
+.lv-affordances { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
 /* ── 모달 (방향 A) — 선행 개념 트리 ──────────────────────────────────── */
 .pq-modal-backdrop {
   position: fixed; inset: 0; z-index: 200;
