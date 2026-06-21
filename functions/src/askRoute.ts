@@ -27,24 +27,30 @@ const suggestedStepSchema = {
   },
 } as const;
 
-// learn 단계 '질문하기' 라우터의 구조화 출력. 분류 전용이라 본문/질문은 만들지 않는다.
+// learn 단계 '질문하기'의 구조화 출력. '답변 + 안내' 모델: answer(산문) + route(흐름 안내).
 const askRouteSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["route", "message", "suggestedStep"],
+  required: ["route", "answer", "message", "suggestedStep"],
   properties: {
     route: {
       type: "string",
-      enum: ["prereq", "newStep", "none"],
-      description: "질문 분류. prereq=선행 개념, newStep=보충 단계, none=별도 학습 불필요.",
+      enum: ["prereq", "newStep", "none", "offtopic"],
+      description:
+        "흐름 안내 분류. prereq=선행 개념 권장, newStep=보충 단계 권장, none=답변으로 충분, offtopic=학습 범위 밖(답변 안 함).",
     },
-    message: { type: "string", description: "학습자에게 보여줄 1-2문장 한국어 안내(이모지 금지)." },
+    answer: {
+      type: "string",
+      description: "학습자 질문에 대한 한국어 산문 답변. route=offtopic 이면 빈 문자열.",
+    },
+    message: { type: "string", description: "답변에 곁들이는 1-2문장 한국어 흐름 안내(이모지 금지)." },
     suggestedStep: { anyOf: [suggestedStepSchema, { type: "null" }] },
   },
 } as const;
 
 interface AskRouteResult {
-  route: "prereq" | "newStep" | "none";
+  route: "prereq" | "newStep" | "none" | "offtopic";
+  answer: string;
   message: string;
   suggestedStep: { title: string; desc: string } | null;
 }
@@ -76,6 +82,7 @@ export const askRoute = onRequest(
       stepBody,
       roadmapTitles,
       mode,
+      priorTurns,
     } = (req.body ?? {}) as {
       question?: string;
       concept?: string;
@@ -85,7 +92,14 @@ export const askRoute = onRequest(
       stepBody?: string;
       roadmapTitles?: string[];
       mode?: string;
+      priorTurns?: { question: string; answer: string }[];
     };
+    // 후속 맥락은 최대 2턴만 신뢰(프론트 캡과 일치, 과도한 토큰/조작 방지).
+    const safePriorTurns = Array.isArray(priorTurns)
+      ? priorTurns
+          .filter((t) => t && typeof t.question === "string" && typeof t.answer === "string")
+          .slice(-2)
+      : undefined;
 
     if (!question || !concept) {
       res.status(400).json({ code: "INVALID_REQUEST", message: "question, concept 가 필요합니다." });
@@ -97,7 +111,8 @@ export const askRoute = onRequest(
     if (testMode) {
       res.json({
         route: "none",
-        message: "테스트 모드에서는 질문 분류를 사용할 수 없어요.",
+        answer: "테스트 모드에서는 질문 답변을 사용할 수 없어요.",
+        message: "테스트 모드에서는 질문하기를 쓸 수 없어요.",
         suggestedStep: null,
       });
       return;
@@ -107,7 +122,7 @@ export const askRoute = onRequest(
       const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY.value() });
       const resp = await client.messages.parse({
         model: CLAUDE_MODEL,
-        max_tokens: 700,
+        max_tokens: 1100,
         system: [{ type: "text", text: ASK_ROUTE_SYSTEM, cache_control: { type: "ephemeral" } }],
         messages: [
           {
@@ -120,6 +135,7 @@ export const askRoute = onRequest(
               currentStepDesc,
               stepBody,
               roadmapTitles,
+              safePriorTurns,
             ),
           },
         ],
@@ -128,12 +144,13 @@ export const askRoute = onRequest(
       logUsage("askRoute", CLAUDE_MODEL, resp.usage);
       const parsed = resp.parsed_output as AskRouteResult | undefined;
       if (!parsed?.route) {
-        res.status(502).json({ code: "INVALID_RESPONSE", message: "질문 분류 응답이 비어 있습니다." });
+        res.status(502).json({ code: "INVALID_RESPONSE", message: "질문 응답이 비어 있습니다." });
         return;
       }
-      // newStep 이 아니면 suggestedStep 은 무시(null 강제)해 계약을 단순화한다.
+      // offtopic 이면 답변을 비우고, newStep 이 아니면 suggestedStep 을 null 로 강제해 계약을 단순화한다.
       res.json({
         route: parsed.route,
+        answer: parsed.route === "offtopic" ? "" : parsed.answer ?? "",
         message: parsed.message ?? "",
         suggestedStep: parsed.route === "newStep" ? parsed.suggestedStep ?? null : null,
       });

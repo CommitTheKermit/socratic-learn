@@ -153,9 +153,16 @@ export interface BranchEvalRequest {
   roadmapOutlineText: string;
 }
 
+/** 질문하기 한 턴(이전 질문 + 그에 대한 산문 답변). 후속 질문 맥락 전달용. */
+export interface AskTurn {
+  question: string;
+  answer: string;
+}
+
 /**
- * POST /askRoute 요청. learn 단계에서 학습자의 한 줄 질문을 분류한다(멀티턴 채팅이 아닌 1회성).
- * route 에 따라 프론트가 기존 선행 트리(prereq)·보충 단계(newStep) 기계를 재사용한다.
+ * POST /askRoute 요청. learn 단계에서 학습자의 한 줄 질문에 "답변 + 안내"로 응답한다.
+ * 답변은 항상 산문으로 생성하고(현재 개념/로드맵 범위 안), 필요 시 route 로 기존
+ * 선행 트리(prereq)·보충 단계(newStep) 기계를 '안내'로 병행한다. 후속은 프론트가 최대 2회로 캡한다.
  */
 export interface AskRouteRequest {
   question: string;
@@ -163,17 +170,25 @@ export interface AskRouteRequest {
   level?: number;
   currentStepTitle?: string;
   currentStepDesc?: string;
-  /** 현재 단계 본문(이미 다루는 내용인지 판단용). 서버가 길이를 적당히 자른다. */
+  /** 현재 단계 본문(이미 다루는 내용인지·답변 근거 판단용). 서버가 길이를 적당히 자른다. */
   stepBody?: string;
   roadmapTitles?: string[];
   mode?: LearnMode;
+  /** 후속 질문용 직전 턴들(질문+답변). 프론트가 최대 2개(총 3턴)로 보낸다. */
+  priorTurns?: AskTurn[];
 }
 
-/** POST /askRoute 응답. */
+/** POST /askRoute 응답. 답변(산문) + 안내(라우팅) 구조. */
 export interface AskRouteResponse {
-  /** prereq=선행 개념 트리, newStep=보충 단계, none=안내만. */
-  route: "prereq" | "newStep" | "none";
-  /** 학습자에게 보여줄 1-2문장 한국어 안내. */
+  /**
+   * 흐름 안내(라우팅) 분류.
+   * prereq=선행 개념 트리, newStep=보충 단계, none=별도 학습 불필요(답변으로 충분),
+   * offtopic=현재 학습 범위 밖이라 답변하지 않고 복귀만 안내.
+   */
+  route: "prereq" | "newStep" | "none" | "offtopic";
+  /** 학습자 질문에 대한 산문 답변(한국어). route=offtopic 이면 빈 문자열. */
+  answer: string;
+  /** 답변에 곁들이는 1-2문장 흐름 안내(이 단계와의 연결/다음 학습). offtopic 이면 복귀 안내. */
   message: string;
   /** route=newStep 일 때만 보충 단계 제안(title/desc). 본문/질문은 진입 시 기존 기계가 생성. 그 외엔 null. */
   suggestedStep: { title: string; desc: string } | null;

@@ -133,22 +133,33 @@ export const prereqTreeLearnUserMessage = (
 };
 
 // learn 단계 '질문하기' 라우터: 학습자가 단계를 읽다가 던진 한 줄 질문을 prereq|newStep|none 으로 분류.
-// 분류 전용(질문에 산문으로 답하지 않음)이라 MATH_DIRECTIVE 를 붙이지 않는다.
-export const ASK_ROUTE_SYSTEM = `당신은 소크라테스식 학습 튜터입니다. 학습자가 한 학습 단계를 읽다가 입력한 "한 줄 질문"을 보고, 그 질문을 어떻게 풀어주는 게 가장 좋은지 분류만 합니다. 질문에 직접 산문으로 답하지 마세요. 분류와 짧은 안내만 합니다.
+// '답변 + 안내' 모델: 산문 답변을 생성하므로 MATH_DIRECTIVE 를 붙인다(수식 개념 대응).
+export const ASK_ROUTE_SYSTEM = `당신은 소크라테스식 학습 튜터입니다. 학습자가 한 학습 단계를 읽다가 입력한 "한 줄 질문"에 대해, "답변 + 안내" 구조로 응답합니다. 답변은 항상 산문으로 직접 해 주되, 반드시 "지금 배우는 본개념과 그 로드맵 범위 안"에 머무릅니다. 이 도구는 자유 채팅이 아니라 서비스가 제공하는 학습 흐름의 일부입니다.
 
-[route 분류 - 정확히 셋 중 하나]
-- "prereq": 질문이 "이 단계를 이해하려면 먼저 알았어야 할 더 기초적인 개념"에 관한 것일 때. 학습자가 디딤돌(선행 지식)이 부족해 막힌 경우입니다(본문이 가정하는 배경 지식을 모름 등).
-- "newStep": 질문이 현재 단계 범위를 넘어서지만 이 본개념 학습에 가치 있는 "별도의 한 단계"로 다룰 만한 새 개념/심화/응용일 때. 단, 제공된 전체 로드맵의 다른 단계가 이미 다루는 내용이면 newStep 으로 만들지 마세요(그 경우 none).
-- "none": 질문이 (1) 현재 단계 본문이나 로드맵이 이미 충분히 다루는 내용이거나, (2) 이 학습 범위와 무관하거나, (3) 한 단계로 만들 만한 학습 주제가 아닐 때(단순 사실 확인 등).
+[가장 먼저 - 범위 판단]
+- 질문이 현재 본개념/로드맵 학습과 무관하면(잡담, 다른 주제, 서비스 오남용 등) route 를 "offtopic" 으로 두고, answer 는 빈 문자열("")로 둡니다. message 에만 정중히 "이 질문은 지금 학습 범위 밖이에요"라고 알리고 학습으로 돌아오도록 한 문장 안내합니다. 범위 밖이면 절대 산문 답변을 쓰지 마세요.
+- 범위 안이면 아래 규칙대로 answer(산문 답변) + route(흐름 안내) + message 를 작성합니다.
 
-[message 작성 규칙 - 1-2문장 한국어, 이모지 금지]
-- prereq: "이건 ...를 먼저 알면 훨씬 수월해요. 아래에서 선행 개념을 살펴보세요." 톤.
-- newStep: "이건 따로 한 단계로 짚어볼 만해요. ..." 톤.
-- none: 질문에 대한 답을 길게 산문으로 쓰지 말고, 왜 별도 학습이 필요 없는지 한두 문장으로만. 이미 다루는 내용이면 본문/로드맵의 어느 부분을 다시 보면 되는지 짚어 주세요.
+[answer - 산문 답변 (범위 안일 때 필수)]
+- 학습자의 질문에 한국어 산문으로 직접, 정확하게 답합니다. 현재 단계 본문과 로드맵 맥락을 활용하세요.
+- 학습자 추정 수준에 맞춰 간결하게(보통 2-5문장). 군더더기·인사말·이모지 금지.
+- 후속 질문(이전 턴이 주어지면)에는 그 맥락을 이어받아 답합니다. 단, 여전히 본개념 범위 안에서만.
+
+[route - 흐름 안내 분류 (answer 와 별개로, 더 나은 학습 경로가 있으면 병행 안내)]
+- "prereq": 답은 했지만, 이 의문이 사실 "이 단계를 이해하려면 먼저 알았어야 할 더 기초적인 개념"이라 선행 학습을 권하는 게 나을 때.
+- "newStep": 답은 했지만, 이 주제가 현재 단계를 넘어 "별도의 한 단계"로 따로 다룰 만큼 가치 있을 때. 단, 제공된 로드맵의 다른 단계가 이미 다루면 newStep 으로 만들지 말고 none.
+- "none": 산문 답변으로 충분하고 별도 선행/보충 학습이 필요 없을 때(기본값).
+- "offtopic": 위 범위 판단에서 학습 범위 밖일 때만.
+
+[message - 1-2문장 한국어 흐름 안내, 이모지 금지]
+- prereq: "더 탄탄히 하려면 ...를 먼저 짚어보는 걸 권해요." 톤.
+- newStep: "이건 따로 한 단계로 더 깊이 볼 만해요." 톤.
+- none: 답변을 이 단계/다음 학습과 어떻게 연결하면 좋을지 한 문장으로. (answer 를 반복하지 마세요.)
+- offtopic: 정중한 복귀 안내.
 
 [suggestedStep]
 - route 가 "newStep" 일 때만 채웁니다. title=그대로 학습 주제로 쓸 한 줄 제목, desc=한 줄 부제. 본문과 확인 질문은 만들지 마세요(학습자가 진입하면 시스템이 따로 생성합니다). 현재 단계나 로드맵에 이미 있는 제목과 겹치지 않게 하세요.
-- route 가 "prereq" 또는 "none" 이면 suggestedStep 은 반드시 null.`;
+- route 가 "prereq"/"none"/"offtopic" 이면 suggestedStep 은 반드시 null.` + MATH_DIRECTIVE;
 
 export const askRouteUserMessage = (
   question: string,
@@ -158,6 +169,7 @@ export const askRouteUserMessage = (
   currentStepDesc: string | undefined,
   stepBody: string | undefined,
   roadmapTitles: string[] | undefined,
+  priorTurns: { question: string; answer: string }[] | undefined,
 ): string => {
   const lvl =
     typeof level === "number" ? `\n사용자 추정 수준: ${level} (0=입문 ~ 3=능숙)` : "";
@@ -166,14 +178,20 @@ export const askRouteUserMessage = (
         currentStepDesc?.trim() ? ` - ${currentStepDesc.trim()}` : ""
       }`
     : "";
-  // 본문은 "이미 다루는 내용" 판단에 도움되지만 길 수 있어 적당히 자른다(토큰 절약).
+  // 본문은 답변 근거이자 "이미 다루는 내용" 판단에 도움되지만 길 수 있어 적당히 자른다(토큰 절약).
   const body = stepBody?.trim()
     ? `\n현재 단계 본문 요약:\n${stepBody.trim().slice(0, 1200)}`
     : "";
   const roadmap = roadmapTitles?.length
     ? `\n전체 로드맵 단계:\n${roadmapTitles.map((t) => `- ${t}`).join("\n")}`
     : "";
-  return `본개념: ${concept}${lvl}${stepLine}${body}${roadmap}\n\n학습자의 질문: "${question}"\n\n이 질문을 prereq | newStep | none 으로 분류하고, message 와 (newStep 이면) suggestedStep 을 작성해 주세요.`;
+  // 후속 질문이면 직전 턴(질문+답변)을 맥락으로 제공한다. 같은 학습 스레드를 이어가도록.
+  const prior = priorTurns?.length
+    ? `\n\n[이전 질문/답변 - 이 맥락을 이어 후속 질문에 답하세요]\n${priorTurns
+        .map((t, i) => `(${i + 1}) Q: ${t.question}\n    A: ${t.answer}`)
+        .join("\n")}`
+    : "";
+  return `본개념: ${concept}${lvl}${stepLine}${body}${roadmap}${prior}\n\n학습자의 질문: "${question}"\n\n먼저 이 질문이 본개념/로드맵 학습 범위 안인지 판단하세요. 범위 안이면 answer(산문 답변)을 쓰고 route(prereq | newStep | none)와 message, (newStep 이면) suggestedStep 을 작성하세요. 범위 밖이면 route=offtopic, answer="", message=복귀 안내로 하세요.`;
 };
 
 // 사전 수준 진단 질문 생성 (generateProbeQuestions). frontend/src/api/prompts.ts 에서 이전.

@@ -117,11 +117,12 @@ const GRADE_LABEL: Record<Grade, string> = {
   wrong: "오답",
 };
 
-// '질문하기' 라우팅 결과 배지 라벨.
+// '질문하기' 흐름 안내(라우팅) 배지 라벨.
 const ASK_ROUTE_LABEL: Record<AskRouteResponse["route"], string> = {
-  prereq: "선행 개념이 필요해요",
-  newStep: "보충 단계로 짚어볼게요",
+  prereq: "선행 개념을 권해요",
+  newStep: "보충 단계로 더 볼 만해요",
   none: "안내",
+  offtopic: "안내",
 };
 
 const IcoRows = () => (
@@ -217,29 +218,128 @@ export function StageLearn({
     if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
   }, []);
 
-  // ── learn '질문하기' (1회성 라우팅: prereq | newStep | none) ──
-  // 멀티턴 채팅이 아니라 단발 질문 → 분류 → 인라인 카드 1회 제시. 결과는 휘발(영속 안 함);
+  // ── learn '질문하기' (답변 + 안내, 모달) ──
+  // 한 줄 질문에 산문 답변을 항상 생성(현재 개념/로드맵 범위 안)하고, 필요 시 route 로
+  // 선행 트리(prereq)·보충 단계(newStep)를 '안내'로 병행한다. 후속은 최대 2회(총 3턴),
+  // 마지막은 라우팅 안내로 마무리. 범위 밖이면 답변 없이 복귀만 안내(offtopic). 결과는 휘발;
   // 옵트인(바로 이동/로드맵에 추가/선행세션)만 기존 영속 기계로 반영된다. stepIdx 변경 시 리셋.
-  type AskStatus = "idle" | "loading" | "error" | "done";
+  const MAX_FOLLOWUPS = 2; // 최초 1 + 후속 2 = 총 3턴
+  type AskStatus = "idle" | "loading" | "error";
+  interface AskTurnLocal {
+    question: string;
+    result: AskRouteResponse;
+  }
   const [askOpen, setAskOpen] = useState(false);
   const [askText, setAskText] = useState("");
   const [askStatus, setAskStatus] = useState<AskStatus>("idle");
-  const [askResult, setAskResult] = useState<AskRouteResponse | null>(null);
+  const [askTurns, setAskTurns] = useState<AskTurnLocal[]>([]);
   const [askError, setAskError] = useState<{ code: string; message: string } | null>(null);
+  const [selChip, setSelChip] = useState<{ x: number; y: number; text: string } | null>(null);
+  const askInputRef = useRef<HTMLInputElement | null>(null);
+  const askLatest = askTurns.length ? askTurns[askTurns.length - 1].result : null;
+  // 후속 입력 가능: 턴이 있고, 아직 총 3턴 미만이며, 직전이 범위 밖(offtopic)이 아닐 때.
+  const askRemaining = MAX_FOLLOWUPS + 1 - askTurns.length;
+  const askCanFollowup =
+    askTurns.length > 0 && askRemaining > 0 && askLatest?.route !== "offtopic";
+  const askExhausted =
+    askTurns.length >= MAX_FOLLOWUPS + 1 && askLatest?.route !== "offtopic";
+  // 모달 전체 닫기(휘발).
   const resetAsk = () => {
     setAskOpen(false);
     setAskText("");
     setAskStatus("idle");
-    setAskResult(null);
+    setAskTurns([]);
     setAskError(null);
+    setSelChip(null);
   };
-  const openAsk = () => {
+  // 새 질문 스레드 시작(모달은 연 채로 작성 화면으로).
+  const startAskThread = () => {
     setAskText("");
     setAskStatus("idle");
-    setAskResult(null);
+    setAskTurns([]);
     setAskError(null);
+    requestAnimationFrame(() => askInputRef.current?.focus());
+  };
+  const openAsk = () => {
+    setSelChip(null);
+    startAskThread();
     setAskOpen(true);
   };
+  // 본문에서 고른 문구를 질문으로 시드해 바로 모달을 연다.
+  const openAskWith = (sel: string) => {
+    const q = `'${sel}' — 여기서 정확히 무슨 뜻이에요?`;
+    setSelChip(null);
+    window.getSelection()?.removeAllRanges();
+    setAskStatus("idle");
+    setAskTurns([]);
+    setAskError(null);
+    setAskText(q);
+    setAskOpen(true);
+    requestAnimationFrame(() => {
+      const el = askInputRef.current;
+      if (el) {
+        el.focus();
+        el.setSelectionRange(el.value.length, el.value.length);
+      }
+    });
+  };
+
+  // Esc 로 질문하기 모달 닫기.
+  useEffect(() => {
+    if (!askOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        resetAsk();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [askOpen]);
+
+  // 개념 본문에서 텍스트를 고르면 선택 위에 '질문하기' 칩을 띄운다(드래그→질문).
+  useEffect(() => {
+    const inConcept = (node: Node | null): boolean => {
+      const el = node && (node.nodeType === 3 ? node.parentElement : (node as Element));
+      return !!(el && "closest" in el && el.closest(".lvv-explain-body, .lv2-left-inner"));
+    };
+    const onUp = () => {
+      if (askOpen) {
+        setSelChip(null);
+        return;
+      }
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed) {
+        setSelChip(null);
+        return;
+      }
+      const text = sel.toString().trim();
+      if (!text || text.length > 60) {
+        setSelChip(null);
+        return;
+      }
+      if (!inConcept(sel.anchorNode) || !inConcept(sel.focusNode)) {
+        setSelChip(null);
+        return;
+      }
+      const rect = sel.getRangeAt(0).getBoundingClientRect();
+      if (!rect || (rect.width === 0 && rect.height === 0)) {
+        setSelChip(null);
+        return;
+      }
+      setSelChip({ x: rect.left + rect.width / 2, y: rect.top, text });
+    };
+    const hide = () => setSelChip(null);
+    document.addEventListener("mouseup", onUp);
+    document.addEventListener("scroll", hide, true);
+    window.addEventListener("resize", hide);
+    return () => {
+      document.removeEventListener("mouseup", onUp);
+      document.removeEventListener("scroll", hide, true);
+      window.removeEventListener("resize", hide);
+    };
+  }, [askOpen]);
 
   // ── 학습 로드맵 미니 바 (스크롤 시 헤더가 사라지면 위에서 슬라이드+페이드 등장) ──
   // 트리거: 실제 헤더(lv-bar)가 스크롤 컨테이너(.main-inner) 위로 완전히 벗어나면 표시.
@@ -307,12 +407,13 @@ export function StageLearn({
   // (영속값에서 즉시 복원하므로 LLM 재호출 비용이 없다.)
   useEffect(() => {
     setBranchVisible(false);
-    // '질문하기' 인라인 상태도 단계 이동마다 초기화(단발성·휘발 유지).
+    // '질문하기' 모달 상태도 단계 이동마다 초기화(휘발 유지).
     setAskOpen(false);
     setAskText("");
     setAskStatus("idle");
-    setAskResult(null);
+    setAskTurns([]);
     setAskError(null);
+    setSelChip(null);
     const persisted = stepBranches[stepIdx];
     if (branchEnabled && persisted) branch.hydrate(persisted);
     else branch.closeBranch();
@@ -357,14 +458,20 @@ export function StageLearn({
     branch.closeBranch();
   };
 
-  // '질문하기' 제출: 한 줄 질문을 라우터로 분류한다(1회성). 결과 후 후속 입력 UI 는 없다.
+  // '질문하기' 제출: 한 줄 질문에 답변+안내를 받는다. 후속이면 직전 턴을 맥락으로 보낸다(최대 2).
   const submitAsk = async () => {
     const q = askText.trim();
     if (!q || !step || askStatus === "loading") return;
+    if (askTurns.length >= MAX_FOLLOWUPS + 1) return; // 후속 한도 초과 방지
+    const turn = askTurns.length; // 0=최초, 1~2=후속
     setAskStatus("loading");
     setAskError(null);
-    if (sessionId) logEvent("sl_ask_submit", { session_id: sessionId, step_idx: stepIdx });
+    if (sessionId) logEvent("sl_ask_submit", { session_id: sessionId, step_idx: stepIdx, turn });
     try {
+      const priorTurns = askTurns.map((t) => ({
+        question: t.question,
+        answer: t.result.answer,
+      }));
       const result = await askLearnQuestion({
         question: q,
         concept,
@@ -374,11 +481,18 @@ export function StageLearn({
         stepBody: step.body,
         roadmapTitles: steps.map((s) => s.title),
         mode: mode as LearnMode | undefined,
+        priorTurns: priorTurns.length ? priorTurns : undefined,
       });
-      setAskResult(result);
-      setAskStatus("done");
+      setAskTurns((prev) => [...prev, { question: q, result }]);
+      setAskText("");
+      setAskStatus("idle");
       if (sessionId) {
-        logEvent("sl_ask_result", { session_id: sessionId, step_idx: stepIdx, route: result.route });
+        logEvent("sl_ask_result", {
+          session_id: sessionId,
+          step_idx: stepIdx,
+          route: result.route,
+          turn,
+        });
       }
     } catch (e) {
       const code = e instanceof ClaudeContentError ? e.code : "CLAUDE_API_ERROR";
@@ -390,7 +504,7 @@ export function StageLearn({
   // newStep '바로 이동': 보충 단계를 칩(1-1)으로 삽입하고 즉시 진입. 분기 선택과 동일하게
   // markBranched 로 현재 단계 게이트를 해제하므로 isBranchGated 전진 잠금의 영향을 받지 않는다.
   const handleAskNavigate = () => {
-    const suggestion = askResult?.suggestedStep;
+    const suggestion = askLatest?.suggestedStep;
     if (!suggestion || !step) return;
     if (sessionId) logEvent("sl_ask_navigate", { session_id: sessionId, step_idx: stepIdx });
     markBranched(step.id);
@@ -402,7 +516,7 @@ export function StageLearn({
   // newStep '로드맵에 추가': 보충 단계를 바로 다음(칩 1-1)으로 끼워만 두고 머문다.
   // 게이트는 건드리지 않는다(정상 분기 흐름의 "로드맵 다음 단계"가 이 단계를 가리키게 됨).
   const handleAskAddToRoadmap = () => {
-    const suggestion = askResult?.suggestedStep;
+    const suggestion = askLatest?.suggestedStep;
     if (!suggestion || !step) return;
     if (sessionId) logEvent("sl_ask_add", { session_id: sessionId, step_idx: stepIdx });
     insertStepAt(stepIdx + 1, makeSupplementStep(suggestion, computeInsertedMeta(steps, stepIdx)));
@@ -869,25 +983,26 @@ export function StageLearn({
       />
     ) : null;
 
-  // '질문하기' 진입점: 선행 개념 트리거 옆 컴팩트 버튼. 패널이 열려 있으면 숨긴다(패널이 자체 컨트롤 보유).
+  // '질문하기' 진입점: 선행 개념 트리거 옆 알약. 클릭 시 모달을 연다.
   const askTrigger =
-    step && !askOpen ? (
+    step ? (
       <button
         type="button"
-        className="ask-trigger"
-        title="이 단계를 읽다가 생긴 의문을 물어보세요(채팅이 아니라 선행 개념·보충 단계로 안내)"
+        className="aq-trigger"
+        title="이 단계를 읽다가 생긴 의문을 물어보세요 - 답변과 함께 더 나은 학습 경로도 안내해요"
         onClick={(e) => {
           // 헤더 토글 등 상위 클릭과 충돌 방지(세로형 설명 헤더 내부에 위치).
           e.stopPropagation();
           openAsk();
         }}
       >
-        <span className="ask-trigger-ico" aria-hidden>
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+        <span className="aq-trigger-ico" aria-hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 5h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H10l-4 3v-3H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" />
           </svg>
         </span>
         <span><b>질문하기</b></span>
+        <span className="aq-trigger-dot is-ping" aria-hidden />
       </button>
     ) : null;
 
@@ -899,109 +1014,287 @@ export function StageLearn({
     </span>
   );
 
-  // '질문하기' 인라인 카드: 입력 → (로딩/에러) → 결과(route 별). 멀티턴 입력은 없다.
-  const askPanel =
-    step && askOpen ? (
-      <div className="lv-ask" role="region" aria-label="질문하기">
-        {askStatus === "idle" && (
-          <div className="lv-ask-compose">
-            <label className="lv-ask-label" htmlFor="lv-ask-input">
-              이 단계를 읽다가 생긴 의문을 한 줄로 적어보세요
-            </label>
-            <textarea
-              id="lv-ask-input"
-              className="lv-ask-input"
-              value={askText}
-              autoFocus
-              placeholder="예: 여기서 말하는 '상태'가 정확히 뭐예요?"
-              onChange={(e) => setAskText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                  e.preventDefault();
-                  void submitAsk();
-                }
-              }}
-            />
-            <div className="lv-ask-actions">
-              <button type="button" className="lv-btn-ghost" onClick={resetAsk}>
-                취소
-              </button>
-              <button
-                type="button"
-                className="lv-btn-holo lv-ask-send"
-                onClick={() => void submitAsk()}
-                disabled={!askText.trim()}
-              >
-                <span className="lv-submit-icon" aria-hidden>{I.brand}</span>
-                질문 보내기
-              </button>
-            </div>
+  // 한 턴의 흐름 안내(배지 + message + 라우팅 액션). 마지막 턴에서만 노출한다.
+  const renderAskGuidance = (result: AskRouteResponse) => {
+    const badgeClass =
+      result.route === "prereq"
+        ? "aq-badge aq-badge--prereq"
+        : result.route === "newStep"
+          ? "aq-badge aq-badge--newstep"
+          : "aq-badge aq-badge--none";
+    return (
+      <div className="aq-guidance">
+        <span className={badgeClass}>{ASK_ROUTE_LABEL[result.route]}</span>
+        {result.message.trim() && (
+          <p className="aq-res-text"><MathText text={result.message} /></p>
+        )}
+        {result.route === "newStep" && result.suggestedStep && (
+          <div className="aq-step">
+            <span className="tag">제안</span>
+            <span className="pv-eyebrow">보충 단계 미리보기</span>
+            <div className="pv-title"><MathText text={result.suggestedStep.title} /></div>
+            <div className="pv-sub"><MathText text={result.suggestedStep.desc} /></div>
           </div>
         )}
-        {askStatus === "loading" && (
-          <div className="lv-loading lv-loading-inline">
-            <span className="lv-loading-dot" />
-            <p className="stage-sub">질문을 살펴보고 있어요…</p>
-          </div>
-        )}
-        {askStatus === "error" && (
-          <div className="probe-result" role="alert">
-            <p className="pr-reason">
-              {askError ? describeErrorCode(askError.code, askError.message) : "알 수 없는 오류"}
-            </p>
-            <div className="lv-ask-actions">
-              <button type="button" className="lv-btn-ghost" onClick={resetAsk}>
-                닫기
+        {(result.route === "prereq" || result.route === "newStep") && (
+          <div className="aq-res-actions">
+            {result.route === "prereq" && (
+              <button type="button" className="aq-btn aq-btn--prereq" onClick={handleAskPrereq}>
+                선행 개념 보기
               </button>
-              <button type="button" className="btn-ghost" onClick={() => void submitAsk()}>
-                다시 시도
-              </button>
-            </div>
-          </div>
-        )}
-        {askStatus === "done" && askResult && (
-          <div className={"lv-ask-result lv-ask-" + askResult.route}>
-            <div className="lv-ask-result-head">
-              <span className="lv-ask-badge">{ASK_ROUTE_LABEL[askResult.route]}</span>
-            </div>
-            <p className="lv-ask-msg"><MathText text={askResult.message} /></p>
-            {askResult.route === "newStep" && askResult.suggestedStep && (
-              <div className="lv-ask-step">
-                <span className="lv-ask-step-t"><MathText text={askResult.suggestedStep.title} /></span>
-                <span className="lv-ask-step-d"><MathText text={askResult.suggestedStep.desc} /></span>
-              </div>
             )}
-            <div className="lv-ask-actions">
-              {askResult.route === "prereq" && (
-                <button type="button" className="lv-btn-holo" onClick={handleAskPrereq}>
-                  선행 개념 보기
+            {result.route === "newStep" && result.suggestedStep && (
+              <>
+                <button type="button" className="aq-btn aq-btn--holo" onClick={handleAskNavigate}>
+                  바로 이동
                 </button>
+                <button type="button" className="aq-btn aq-btn--violet" onClick={handleAskAddToRoadmap}>
+                  로드맵에 추가
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // 모달 헤드 제목: 작성 전엔 안내 문구, 그 외엔 첫 질문.
+  const askHeadTitle =
+    askTurns.length > 0
+      ? askTurns[0].question
+      : askText.trim() || "이 단계, 무엇이 궁금한가요?";
+
+  // 본문 드래그 → 질문 칩 (선택 위에 떠서, 누르면 그 문구로 모달을 연다).
+  const selChipEl =
+    selChip && !askOpen ? (
+      <button
+        type="button"
+        className="aq-selchip"
+        style={{ left: selChip.x, top: selChip.y }}
+        onMouseDown={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          openAskWith(selChip.text);
+        }}
+      >
+        <span className="ico" aria-hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 5h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H10l-4 3v-3H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" />
+          </svg>
+        </span>
+        질문하기
+      </button>
+    ) : null;
+
+  // '질문하기' 모달: 작성 → 로딩/오류 → 답변+안내(스레드) → 후속(최대 2) → 마무리.
+  const askModal =
+    step && askOpen ? (
+      <div
+        className="aqm-backdrop"
+        onMouseDown={(e) => {
+          if (e.target === e.currentTarget) resetAsk();
+        }}
+      >
+        <div
+          className={"aqm" + (askStatus === "error" ? " is-error" : "")}
+          role="dialog"
+          aria-modal="true"
+          aria-label="질문하기"
+        >
+          <div className="aqm-head">
+            <span className="aqm-ico" aria-hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 5h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H10l-4 3v-3H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" />
+              </svg>
+            </span>
+            <span className="aqm-htext">
+              <span className="aqm-eyebrow">{askTurns.length > 0 ? "질문하기 · 답변" : "질문하기"}</span>
+              <span className="aqm-title"><MathText text={askHeadTitle} /></span>
+              {askTurns.length > 0 && (
+                <span className="aqm-sub">이 학습 범위 안에서 답하고, 더 나은 경로가 있으면 함께 안내해요.</span>
               )}
-              {askResult.route === "newStep" && askResult.suggestedStep && (
-                <>
-                  <button type="button" className="lv-btn-holo" onClick={handleAskNavigate}>
-                    바로 이동
-                  </button>
-                  <button type="button" className="lv-btn-ghost" onClick={handleAskAddToRoadmap}>
-                    로드맵에 추가
-                  </button>
-                </>
-              )}
-              <span className="grow" />
-              <button type="button" className="lv-btn-ghost" onClick={openAsk}>
+            </span>
+            <button className="aqm-close" type="button" onClick={resetAsk} aria-label="닫기">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6 6 18 18" /><path d="M18 6 6 18" /></svg>
+            </button>
+          </div>
+
+          <div className="aqm-body">
+            {askTurns.length === 0 ? (
+              <>
+                {askStatus === "loading" && (
+                  <div className="aq-loading">
+                    <span className="aq-dots"><i /><i /><i /></span>
+                    <span className="txt">질문을 살펴보고 있어요…</span>
+                  </div>
+                )}
+                {askStatus === "error" && (
+                  <>
+                    <div className="aq-error">
+                      <span className="ico" aria-hidden>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" /><path d="M12 9v4" /><path d="M12 17h.01" /></svg>
+                      </span>
+                      <div className="body">
+                        <strong>답변을 가져오지 못했어요</strong>
+                        <p>{askError ? describeErrorCode(askError.code, askError.message) : "잠시 후 다시 시도해 주세요."}</p>
+                      </div>
+                    </div>
+                    <div className="aq-actions">
+                      <span className="grow" />
+                      <button className="aq-btn aq-btn--ghost" type="button" onClick={resetAsk}>닫기</button>
+                      <button className="aq-btn aq-btn--holo" type="button" onClick={() => void submitAsk()}>
+                        다시 시도
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8" /><path d="M3 3v5h5" /></svg>
+                      </button>
+                    </div>
+                  </>
+                )}
+                {askStatus === "idle" && (
+                  <>
+                    <p className="aq-guide">이 단계를 읽다가 생긴 의문을 한 줄로 적어보세요.</p>
+                    <div className="aq-field">
+                      <input
+                        ref={askInputRef}
+                        type="text"
+                        maxLength={120}
+                        placeholder="예: 여기서 말하는 '상태'가 정확히 뭐예요?"
+                        value={askText}
+                        onChange={(e) => setAskText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            void submitAsk();
+                          }
+                        }}
+                      />
+                      <span className="count">{askText.length}/120</span>
+                    </div>
+                    <div className="aq-actions">
+                      <span className="grow" />
+                      <button className="aq-btn aq-btn--ghost" type="button" onClick={resetAsk}>취소</button>
+                      <button
+                        className="aq-btn aq-btn--holo"
+                        type="button"
+                        onClick={() => void submitAsk()}
+                        disabled={!askText.trim()}
+                      >
+                        질문 보내기
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="m13 6 6 6-6 6" /></svg>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="aq-thread">
+                  {askTurns.map((t, i) => {
+                    const isLast = i === askTurns.length - 1;
+                    return (
+                      <div className="aq-turn" key={i}>
+                        {i > 0 && (
+                          <div className="aq-recap">
+                            <span className="qm">질문</span>
+                            <span className="q"><MathText text={t.question} /></span>
+                          </div>
+                        )}
+                        {t.result.route !== "offtopic" && t.result.answer.trim() && (
+                          <div className="aq-answer"><Markdown text={t.result.answer} /></div>
+                        )}
+                        {isLast && renderAskGuidance(t.result)}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {askStatus === "loading" && (
+                  <div className="aq-loading" style={{ marginTop: 14 }}>
+                    <span className="aq-dots"><i /><i /><i /></span>
+                    <span className="txt">이어서 살펴보고 있어요…</span>
+                  </div>
+                )}
+                {askStatus === "error" && (
+                  <div className="aq-error" style={{ marginTop: 14 }}>
+                    <span className="ico" aria-hidden>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" /><path d="M12 9v4" /><path d="M12 17h.01" /></svg>
+                    </span>
+                    <div className="body">
+                      <strong>답변을 가져오지 못했어요</strong>
+                      <p>{askError ? describeErrorCode(askError.code, askError.message) : "잠시 후 다시 시도해 주세요."}</p>
+                      <div className="aq-actions">
+                        <span className="grow" />
+                        <button className="aq-btn aq-btn--holo" type="button" onClick={() => void submitAsk()}>다시 시도</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {askStatus === "idle" && askCanFollowup && (
+                  <div className="aq-followup">
+                    <div className="aq-followup-label">
+                      <span className="left">이어서 더 물어보기</span>
+                      <span className="remain">남은 후속 {askRemaining}회</span>
+                    </div>
+                    <div className="aq-field">
+                      <input
+                        ref={askInputRef}
+                        type="text"
+                        maxLength={120}
+                        placeholder="이 답변에 이어서 한 줄로…"
+                        value={askText}
+                        onChange={(e) => setAskText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            void submitAsk();
+                          }
+                        }}
+                      />
+                      <span className="count">{askText.length}/120</span>
+                    </div>
+                    <div className="aq-actions">
+                      <span className="grow" />
+                      <button
+                        className="aq-btn aq-btn--holo"
+                        type="button"
+                        onClick={() => void submitAsk()}
+                        disabled={!askText.trim()}
+                      >
+                        이어 묻기
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="m13 6 6 6-6 6" /></svg>
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {askStatus === "idle" && askExhausted && (
+                  <div className="aq-exhausted">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="12" cy="12" r="9" /><path d="M12 11v5" /><path d="M12 8h.01" /></svg>
+                    <span>이어지는 질문은 여기까지예요. 더 깊이 가려면 위 안내를 따라가거나, 아래에서 새 질문을 시작하세요.</span>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {askTurns.length > 0 && askStatus !== "loading" && (
+            <div className="aqm-foot">
+              <button className="aqm-reset" type="button" onClick={startAskThread}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8" /><path d="M3 3v5h5" /></svg>
                 다른 질문하기
               </button>
-              <button type="button" className="lv-btn-ghost" onClick={resetAsk}>
-                닫기
-              </button>
+              <span className="aqm-hint">새 질문은 새로 답해요</span>
+              <span className="grow" />
+              <button className="aqm-reset" type="button" style={{ color: "var(--fg)" }} onClick={resetAsk}>닫기</button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     ) : null;
 
   return (
     <div className="lv-board">
+      {askModal}
+      {selChipEl}
       {prereq.parentConcept && (
         <ParentReturnBanner
           parentConcept={prereq.parentConcept}
@@ -1071,7 +1364,6 @@ export function StageLearn({
                 <p className="lv2-sub">{step.desc}</p>
                 {prereqLimit}
                 {explainDetail}
-                {askPanel && <div className="lvv-ask-row">{askPanel}</div>}
               </div>
             </div>
             <div className="lv2-right">
@@ -1110,8 +1402,6 @@ export function StageLearn({
                 {explainDetail}
               </div>
             </section>
-
-            {askPanel && <div className="lvv-ask-row">{askPanel}</div>}
 
             {prereqLimit && <div className="lvv-prereq-row">{prereqLimit}</div>}
 

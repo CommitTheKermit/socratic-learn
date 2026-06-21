@@ -68,15 +68,17 @@ export interface SlReanswerParams extends SlCommonParams {
   step_idx: number;
 }
 
-/** sl_ask_submit: learn '질문하기' 한 줄 질문 제출. */
+/** sl_ask_submit: learn '질문하기' 한 줄 질문 제출. turn=몇 번째 턴(0=최초, 1~2=후속). */
 export interface SlAskSubmitParams extends SlCommonParams {
   step_idx: number;
+  turn: number;
 }
 
-/** sl_ask_result: '질문하기' 분류 결과 수신. route 가 분류 결과. */
+/** sl_ask_result: '질문하기' 답변+안내 결과 수신. route 가 흐름 안내 분류. */
 export interface SlAskResultParams extends SlCommonParams {
   step_idx: number;
-  route: "prereq" | "newStep" | "none";
+  route: "prereq" | "newStep" | "none" | "offtopic";
+  turn: number;
 }
 
 /** sl_ask_navigate: newStep '바로 이동'(보충 단계 즉시 진입). */
