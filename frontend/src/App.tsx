@@ -21,7 +21,8 @@ import { loadSidebarPinned, saveSidebarPinned } from "./state/sidebarSetting";
 import { SessionListProvider, useSessionList } from "./state/SessionListContext";
 import { createSessionState, type SessionState } from "./state/sessionState";
 import { fetchAndMerge, persistWithSync } from "./state/sessionSync";
-import { generatePrereqTree } from "./api/claudeContent";
+import { generatePrereqTree, validateInput } from "./api/claudeContent";
+import { InvalidInputDialog } from "./components/InvalidInputDialog";
 import { PrereqModal, type PrereqStatus } from "./components/prereq/PrereqModal";
 import { buildHistoryForest } from "./state/historyForest";
 import { useDebouncedPersist } from "./state/useDebouncedPersist";
@@ -166,6 +167,8 @@ function AppWorkspace({
   const parentSessionIdRef = useRef(loaded?.parentSessionId);
   // "학습 시작" 재진입 가드(중복 세션 발급 방지).
   const startingRef = useRef(false);
+  // 부적합 학습 주제(A) 차단 모달 노출 여부. valid=true 라야 세션 발급/probe 로 진행한다.
+  const [invalidConceptOpen, setInvalidConceptOpen] = useState(false);
 
   const { user, loading: authLoading, login, logout } = useAuth();
   // GitHub 로그인 핸들(예: octocat). displayName(표시 이름)과 달리 User 타입에 노출되지 않아 reloadUserInfo 에서 추출한다.
@@ -506,6 +509,19 @@ function AppWorkspace({
         return;
       }
     }
+    // 값싼 Haiku 게이트: 학습 주제가 학습에 쓸 수 있는 입력인지 먼저 검증한다.
+    // 부적합이면 세션을 만들지 않고 우회 없는 차단 모달을 띄운다(probe 호출 0건).
+    // 검증 자체가 실패(네트워크/API 오류)하면 사용자를 막지 않고 통과시킨다(fail-open).
+    try {
+      const ok = await validateInput(concept.trim());
+      if (!ok) {
+        setInvalidConceptOpen(true);
+        startingRef.current = false;
+        return;
+      }
+    } catch {
+      // 검증 게이트 장애로 학습 자체가 막히지 않도록 통과시킨다.
+    }
     const newId = createSessionId();
     const snap = createSessionState({ sessionId: newId, createdAt: Date.now(), concept, mode });
     try {
@@ -838,6 +854,9 @@ function AppWorkspace({
               onStart={startLearning}
               testEligible={testEligible}
             />
+          )}
+          {invalidConceptOpen && (
+            <InvalidInputDialog onClose={() => setInvalidConceptOpen(false)} />
           )}
 
           {stage === "probe" && (

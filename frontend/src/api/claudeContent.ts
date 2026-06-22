@@ -7,6 +7,7 @@ import type {
   ParseFailure,
   PrereqNode,
   PrereqTreeResponse,
+  ValidateInputResponse,
 } from "./contract";
 import type { ProbeQuestion, Step } from "../stages/data";
 import { authHeaders } from "./authHeaders";
@@ -348,4 +349,36 @@ export async function askLearnQuestion(args: AskRouteRequest): Promise<AskRouteR
     throw new ClaudeContentError(code, message);
   }
   return (await res.json()) as AskRouteResponse;
+}
+
+/**
+ * 자유 텍스트 입력(학습 주제/질문)이 학습에 쓸 수 있는 입력인지 사전 검증한다(값싼 Haiku 게이트).
+ * 비싼 Sonnet 호출(probe/askRoute) 전에 호출하며, false 면 호출자가 진행을 막고 차단 모달을 띄운다.
+ * 검증 로직은 호출 지점과 무관하게 공통(무의미·장난·욕설·비학습성). 맥락 오프토픽은 askRoute 가 담당.
+ */
+export async function validateInput(text: string): Promise<boolean> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE_URL}${ApiPaths.VALIDATE_INPUT}`, {
+      method: "POST",
+      headers: await authHeaders(),
+      body: JSON.stringify({ text }),
+    });
+  } catch (e) {
+    throw new ClaudeContentError("CLAUDE_API_ERROR", (e as Error)?.message ?? "네트워크 오류");
+  }
+  if (!res.ok) {
+    let code = "CLAUDE_API_ERROR";
+    let message = `입력 검증 요청 실패: HTTP ${res.status}`;
+    try {
+      const body = await res.json();
+      if (body?.code) code = body.code as string;
+      if (body?.message) message = body.message as string;
+    } catch {
+      /* ignore */
+    }
+    throw new ClaudeContentError(code, message);
+  }
+  const body = (await res.json()) as ValidateInputResponse;
+  return body.valid === true;
 }
