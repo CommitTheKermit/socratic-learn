@@ -17,6 +17,7 @@ import {
   generateAnswerEvaluation,
   generateProbeQuestions,
   generateRoadmapOutline,
+  validateInput,
   type StepEvaluation,
 } from "../api/claudeContent";
 import { streamStepDetail, type StreamHandle } from "../api/stepDetailStream";
@@ -33,6 +34,8 @@ interface LearnContentValue {
   probeStatus: LoadStatus;
   probeError: ErrInfo | null;
   probeFromFallback: boolean;
+  /** 학습 주제가 부적합으로 판정돼 probe 생성을 막은 상태(차단 모달 표시 신호). */
+  probeInvalid: boolean;
   loadProbe: (concept: string, materials?: string, mode?: string) => Promise<void>;
 
   steps: Step[];
@@ -154,6 +157,7 @@ export function LearnContentProvider({
   );
   const [probeError, setProbeError] = useState<ErrInfo | null>(null);
   const [probeFromFallback, setProbeFromFallback] = useState(false);
+  const [probeInvalid, setProbeInvalid] = useState(false);
 
   const [steps, setStepsState] = useState<Step[]>(() => restoredSteps ?? []);
   const stepsRef = useRef<Step[]>(restoredSteps ?? []);
@@ -222,6 +226,19 @@ export function LearnContentProvider({
     setProbeStatus("loading");
     setProbeError(null);
     setProbeFromFallback(false);
+    setProbeInvalid(false);
+    // 값싼 Haiku 게이트: 학습 주제가 부적합하면 probe 생성(Sonnet)을 건너뛰고 차단 신호만 올린다.
+    // probeStatus 는 "loading" 으로 두어 진입 effect 의 재트리거(probeStatus==="idle")를 막는다.
+    // 게이트 장애(네트워크/API)면 학습을 막지 않도록 통과시킨다(fail-open).
+    try {
+      const ok = await validateInput(concept.trim());
+      if (!ok) {
+        setProbeInvalid(true);
+        return;
+      }
+    } catch {
+      // fail-open: 검증 게이트 장애로 학습 자체가 막히지 않도록 통과시킨다.
+    }
     try {
       const qs = await generateProbeQuestions(concept, materials, mode);
       setProbeQuestions(qs);
@@ -396,6 +413,7 @@ export function LearnContentProvider({
     setProbeStatus("idle");
     setProbeError(null);
     setProbeFromFallback(false);
+    setProbeInvalid(false);
     setSteps([]);
     setOutlineStatus("idle");
     setOutlineError(null);
@@ -418,6 +436,7 @@ export function LearnContentProvider({
         probeStatus,
         probeError,
         probeFromFallback,
+        probeInvalid,
         loadProbe,
         steps,
         outlineStatus,

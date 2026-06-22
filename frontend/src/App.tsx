@@ -21,7 +21,7 @@ import { loadSidebarPinned, saveSidebarPinned } from "./state/sidebarSetting";
 import { SessionListProvider, useSessionList } from "./state/SessionListContext";
 import { createSessionState, type SessionState } from "./state/sessionState";
 import { fetchAndMerge, persistWithSync } from "./state/sessionSync";
-import { generatePrereqTree, validateInput } from "./api/claudeContent";
+import { generatePrereqTree } from "./api/claudeContent";
 import { InvalidInputDialog } from "./components/InvalidInputDialog";
 import { PrereqModal, type PrereqStatus } from "./components/prereq/PrereqModal";
 import { buildHistoryForest } from "./state/historyForest";
@@ -167,8 +167,6 @@ function AppWorkspace({
   const parentSessionIdRef = useRef(loaded?.parentSessionId);
   // "학습 시작" 재진입 가드(중복 세션 발급 방지).
   const startingRef = useRef(false);
-  // 부적합 학습 주제(A) 차단 모달 노출 여부. valid=true 라야 세션 발급/probe 로 진행한다.
-  const [invalidConceptOpen, setInvalidConceptOpen] = useState(false);
 
   const { user, loading: authLoading, login, logout } = useAuth();
   // GitHub 로그인 핸들(예: octocat). displayName(표시 이름)과 달리 User 타입에 노출되지 않아 reloadUserInfo 에서 추출한다.
@@ -332,6 +330,7 @@ function AppWorkspace({
     stepEvaluations,
     stepBranches,
     branchedStepIds,
+    probeInvalid,
     loadProbe,
     loadOutline,
   } = useLearnContent();
@@ -509,19 +508,8 @@ function AppWorkspace({
         return;
       }
     }
-    // 값싼 Haiku 게이트: 학습 주제가 학습에 쓸 수 있는 입력인지 먼저 검증한다.
-    // 부적합이면 세션을 만들지 않고 우회 없는 차단 모달을 띄운다(probe 호출 0건).
-    // 검증 자체가 실패(네트워크/API 오류)하면 사용자를 막지 않고 통과시킨다(fail-open).
-    try {
-      const ok = await validateInput(concept.trim());
-      if (!ok) {
-        setInvalidConceptOpen(true);
-        startingRef.current = false;
-        return;
-      }
-    } catch {
-      // 검증 게이트 장애로 학습 자체가 막히지 않도록 통과시킨다.
-    }
+    // 학습 주제 검증(Haiku 게이트)은 probe 진입 시 loadProbe 안에서 수행한다.
+    // 부적합이면 probe 단계에서 차단 모달(probeInvalid)을 띄우고 probe 생성(Sonnet)을 건너뛴다.
     const newId = createSessionId();
     const snap = createSessionState({ sessionId: newId, createdAt: Date.now(), concept, mode });
     try {
@@ -596,6 +584,22 @@ function AppWorkspace({
       navigate("/");
     }
   }, [sessionId, navigate, removeSession]);
+
+  /**
+   * 부적합 학습 주제 차단 모달의 "다시 입력". probe 진입 시 발급된 (검증 실패한) 세션을
+   * 정리하고, 사용자가 고칠 수 있도록 입력값을 초안에 살려 홈(Hero)으로 돌려보낸다.
+   */
+  const handleInvalidConceptReenter = useCallback(() => {
+    if (sessionId) removeSession(sessionId);
+    try {
+      localStorage.removeItem(ACTIVE_SESSION_KEY);
+      if (concept.trim()) localStorage.setItem(DRAFT_CONCEPT_KEY, concept.trim());
+      else localStorage.removeItem(DRAFT_CONCEPT_KEY);
+    } catch {
+      // 무시
+    }
+    navigate("/");
+  }, [sessionId, concept, navigate, removeSession]);
 
   // ── 선행 개념 트리 오케스트레이션 ──────────────────────────────────────
   const sessionsById = useMemo(() => {
@@ -855,10 +859,6 @@ function AppWorkspace({
               testEligible={testEligible}
             />
           )}
-          {invalidConceptOpen && (
-            <InvalidInputDialog onClose={() => setInvalidConceptOpen(false)} />
-          )}
-
           {stage === "probe" && (
             <StageProbe
               concept={concept}
@@ -872,6 +872,11 @@ function AppWorkspace({
               prereq={prereq}
               onRetry={() => loadProbe(concept, materials)}
             />
+          )}
+          {/* 부적합 학습 주제(A): probe 진입 시 loadProbe 검증이 막으면 차단 모달을 띄운다.
+              "다시 입력"은 정크 세션을 지우고 concept 를 살려 홈(Hero)으로 돌려보낸다. */}
+          {stage === "probe" && probeInvalid && (
+            <InvalidInputDialog onClose={handleInvalidConceptReenter} />
           )}
 
           {stage === "learn" && (

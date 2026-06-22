@@ -1,9 +1,11 @@
 /**
- * AC: Hero 학습 주제(A)는 검증 게이트를 거친다.
- * - 부적합(valid=false): 우회 없는 차단 모달이 뜨고 probe(generateProbeQuestions)를 호출하지 않는다.
- * - 유효(valid=true): 검증을 통과해 probe 단계로 진행한다(generateProbeQuestions 호출).
+ * AC: 학습 주제(A)는 probe 진입 시 검증 게이트를 거친다.
+ * - 부적합(valid=false): 학습 시작 → probe 단계로 이동한 뒤 그 위에 우회 없는 차단 모달이 뜨고,
+ *   probe 생성(generateProbeQuestions, Sonnet)을 호출하지 않는다.
+ * - 유효(valid=true): probe 생성으로 진행한다(generateProbeQuestions 호출).
+ * - 게이트 장애(throw): 학습을 막지 않고 통과시킨다(fail-open) → generateProbeQuestions 호출.
  *
- * validateInput 이 valid=true 를 반환해야만 다음 Sonnet 호출이 일어남을 확인한다.
+ * 검증은 loadProbe(LearnContent) 안에서 수행되며, valid=true 라야 다음 Sonnet 호출이 일어난다.
  */
 import { describe, test, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -58,8 +60,8 @@ beforeEach(() => {
   localStorage.clear();
 });
 
-describe("Hero 학습 주제(A) 검증 게이트", () => {
-  test("부적합(valid=false): 차단 모달이 뜨고 generateProbeQuestions 를 호출하지 않는다", async () => {
+describe("학습 주제(A) 검증 게이트 — probe 진입 시", () => {
+  test("부적합(valid=false): probe 단계 차단 모달이 뜨고 generateProbeQuestions 를 호출하지 않는다", async () => {
     vi.mocked(claude.validateInput).mockResolvedValueOnce(false);
     renderHome();
     await typeConceptAndStart("asdfasdf");
@@ -69,7 +71,7 @@ describe("Hero 학습 주제(A) 검증 게이트", () => {
     expect(claude.generateProbeQuestions).not.toHaveBeenCalled();
   });
 
-  test("유효(valid=true): probe 단계로 진행해 generateProbeQuestions 가 호출된다", async () => {
+  test("유효(valid=true): probe 생성으로 진행해 generateProbeQuestions 가 호출된다", async () => {
     vi.mocked(claude.validateInput).mockResolvedValueOnce(true);
     renderHome();
     await typeConceptAndStart("미분");
