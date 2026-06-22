@@ -522,8 +522,8 @@ describe("AC4(칩): 분기 모드 단계 칩 전진 게이팅", () => {
   });
 });
 
-// ─── AC2(isMerged): isMerged=true 시 ai_recommended 단계 삽입 차단 ──────────
-describe("AC2(isMerged): isMerged=true 시 ai_recommended 삽입 차단", () => {
+// ─── AC2(isMerged): isMerged=true 시 ai_recommended 옵션 자체를 미표시 ──────────
+describe("AC2(isMerged): isMerged=true 시 ai_recommended 다이얼로그 미표시", () => {
   const branchStageContent: Step = {
     id: 10,
     title: "AI 추천 보조 단계",
@@ -532,7 +532,7 @@ describe("AC2(isMerged): isMerged=true 시 ai_recommended 삽입 차단", () => 
     questions: [],
   };
 
-  test("isMerged=true + ai_recommended 선택 시 insertStepAt 이 호출되지 않는다", () => {
+  test("isMerged=true + ai_recommended 는 다이얼로그에 옵션으로 렌더링되지 않는다", () => {
     const insertStepAt = vi.fn(() => 99);
     mockLearnContent = makeLearnContent({
       stepEvalStatus: { 0: "ready" },
@@ -557,10 +557,13 @@ describe("AC2(isMerged): isMerged=true 시 ai_recommended 삽입 차단", () => 
     renderLearn({ mode: "branch", stepIdx: 0, setStepIdx });
 
     fireEvent.click(screen.getByRole("button", { name: /평가 보기/ }));
-    fireEvent.click(screen.getByRole("button", { name: /AI 추천 단계로 이동/ }));
 
+    // isMerged=true 인 ai_recommended 는 눌러도 삽입이 차단돼 조용히 다음 단계로
+    // 튕기던 옵션이므로 애초에 다이얼로그에 띄우지 않는다(추천 옵션 부재).
+    expect(screen.queryByRole("button", { name: /AI 추천 단계로 이동/ })).toBeNull();
+    // 다이얼로그 자체는 정상 렌더(로드맵 다음 단계 옵션은 존재)
+    expect(screen.getByRole("button", { name: /로드맵 다음 단계로 이동/ })).toBeTruthy();
     expect(insertStepAt).not.toHaveBeenCalled();
-    expect(setStepIdx).toHaveBeenCalledWith(1);
   });
 
   test("isMerged=false 이면 ai_recommended 단계를 정상 삽입한다", () => {
