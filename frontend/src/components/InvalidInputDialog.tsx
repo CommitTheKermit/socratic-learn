@@ -1,6 +1,12 @@
+import { createPortal } from "react-dom";
+
 // 부적합 입력 차단 모달(A: 학습 주제, D: 질문하기 공통).
 // 우회 경로·사유 카테고리 없이 고정 일반 메시지 + 단일 "다시 입력" 액션만 제공한다(강제 재입력).
 // retreat-dialog 스타일(styles/v3.css)을 재사용한다.
+//
+// document.body 로 포털 렌더한다: .main-inner/.lv-board 안에서 렌더되면 .main-inner > *
+// 의 width:min(720px) 제약과 .main 의 overflow:hidden 때문에 position:fixed 백드롭이
+// 전체 화면을 덮지 못하고 잘려 보인다. 포털로 레이아웃 containing block/overflow 영향을 피한다.
 
 const INVALID_INPUT_MESSAGE = "학습에 사용할 수 있는 내용을 입력해 주세요.";
 
@@ -10,7 +16,7 @@ interface Props {
 }
 
 export function InvalidInputDialog({ onClose }: Props) {
-  return (
+  return createPortal(
     <div className="retreat-dialog-backdrop" role="dialog" aria-modal="true">
       <div className="retreat-dialog">
         <h3>다시 입력해 주세요</h3>
@@ -21,6 +27,7 @@ export function InvalidInputDialog({ onClose }: Props) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
