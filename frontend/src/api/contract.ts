@@ -14,6 +14,8 @@ export const ApiPaths = {
   BRANCH_EVAL: "/branchEval",
   // learn 단계 '질문하기' 라우터. 한 줄 질문을 prereq|newStep|none 으로 분류(분류 전용 LLM 콜).
   ASK_ROUTE: "/askRoute",
+  // 자유 텍스트 입력(학습 주제/질문)이 학습에 쓸 수 있는 입력인지 사전 검증(값싼 Haiku 게이트).
+  VALIDATE_INPUT: "/validateInput",
   STEP_DETAIL_STREAM: "/stepDetailStream",
   // 테스트 모드 자격 조회(Anthropic 미사용). 로그인 직후 1회 호출해 입력창 모드 노출 게이팅에 쓴다.
   TEST_ELIGIBLE: "/testEligible",
@@ -192,6 +194,20 @@ export interface AskRouteResponse {
   message: string;
   /** route=newStep 일 때만 보충 단계 제안(title/desc). 본문/질문은 진입 시 기존 기계가 생성. 그 외엔 null. */
   suggestedStep: { title: string; desc: string } | null;
+}
+
+/**
+ * POST /validateInput 요청. 자유 텍스트 입력(학습 주제 또는 질문) 한 덩어리를 검증한다.
+ * 검증 로직은 호출 지점(Hero/Learn)과 무관하게 공통이다(무의미·장난·욕설·비학습성 차단).
+ * 맥락 관련성(오프토픽)은 여기서 보지 않으며 기존 askRoute 가 담당한다.
+ */
+export interface ValidateInputRequest {
+  text: string;
+}
+
+/** POST /validateInput 응답. valid=false 면 프론트가 우회 없는 차단 모달로 진행을 막는다. */
+export interface ValidateInputResponse {
+  valid: boolean;
 }
 
 import type { Stage, Step } from "../stages/data";

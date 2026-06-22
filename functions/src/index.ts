@@ -9,5 +9,6 @@ export { testEligible } from "./testEligible";
 export { answerEval } from "./answerEval";
 export { branchEval } from "./branchEval";
 export { askRoute } from "./askRoute";
+export { validateInput } from "./validateInput";
 export { sessionSave, sessionList, sessionGet } from "./sessions";
 export { sessionDelete } from "./sessionDelete";

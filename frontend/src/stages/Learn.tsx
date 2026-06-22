@@ -6,7 +6,8 @@ import { pickRandomPlaceholder } from "./placeholders";
 import { describeErrorCode } from "../lib/errors";
 import { I } from "../components/icons";
 import type { Grade } from "../api/claudeContent";
-import { askLearnQuestion, ClaudeContentError } from "../api/claudeContent";
+import { askLearnQuestion, validateInput, ClaudeContentError } from "../api/claudeContent";
+import { InvalidInputDialog } from "../components/InvalidInputDialog";
 import { BranchDialog } from "../components/branch/BranchDialog";
 import { useBranchPhase } from "../state/useBranchPhase";
 import { MathText } from "../lib/mathText";
@@ -244,6 +245,8 @@ export function StageLearn({
   const [askStatus, setAskStatus] = useState<AskStatus>("idle");
   const [askTurns, setAskTurns] = useState<AskTurnLocal[]>([]);
   const [askError, setAskError] = useState<{ code: string; message: string } | null>(null);
+  // 부적합 질문(D) 차단 모달. valid=true 라야 askRoute 호출로 진행한다.
+  const [invalidAskOpen, setInvalidAskOpen] = useState(false);
   const [selChip, setSelChip] = useState<{ x: number; y: number; text: string } | null>(null);
   const askInputRef = useRef<HTMLInputElement | null>(null);
   const askLatest = askTurns.length ? askTurns[askTurns.length - 1].result : null;
@@ -478,6 +481,18 @@ export function StageLearn({
     setAskError(null);
     if (sessionId) logEvent("sl_ask_submit", { session_id: sessionId, step_idx: stepIdx, turn });
     try {
+      // 값싼 Haiku 게이트(D): 무의미·장난·욕설·비학습성 질문이면 askRoute 호출 0건 + 차단 모달.
+      // 맥락 오프토픽은 여기서 막지 않고 기존 askRoute 가 담당한다. 게이트 장애 시 통과(fail-open).
+      try {
+        const ok = await validateInput(q);
+        if (!ok) {
+          setInvalidAskOpen(true);
+          setAskStatus("idle");
+          return;
+        }
+      } catch {
+        // 검증 게이트 장애로 질문 자체가 막히지 않도록 통과시킨다.
+      }
       const priorTurns = askTurns.map((t) => ({
         question: t.question,
         answer: t.result.answer,
@@ -1304,6 +1319,7 @@ export function StageLearn({
   return (
     <div className="lv-board">
       {askModal}
+      {invalidAskOpen && <InvalidInputDialog onClose={() => setInvalidAskOpen(false)} />}
       {selChipEl}
       {prereq.parentConcept && (
         <ParentReturnBanner
