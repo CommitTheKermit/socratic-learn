@@ -49,6 +49,13 @@ export const CHANGE_TYPE_ORDER: ChangeType[] = ["feature", "improve", "fix"];
 /** 전체 버전 히스토리 (최신 → 과거). 맨 앞이 현재 버전. */
 export const CHANGELOG: VersionEntry[] = [
   {
+    version: "0.17.1",
+    date: "2026.06.23",
+    changes: [
+      { type: "fix", text: "부적합한 입력을 거를 때 안내 창이 화면 일부만 가리던 문제를 고쳐, 전체 화면에 또렷이 보이도록 했어요." },
+    ],
+  },
+  {
     version: "0.17.0",
     date: "2026.06.23",
     changes: [
