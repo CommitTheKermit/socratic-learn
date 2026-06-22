@@ -28,13 +28,23 @@ import { loadOrient, saveOrient, type Orient } from "../state/orientSetting";
  * LLM 생성분은 버리고 여기서 실제 로드맵 기준으로 직접 만든다.
  *  - 다음 단계가 있으면 실제 steps[stepIdx+1] 을 가리키는 옵션을 항상 첫 번째로 둔다.
  *  - 마지막 단계면 옵션 자체를 빼고 LLM 이 만든 나머지(추천/추가/마무리)만 남긴다.
+ *  - 삽입 불가한 심화/추가 분기(canInsertBranchStep=false)는 다이얼로그에서 제외한다.
+ *    누르면 handleChoose 가 삽입을 차단하고 조용히 다음 단계로 튕기던 케이스
+ *    (isMerged=true 인 ai_recommended, 제목 중복 백스톱)를 애초에 안 보여준다.
  */
 function normalizeBranchOptions(
   options: BranchOption[],
   steps: Step[],
   stepIdx: number,
+  isMerged: boolean,
 ): BranchOption[] {
-  const rest = options.filter((o) => o.type !== "roadmap_next");
+  const rest = options
+    .filter((o) => o.type !== "roadmap_next")
+    .filter((o) => {
+      if (o.type !== "ai_recommended" && o.type !== "additional") return true;
+      if (!o.stageContent) return false;
+      return canInsertBranchStep(o.type, isMerged, o.stageContent, steps);
+    });
   const nextStep = steps[stepIdx + 1];
   if (!nextStep) return rest;
   const roadmapNext: BranchOption = {
@@ -1448,7 +1458,7 @@ export function StageLearn({
       <BranchDialog
         open={branchVisible && (branch.mode === "choosing" || branch.mode === "error")}
         evaluationText={branch.evaluationText}
-        options={[...normalizeBranchOptions(branch.options, steps, stepIdx), REANSWER_OPTION]}
+        options={[...normalizeBranchOptions(branch.options, steps, stepIdx, branch.isMerged), REANSWER_OPTION]}
         onChoose={handleChoose}
         onClose={() => setBranchVisible(false)}
         error={
