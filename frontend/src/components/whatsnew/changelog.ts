@@ -49,6 +49,14 @@ export const CHANGE_TYPE_ORDER: ChangeType[] = ["feature", "improve", "fix"];
 /** 전체 버전 히스토리 (최신 → 과거). 맨 앞이 현재 버전. */
 export const CHANGELOG: VersionEntry[] = [
   {
+    version: "0.17.0",
+    date: "2026.06.23",
+    changes: [
+      { type: "feature", text: "학습 주제나 '질문하기'에 학습과 무관하거나 장난·무의미한 내용을 입력하면, 보내기 전에 걸러내고 다시 입력하도록 안내해요." },
+      { type: "fix", text: "분기 화면에서 추천 단계를 골랐는데 심화로 들어가지 않고 다음 단계로 넘어가던 문제를 고쳤어요." },
+    ],
+  },
+  {
     version: "0.16.0",
     date: "2026.06.22",
     changes: [
