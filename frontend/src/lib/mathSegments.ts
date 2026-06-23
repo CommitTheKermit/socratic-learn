@@ -47,9 +47,8 @@ export function parseSegments(text: string): MathSegment[] {
     }
 
     // $ inline math
-    // 가격 표기 방지: 열기 $ 바로 뒤에 숫자가 오면 수식 델리미터로 해석하지 않음
     const afterDollar = i + 1 < text.length ? text[i + 1] : "";
-    if (!afterDollar || /\d/.test(afterDollar)) {
+    if (!afterDollar) {
       i++;
       continue;
     }
@@ -60,7 +59,19 @@ export function parseSegments(text: string): MathSegment[] {
       j++;
     }
 
-    if (j < text.length && text[j] === "$" && j > i + 1) {
+    const closed = j < text.length && text[j] === "$" && j > i + 1;
+    // 가격 표기 방지: 열기 $ 바로 뒤에 숫자가 오면 기본적으로 수식이 아님.
+    // 단, 닫는 $ 가 같은 줄에 있고 내용에 LaTeX 연산자(^ _ \ { })가 있으면
+    // 진짜 수식($2^n$ 등)이므로 예외적으로 수식으로 인정한다.
+    if (/\d/.test(afterDollar)) {
+      const looksLikeMath = closed && /[\\^_{}]/.test(text.slice(i + 1, j));
+      if (!looksLikeMath) {
+        i++;
+        continue;
+      }
+    }
+
+    if (closed) {
       // 내용이 있는 유효한 인라인 수식
       pushPlain(i);
       segments.push({ type: "inlineMath", latex: text.slice(i + 1, j) });
