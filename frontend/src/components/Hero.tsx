@@ -11,9 +11,19 @@ interface Props {
   onStart: () => void;
   /** 테스트 모드 자격 계정이면 드롭다운에 "테스트" 항목을 노출한다. */
   testEligible?: boolean;
+  /** 학습 시작 실패(익명 인증 실패 등) 안내. null 이면 표시하지 않는다. */
+  error?: string | null;
 }
 
-export function Hero({ mode, onMode, concept, setConcept, onStart, testEligible = false }: Props) {
+export function Hero({
+  mode,
+  onMode,
+  concept,
+  setConcept,
+  onStart,
+  testEligible = false,
+  error = null,
+}: Props) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const [guideOpen, setGuideOpen] = useState(true);
   const grow = (el: HTMLTextAreaElement | null) => {
@@ -54,6 +64,12 @@ export function Hero({ mode, onMode, concept, setConcept, onStart, testEligible 
           학습 시작
         </button>
       </form>
+
+      {error && (
+        <p className="hero-error" role="alert">
+          {error}
+        </p>
+      )}
 
       <div className="hero-guide">
         <div className="hg-toggle-wrap">

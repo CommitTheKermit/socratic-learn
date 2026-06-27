@@ -33,7 +33,7 @@ cd functions && npm run serve      # build + emulators:start --only functions (�
 
 브라우저(React) → Firebase Functions(`onRequest`) → Anthropic Messages API.
 
-- 인증: 브라우저는 Firebase Auth(GitHub) 로 로그인하고, 모든 Functions 호출에 ID 토큰을 `Authorization: Bearer` 로 싣는다. Functions 는 `functions/src/auth.ts` 의 `requireAuth`(POST 처리 직전, 405 체크 다음)로 검증하고 `recordUsage` 로 Firestore `usage` 에 적재한다. 비로그인/무효 토큰은 401.
+- 인증: 브라우저는 Firebase Auth 로 사용자를 식별한다. GitHub 로그인은 **선택**이고, 비로그인 사용자는 학습 시작 시 **익명 로그인(`signInAnonymously`)** 으로 익명 uid 를 발급받는다(추적용). 모든 Functions 호출에 ID 토큰(익명 포함)을 `Authorization: Bearer` 로 싣는다. Functions 는 `functions/src/auth.ts` 의 `requireAuth`(POST 처리 직전, 405 체크 다음)로 검증하고 `recordUsage` 로 Firestore `usage` 에 적재한다. 토큰 없음/무효는 401(익명 토큰도 유효 토큰이라 그대로 통과하므로 서버는 익명/GitHub 를 구분하지 않는다).
 
 - `frontend/src/App.tsx` 의 단일 상태 머신(input → probe → learn → done). 단계 본문/질문/평가/분기는 모두 Functions 호출로 생성한다(스트리밍 아님, JSON).
 - `frontend/src/api/claudeContent.ts` 의 각 함수(`detectOverwhelm`/`generateProbeQuestions`/`generateRoadmapOutline`/`generateStepDetail`/`generateAnswerEvaluation`/`generateBranchEvaluation`)는 `fetch(\`${API_BASE_URL}${ApiPaths.X}\`)` 로 Functions 를 호출한다. 시그니처/반환타입은 이전 전과 동일하게 유지된다.
@@ -69,7 +69,7 @@ Firebase 프로젝트 `socratic-learn-web`(`.firebaserc`), region `us-central1`.
 
 서버 자동 회귀 테스트 대신 frontend 단위 테스트(vitest) + emulator Playwright E2E 로 검증한다. `frontend/e2e/sliceN-*.cjs` 가 input→해당 단계까지 주행하며 ① 해당 엔드포인트가 `127.0.0.1:5001` 으로 200, ② api.anthropic.com 직호출 0건 을 확인한다. dev server 가 IPv6 만 바인딩하면 `http://localhost:<port>` 로 접속. 상세는 `docs/firebase-migration.md`.
 
-- E2E 는 로그인 게이팅을 우회하려 Auth emulator + 자동 익명 로그인을 쓴다. emulator 를 `--only functions,auth,firestore` 로 띄우고, dev 를 `VITE_AUTH_EMULATOR_URL=http://127.0.0.1:9099 VITE_E2E_AUTO_SIGNIN=true npm run dev` 로 실행한 뒤 `E2E_BASE_URL=http://localhost:<port> node e2e/<file>.cjs`. 두 env 는 실서비스 빌드엔 없으므로 영향이 없다(`firebase.ts` 의 `connectAuthEmulator`, `useAuth` 의 익명 로그인은 해당 env 가 있을 때만 동작).
+- E2E 는 로그인 게이팅을 우회하려 Auth emulator + 자동 익명 로그인을 쓴다. emulator 를 `--only functions,auth,firestore` 로 띄우고, dev 를 `VITE_AUTH_EMULATOR_URL=http://127.0.0.1:9099 VITE_E2E_AUTO_SIGNIN=true npm run dev` 로 실행한 뒤 `E2E_BASE_URL=http://localhost:<port> node e2e/<file>.cjs`. 두 env 는 실서비스 빌드엔 없으므로 영향이 없다(`firebase.ts` 의 `connectAuthEmulator`, `useAuth` 의 **E2E 자동** 익명 로그인은 해당 env 가 있을 때만 동작 - 일반 학습 시작 시의 `ensureSignedIn` 익명 로그인과는 별개다).
 - 위 오케스트레이션은 **`bash frontend/e2e/run.sh`** 가 한 번에 한다(functions 빌드 → emulator+dev 기동/readiness 대기 → e2e 실행 → 띄운 프로세스 정리. 인자로 슬라이스 파일명 지정 가능, `--smoke` 는 기동/배선만 점검하고 Anthropic 호출 없음). E2E 본 실행은 emulator 를 통해 실제 Anthropic API 를 호출하므로 비용이 발생한다. 전체 검증 절차(타입체크+vitest+선택적 E2E)는 `verify-all` 스킬을 따른다.
 
 ### 핸드오프 CSS 가드 (claude.ai/design export 적용 검증)
@@ -84,7 +84,7 @@ Firebase 프로젝트 `socratic-learn-web`(`.firebaserc`), region `us-central1`.
 
 - 경로/DTO 변경은 `contract.ts` 와 `functions/` 를 같은 PR 에서 함께 수정한다.
 - CORS 는 `cors: true` 로 열려 있으나 로컬/MVP 한정. 배포 시 origin allow-list 로 좁힌다.
-- GitHub 로그인(Firebase Auth GitHub provider) + 사용량 기록(Firestore `usage` 컬렉션) 은 **도입됨**. 학습 시작은 로그인 필수(게이팅): 프론트는 ID 토큰을 `Authorization: Bearer` 로 싣고(`api/authHeaders.ts`), Functions 는 `requireAuth` 로 검증(무효 시 401)하며 `recordUsage(uid, endpoint)` 로 적재한다.
+- GitHub 로그인(Firebase Auth GitHub provider) + 사용량 기록(Firestore `usage` 컬렉션) 은 **도입됨**. 학습 시작에 로그인은 **선택**이다(로그인 강제 게이트 제거): 비로그인 사용자는 학습 시작 시 익명 로그인으로 익명 uid 를 받아 추적되고(`useAuth.ensureSignedIn`, `App.tsx` 의 `startLearning`/`startChildLearning`), 프론트는 그 ID 토큰(익명 포함)을 `Authorization: Bearer` 로 싣고(`api/authHeaders.ts`), Functions 는 `requireAuth` 로 검증(무효 시 401)하며 `recordUsage(uid, endpoint)` 로 적재한다. GitHub 로그인은 사이드바에서 선택적으로 하며, 익명 사용자가 로그인하면 `link`(`useAuth.login` 의 `linkWithPopup`)로 같은 uid 를 유지해 추적 연속성을 잇는다(이미 존재하는 GitHub 계정이면 `credential-already-in-use` → 기존 계정으로 로그인, 익명 세션 폐기). 배포 전제: Firebase 콘솔에서 Anonymous provider 활성화 필요.
 - 배포(Hosting + Functions)는 **도입됨**. 구조/절차는 위 "배포" 섹션 참고.
 - 여전히 범위 제외(별도 합의 없이 추가 금지): 학습 세션의 서버 DB 저장(현재 세션은 localStorage), 토큰 제한/BYOK, 서버 자동 회귀 테스트, 사용량 분석 대시보드/조회 UI.
 - 프론트엔드 함정(React ref 세션 복원, CSS `position:fixed` containing block 등)은 `docs/frontend-gotchas.md` 참조.

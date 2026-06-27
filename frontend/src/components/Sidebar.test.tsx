@@ -80,7 +80,7 @@ describe("Sidebar 로그인 상태 분기 (sb-foot)", () => {
   test("비로그인이면 로그인 유도 문구와 로그인 버튼을 보여주고, 클릭 시 onLogin 호출", () => {
     const onLogin = vi.fn();
     renderSidebar({ loggedIn: false, onLogin });
-    expect(screen.getByText("학습 시작을 위해 로그인이 필요해요")).toBeInTheDocument();
+    expect(screen.getByText("로그인하면 학습 기록이 기기 간에 이어져요")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "로그인" }));
     expect(onLogin).toHaveBeenCalledTimes(1);
   });
@@ -89,7 +89,7 @@ describe("Sidebar 로그인 상태 분기 (sb-foot)", () => {
     const onLogout = vi.fn();
     renderSidebar({ loggedIn: true, userName: "테스터", onLogout });
     expect(screen.getByText("테스터")).toBeInTheDocument();
-    expect(screen.queryByText("학습 시작을 위해 로그인이 필요해요")).not.toBeInTheDocument();
+    expect(screen.queryByText("로그인하면 학습 기록이 기기 간에 이어져요")).not.toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("로그아웃"));
     expect(onLogout).toHaveBeenCalledTimes(1);
   });

@@ -168,7 +168,9 @@ function AppWorkspace({
   // "학습 시작" 재진입 가드(중복 세션 발급 방지).
   const startingRef = useRef(false);
 
-  const { user, loading: authLoading, login, logout } = useAuth();
+  const { user, loading: authLoading, login, logout, ensureSignedIn } = useAuth();
+  // 익명 로그인(학습 시작 게이트 대체) 실패 시 입력 화면에 보여줄 안내. 시작 재시도 때 초기화한다.
+  const [startError, setStartError] = useState<string | null>(null);
   // GitHub 로그인 핸들(예: octocat). displayName(표시 이름)과 달리 User 타입에 노출되지 않아 reloadUserInfo 에서 추출한다.
   const githubId =
     (user as { reloadUserInfo?: { screenName?: string } } | null)?.reloadUserInfo
@@ -500,11 +502,15 @@ function AppWorkspace({
     // 세션이 두 개 발급되는 것을 막는다(성공 시 navigate 로 언마운트되어 ref 는 버려진다).
     if (startingRef.current) return;
     startingRef.current = true;
+    setStartError(null);
+    // 로그인 강제 게이트 제거: 비로그인이면 익명 로그인으로 uid 만 확보해 그대로 진행한다
+    // (usage/세션 추적은 익명 uid 로 이어진다). GitHub 로그인은 사이드바에서 선택적으로 승격한다.
     if (!user) {
       try {
-        await login();
+        await ensureSignedIn();
       } catch {
         startingRef.current = false;
+        setStartError("학습 시작에 필요한 익명 인증에 실패했어요. 네트워크 상태를 확인하고 다시 시도해 주세요.");
         return;
       }
     }
@@ -716,9 +722,10 @@ function AppWorkspace({
   const startChildLearning = async (parentId: string | undefined, childConcept: string) => {
     if (startingRef.current) return;
     startingRef.current = true;
+    // 로그인 게이트 제거: 비로그인이면 익명 로그인으로 uid 만 확보해 진행한다(추적 연속성 유지).
     if (!user) {
       try {
-        await login();
+        await ensureSignedIn();
       } catch {
         startingRef.current = false;
         return;
@@ -799,7 +806,7 @@ function AppWorkspace({
         onDeleteSession={deleteSession}
         forest={historyForest}
         authPending={authLoading}
-        loggedIn={!!user}
+        loggedIn={!!user && !user.isAnonymous}
         userName={githubId ?? user?.displayName ?? user?.email ?? undefined}
         photoURL={user?.photoURL ?? undefined}
         onLogin={() => void login()}
@@ -822,10 +829,10 @@ function AppWorkspace({
         <span className="sb-edge-grip" aria-hidden />
       </button>
 
-      {/* 모바일 드로어 어둠막 — 탭하면 닫힘 (CSS 가 모바일·open 상태에서만 노출) */}
+      {/* 모바일 드로어 어둠막 - 탭하면 닫힘 (CSS 가 모바일·open 상태에서만 노출) */}
       {pinned && <div className="sb-scrim" aria-hidden onClick={hide} />}
 
-      {/* 업데이트 소식 플라이아웃 — 사이드바(z-index 100) 뒤에서 그 오른쪽으로 확장.
+      {/* 업데이트 소식 플라이아웃 - 사이드바(z-index 100) 뒤에서 그 오른쪽으로 확장.
           조건부 렌더 + keyframe 진입 애니메이션. 스크림 클릭은 플라이아웃만 닫는다(사이드바 유지). */}
       {wnOpen && (
         <>
@@ -857,6 +864,7 @@ function AppWorkspace({
               setConcept={setConcept}
               onStart={startLearning}
               testEligible={testEligible}
+              error={startError}
             />
           )}
           {stage === "probe" && (

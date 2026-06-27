@@ -3,21 +3,27 @@ import {
   onAuthStateChanged,
   signInAnonymously,
   signInWithPopup,
+  linkWithPopup,
+  signInWithCredential,
+  GithubAuthProvider,
   signOut,
   type User,
+  type AuthError,
 } from "firebase/auth";
 import { auth, githubProvider } from "../lib/firebase";
 import { setAnalyticsUserId } from "../lib/analytics";
 
 export interface AuthContextValue {
-  /** 로그인된 Firebase 사용자. 비로그인 시 null. */
+  /** 현재 Firebase 사용자. 익명/GitHub 모두 포함하며, 인증 전이면 null(`user.isAnonymous` 로 구분). */
   user: User | null;
   /** onAuthStateChanged 최초 응답 전까지 true (초기 인증 상태 미확정). */
   loading: boolean;
-  /** GitHub 팝업 로그인. */
+  /** GitHub 팝업 로그인. 익명 사용자면 link 로 승격해 uid(=usage/세션 추적 연속성)를 유지한다. */
   login: () => Promise<void>;
   logout: () => Promise<void>;
-  /** Functions 호출 시 Authorization 헤더에 실을 ID 토큰. 비로그인 시 null. */
+  /** uid 가 없으면 익명 로그인으로 발급한다(학습 시작 시 로그인 게이트 대체). 이미 있으면 no-op. */
+  ensureSignedIn: () => Promise<void>;
+  /** Functions 호출 시 Authorization 헤더에 실을 ID 토큰. 인증 전이면 null. */
   getIdToken: () => Promise<string | null>;
 }
 
@@ -46,7 +52,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [loading, user]);
 
+  const ensureSignedIn = async (): Promise<void> => {
+    await auth.authStateReady();
+    if (!auth.currentUser) await signInAnonymously(auth);
+  };
+
   const login = async (): Promise<void> => {
+    await auth.authStateReady();
+    const current = auth.currentUser;
+    // 익명 사용자는 link 로 승격해 같은 uid 를 유지한다(익명으로 쌓인 usage/세션 추적이 끊기지 않음).
+    if (current?.isAnonymous) {
+      try {
+        await linkWithPopup(current, githubProvider);
+        return;
+      } catch (e) {
+        const err = e as AuthError;
+        // 이미 존재하는 GitHub 계정(복귀 사용자): 익명 세션을 폐기하고 기존 계정으로 로그인한다.
+        if (err.code === "auth/credential-already-in-use") {
+          const cred = GithubAuthProvider.credentialFromError(err);
+          if (cred) {
+            await signInWithCredential(auth, cred);
+            return;
+          }
+        }
+        throw e;
+      }
+    }
     await signInWithPopup(auth, githubProvider);
   };
 
@@ -60,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, getIdToken }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, ensureSignedIn, getIdToken }}>
       {children}
     </AuthContext.Provider>
   );

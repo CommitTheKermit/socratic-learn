@@ -1,4 +1,4 @@
-/* Socratic Learn — Minimal v3
+/* Socratic Learn - Minimal v3
    References image layout (slim sidebar + centered hero + single input)
    but uses original brand + colors. */
 
@@ -24,14 +24,14 @@ textarea, input { font: inherit; color: inherit; }
   --accent-fg:   oklch(0.98 0 0);
   --accent-soft: oklch(0.62 0.17 273 / 0.18);
 
-  /* 답변 모드별 액센트 — 선택 모드가 --accent-pick 으로 흐른다 (드롭다운 텍스트·학습 시작 버튼) */
+  /* 답변 모드별 액센트 - 선택 모드가 --accent-pick 으로 흐른다 (드롭다운 텍스트·학습 시작 버튼) */
   --mode-light:    #A8FFC9;   /* 가볍게 · 민트 */
   --mode-socratic: #FFB3D9;   /* 소크라틱 · 핑크 */
   --mode-deep:     #C8B6FF;   /* 깊게 · 라벤더 */
   --mode-test:     #9DB2BF;   /* 테스트 · 슬레이트(학습 강도 아닌 점검용임을 색으로 구분) */
   --accent-pick:   var(--mode-socratic);
 
-  /* Ethereal Pulse — holographic signature gradient */
+  /* Ethereal Pulse - holographic signature gradient */
   --holo: linear-gradient(135deg,
             #A8FFC9 0%,
             #7DE3FF 35%,
@@ -99,7 +99,7 @@ body {
    hidden/peek 은 margin 0 → 사이드바가 본문 위에 떠 있는(overlay) 상태 유지. */
 .app[data-drawer="open"] .main { margin-left: var(--sidebar-w); }
 
-/* edge hotzone / peek catcher — 왼쪽 가장자리를 덮는 투명 컨트롤. hidden 에선
+/* edge hotzone / peek catcher - 왼쪽 가장자리를 덮는 투명 컨트롤. hidden 에선
    호버로 peek 을 여는 얇은 스트립, peek 에선 보이는 미리보기를 덮을 만큼 넓어져
    클릭 시 드로워를 고정한다(미리보기 중 안쪽 nav 가 잘못 눌리지 않게). open 이면 사라짐. */
 .sb-edge {
@@ -118,7 +118,7 @@ body {
 .app[data-drawer="peek"] .sb-edge { display: flex; }
 .app[data-drawer="peek"] .sb-edge { width: var(--sb-peek); }
 
-/* 옅은 그립 힌트 — hidden 가장자리를 발견 가능하게. hidden 상태에서만 보인다. */
+/* 옅은 그립 힌트 - hidden 가장자리를 발견 가능하게. hidden 상태에서만 보인다. */
 .sb-edge-grip {
   width: 3px; height: 40px;
   margin-left: 4px;
@@ -314,13 +314,13 @@ body {
   border-radius: var(--radius-sm);
 }
 .shi-main { display: flex; flex-direction: column; gap: 7px; min-width: 0; width: 100%; }
-/* 골격 바 — 제목 줄(13px)·메타 줄(11px) 높이에 맞춤 */
+/* 골격 바 - 제목 줄(13px)·메타 줄(11px) 높이에 맞춤 */
 .shi-bar {
   position: relative; overflow: hidden;
   height: 9px; border-radius: 999px;
   background: oklch(1 0 0 / 0.06);
 }
-/* 반짝이는 흐름은 바 안에서만 — 리스트 빈 공간엔 적용 X */
+/* 반짝이는 흐름은 바 안에서만 - 리스트 빈 공간엔 적용 X */
 .shi-bar::after {
   content: ""; position: absolute; inset: 0;
   background: linear-gradient(100deg, transparent 38%, oklch(1 0 0 / 0.16) 50%, transparent 62%);
@@ -507,7 +507,7 @@ body {
   place-items: center;
 }
 
-/* Aurora glow — single subtle diagonal sweep from top-right to bottom-left */
+/* Aurora glow - single subtle diagonal sweep from top-right to bottom-left */
 .aurora {
   position: absolute; inset: 0;
   pointer-events: none;
@@ -575,6 +575,14 @@ body {
   margin: 0;
   color: var(--fg-mut);
   font-size: 14.5px;
+  letter-spacing: -0.005em;
+}
+
+/* 학습 시작 실패 안내(익명 인증 실패 등). 입력바 아래에 조용히 한 줄로 표시한다. */
+.hero-error {
+  margin: 10px 0 0;
+  color: oklch(0.58 0.19 22);
+  font-size: 13.5px;
   letter-spacing: -0.005em;
 }
 
@@ -1367,7 +1375,7 @@ body {
 .q-progress i.is-curr { background: var(--holo); }
 
 /* ── 06 완료 ──────────────────────────────────────────────────────── */
-/* 완료(Done) 통합안 E — 수준 변화 한 줄 + "오늘 익힌 것" 회고 체크리스트 */
+/* 완료(Done) 통합안 E - 수준 변화 한 줄 + "오늘 익힌 것" 회고 체크리스트 */
 .done2 {
   width: min(720px, 100%);
   margin: 0 auto;
@@ -1817,7 +1825,7 @@ body {
 }
 .qa-dunno:hover { color: var(--fg-mut); text-decoration-color: var(--fg-dim); }
 
-/* "모르겠어요" 표시 패널 (안내 카드) — 입력 필드를 치환한다 */
+/* "모르겠어요" 표시 패널 (안내 카드) - 입력 필드를 치환한다 */
 .qa-pair.is-dunno { box-shadow: inset 0 0 0 1px var(--accent-soft); }
 .qa-dunno-panel {
   display: flex; align-items: center; gap: 12px;
@@ -1964,7 +1972,7 @@ body {
 }
 .lvv-explain.is-closed .lvv-explain-body { display: none; }
 
-/* 가독 폭 — 세로일 때 설명 본문이 너무 넓어지지 않도록 */
+/* 가독 폭 - 세로일 때 설명 본문이 너무 넓어지지 않도록 */
 .lvv-explain-body .md-body { max-width: 760px; }
 
 /* 질문 영역 */
@@ -2032,7 +2040,7 @@ body {
 .lv-btn-holo:active { transform: translateY(1px); }
 .lv-btn-holo:disabled { opacity: 0.5; cursor: default; }
 
-/* Scrollbar — minimal */
+/* Scrollbar - minimal */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: oklch(1 0 0 / 0.08); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: oklch(1 0 0 / 0.16); }
@@ -2107,7 +2115,7 @@ body {
   z-index: 900;                 /* 앱 셸 위, (있다면) 토스트 아래 */
   display: grid;
   place-items: center;
-  /* 옅게(veil): 옅은 디밍 + 부드러운 블러 — 아래 콘텐츠가 은은히 비친다 */
+  /* 옅게(veil): 옅은 디밍 + 부드러운 블러 - 아래 콘텐츠가 은은히 비친다 */
   background: oklch(0.135 0.005 270 / 0.42);
   -webkit-backdrop-filter: blur(3px);
   backdrop-filter: blur(3px);
@@ -2136,7 +2144,7 @@ body {
   transform: translateY(-2%);
 }
 
-/* 점 호흡 — 점 하나 호흡 + 확산 링 */
+/* 점 호흡 - 점 하나 호흡 + 확산 링 */
 .sov-dot-wrap { position: relative; width: 44px; height: 44px; display: grid; place-items: center; }
 .sov-ring {
   position: absolute; inset: 0; border-radius: 50%;
