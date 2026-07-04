@@ -49,6 +49,17 @@ export const CHANGE_TYPE_ORDER: ChangeType[] = ["feature", "improve", "fix"];
 /** 전체 버전 히스토리 (최신 → 과거). 맨 앞이 현재 버전. */
 export const CHANGELOG: VersionEntry[] = [
   {
+    version: "0.18.0",
+    date: "2026.07.05",
+    changes: [
+      { type: "feature", text: "메인 화면에서 준비된 학습 로드맵(안드로이드)을 골라 바로 학습을 시작할 수 있어요." },
+      { type: "improve", text: "로그인 없이도 바로 학습을 시작할 수 있어요. 로그인은 기록을 기기 간에 잇고 싶을 때만 선택하면 돼요." },
+      { type: "improve", text: "'이렇게 학습해요' 안내를 접어두면 다음에 와도 접힌 상태로 유지돼요." },
+      { type: "fix", text: "분기 선택 화면에서 설명이 한 줄로 잘리던 문제를 고쳤어요." },
+      { type: "fix", text: "일부 수식이 어긋나게 표시되던 문제를 개선했어요." },
+    ],
+  },
+  {
     version: "0.17.1",
     date: "2026.06.23",
     changes: [
