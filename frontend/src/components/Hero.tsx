@@ -1,5 +1,6 @@
 import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { HOW_STEPS, modesFor } from "../stages/data";
+import { loadGuideOpen, saveGuideOpen } from "../state/guideSetting";
 import { ModeMenu } from "./ModeMenu";
 import { RoadmapPanel } from "./RoadmapPanel";
 import { I } from "./icons";
@@ -29,7 +30,8 @@ export function Hero({
   error = null,
 }: Props) {
   const ref = useRef<HTMLTextAreaElement>(null);
-  const [guideOpen, setGuideOpen] = useState(true);
+  // 안내 접기/펼침은 localStorage 에 영속화한다(재마운트/새로고침에도 유지).
+  const [guideOpen, setGuideOpen] = useState(loadGuideOpen);
   // 로드맵 행을 고르면 시작 토스트를 띄운 뒤 그 readymade 로드맵을 복사해 학습을 시작한다.
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -76,7 +78,13 @@ export function Hero({
             type="button"
             className={"hg-toggle" + (guideOpen ? " is-open" : "")}
             aria-expanded={guideOpen}
-            onClick={() => setGuideOpen((v) => !v)}
+            onClick={() =>
+              setGuideOpen((v) => {
+                const next = !v;
+                saveGuideOpen(next);
+                return next;
+              })
+            }
           >
             Socratic은 이렇게 학습해요
             <span className="chev">{I.chevSmall}</span>
