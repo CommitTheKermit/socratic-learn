@@ -24,6 +24,10 @@ export const ApiPaths = {
   SESSION_LIST: "/sessionList",
   SESSION_GET: "/sessionGet",
   SESSION_DELETE: "/sessionDelete",
+  // ready-made 로드맵 라이브러리 (Anthropic 미사용, 공개 읽기). 운영자가 시드로 적재한 로드맵을
+  // 인증 사용자(익명 포함) 누구나 조회한다. 쓰기 엔드포인트는 없다(적재는 Admin SDK 시드 스크립트만).
+  READYMADE_ROADMAP_LIST: "/readymadeRoadmapList",
+  READYMADE_ROADMAP_GET: "/readymadeRoadmapGet",
 } as const;
 
 // stepDetailStream SSE 이벤트. body 는 delta 로 흘리고 questions 는 complete 에 담긴다.
@@ -283,6 +287,50 @@ export interface SessionGetResponse {
 /** POST /sessionDelete 요청. uid 격리 컬렉션에서 해당 세션을 영구 삭제한다. */
 export interface SessionDeleteRequest {
   sessionId: string;
+}
+
+// ── ready-made 로드맵 라이브러리 DTO ──
+// 운영자가 시드 JSON 으로 적재해 모든 사용자에게 공개되는 준비된 학습 로드맵.
+// steps/prereqTree 는 일반 세션과 동일한 구조(Step/PrereqNode)라, 시작 시 그대로 새 세션에 복사된다.
+
+/** ready-made 로드맵 1건(전체 본문). Firestore readymadeRoadmaps/{roadmapId} 문서 형태와 동일. */
+export interface ReadymadeRoadmap {
+  /** 로드맵 고유 식별자(문서 ID). */
+  roadmapId: string;
+  /** 라이브러리/세션에 표시할 제목. */
+  title: string;
+  /** 라이브러리 목록용 짧은 설명. */
+  summary: string;
+  /** 학습 주제(예: "안드로이드"). 라이브러리에서 주제별 그룹의 기준. */
+  subject: string;
+  /** 로드맵 단계들. body/questions 가 채워진 완성 콘텐츠(일반 세션 steps 와 동일 구조). */
+  steps: Step[];
+  /** 선행 개념 트리. 시작 시 새 세션의 prereqTree 로 복사된다. */
+  prereqTree: PrereqNode[];
+  /** 시드 콘텐츠 버전(적재/갱신 추적용). */
+  version: number;
+}
+
+/** 라이브러리 목록 1건(경량 메타, 본문 미포함). 카드 렌더링용. */
+export interface ReadymadeRoadmapListEntry {
+  roadmapId: string;
+  title: string;
+  summary: string;
+  subject: string;
+  /** 단계 수(카드 메타 "N단계"). */
+  stepCount: number;
+  /** 선행 개념 트리 보유 여부(카드 메타 "선행 개념 포함"). */
+  hasPrereq: boolean;
+}
+
+/** GET /readymadeRoadmapList 응답. subject→title 순 정렬된 경량 메타 목록. */
+export interface ReadymadeRoadmapListResponse {
+  roadmaps: ReadymadeRoadmapListEntry[];
+}
+
+/** GET /readymadeRoadmapGet?id= 응답. 없으면 roadmap=null. */
+export interface ReadymadeRoadmapGetResponse {
+  roadmap: ReadymadeRoadmap | null;
 }
 
 export const API_BASE_URL: string =

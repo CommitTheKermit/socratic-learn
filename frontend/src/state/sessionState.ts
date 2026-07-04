@@ -1,6 +1,6 @@
 import type { ProbeAnswers, ProbeQuestion, Stage, Step } from "../stages/data";
 import type { StepEvaluation } from "../api/claudeContent";
-import type { BranchOption, PrereqNode } from "../api/contract";
+import type { BranchOption, PrereqNode, ReadymadeRoadmap } from "../api/contract";
 
 /**
  * 한 단계에서 생성된 분기 평가 스냅샷. 다이얼로그의 평가 텍스트/선택지/병합 여부를 담는다.
@@ -445,5 +445,40 @@ export function createSessionState(args: {
     answers: {},
     skips: {},
     ...(args.parentSessionId ? { parentSessionId: args.parentSessionId } : {}),
+  };
+}
+
+/**
+ * ready-made 로드맵을 사용자 소유의 새 학습 세션으로 복사한다.
+ * 진단(probe)을 건너뛰고 곧장 learn 단계로 시작하며, 로드맵의 완성 콘텐츠(steps: body/questions 포함)와
+ * 선행 개념 트리(prereqTree)를 그대로 실어 복원 측이 재로딩 없이 학습을 이어가게 한다.
+ * 원본 로드맵 문서는 건드리지 않는다(불변). 복사본은 이후 일반 세션처럼 답변·평가·분기된다.
+ *
+ * concept 은 로드맵 제목으로 둔다(answerEval/branchEval 등이 학습 주제로 사용). estimatedLevel 은
+ * 로드맵이 특정 사용자 수준에 맞춰진 게 아니므로 중립 기본값(1)로 시작한다.
+ * 순수 함수(부수효과 없음). createdAt/sessionId 는 호출 측이 생성해 주입한다.
+ */
+export function createSessionFromRoadmap(args: {
+  sessionId: string;
+  createdAt: number;
+  roadmap: ReadymadeRoadmap;
+  mode?: string;
+}): SessionState {
+  const { roadmap } = args;
+  return {
+    sessionId: args.sessionId,
+    createdAt: args.createdAt,
+    conceptSummary: roadmap.title,
+    stage: "learn",
+    mode: args.mode ?? "socratic",
+    concept: roadmap.title,
+    materials: "",
+    probes: {},
+    estimatedLevel: 1,
+    stepIdx: 0,
+    answers: {},
+    skips: {},
+    steps: roadmap.steps,
+    ...(roadmap.prereqTree.length ? { prereqTree: roadmap.prereqTree } : {}),
   };
 }

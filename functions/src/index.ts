@@ -12,3 +12,4 @@ export { askRoute } from "./askRoute";
 export { validateInput } from "./validateInput";
 export { sessionSave, sessionList, sessionGet } from "./sessions";
 export { sessionDelete } from "./sessionDelete";
+export { readymadeRoadmapList, readymadeRoadmapGet } from "./readymadeRoadmaps";
