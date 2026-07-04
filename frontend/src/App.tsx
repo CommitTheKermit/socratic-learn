@@ -19,9 +19,14 @@ import { LearnContentProvider, useLearnContent } from "./state/LearnContent";
 import { loadSession } from "./state/sessionPersist";
 import { loadSidebarPinned, saveSidebarPinned } from "./state/sidebarSetting";
 import { SessionListProvider, useSessionList } from "./state/SessionListContext";
-import { createSessionState, type SessionState } from "./state/sessionState";
+import {
+  createSessionState,
+  createSessionFromRoadmap,
+  type SessionState,
+} from "./state/sessionState";
 import { fetchAndMerge, persistWithSync } from "./state/sessionSync";
 import { generatePrereqTree } from "./api/claudeContent";
+import { getReadymadeRoadmap } from "./api/readymadeRoadmapApi";
 import { InvalidInputDialog } from "./components/InvalidInputDialog";
 import { PrereqModal, type PrereqStatus } from "./components/prereq/PrereqModal";
 import { buildHistoryForest } from "./state/historyForest";
@@ -168,7 +173,9 @@ function AppWorkspace({
   // "학습 시작" 재진입 가드(중복 세션 발급 방지).
   const startingRef = useRef(false);
 
-  const { user, loading: authLoading, login, logout } = useAuth();
+  const { user, loading: authLoading, login, logout, ensureSignedIn } = useAuth();
+  // 익명 로그인(학습 시작 게이트 대체) 실패 시 입력 화면에 보여줄 안내. 시작 재시도 때 초기화한다.
+  const [startError, setStartError] = useState<string | null>(null);
   // GitHub 로그인 핸들(예: octocat). displayName(표시 이름)과 달리 User 타입에 노출되지 않아 reloadUserInfo 에서 추출한다.
   const githubId =
     (user as { reloadUserInfo?: { screenName?: string } } | null)?.reloadUserInfo
@@ -500,11 +507,15 @@ function AppWorkspace({
     // 세션이 두 개 발급되는 것을 막는다(성공 시 navigate 로 언마운트되어 ref 는 버려진다).
     if (startingRef.current) return;
     startingRef.current = true;
+    setStartError(null);
+    // 로그인 강제 게이트 제거: 비로그인이면 익명 로그인으로 uid 만 확보해 그대로 진행한다
+    // (usage/세션 추적은 익명 uid 로 이어진다). GitHub 로그인은 사이드바에서 선택적으로 승격한다.
     if (!user) {
       try {
-        await login();
+        await ensureSignedIn();
       } catch {
         startingRef.current = false;
+        setStartError("학습 시작에 필요한 익명 인증에 실패했어요. 네트워크 상태를 확인하고 다시 시도해 주세요.");
         return;
       }
     }
@@ -520,6 +531,54 @@ function AppWorkspace({
       // 무시
     }
     navigate(pathFor(newId, "probe"));
+  };
+
+  /**
+   * readymade 로드맵 시작(메인 화면 로드맵 패널). 그 로드맵 본문을 통째 복사해 내 계정의
+   * 새 세션(learn 단계)으로 만들고 바로 학습으로 이동한다. probe(수준 확인)는 건너뛴다.
+   * startLearning 과 같은 재진입/익명 로그인 가드를 따른다.
+   */
+  const startReadymadeRoadmap = async (roadmapId: string) => {
+    if (startingRef.current) return;
+    startingRef.current = true;
+    setStartError(null);
+    if (!user) {
+      try {
+        await ensureSignedIn();
+      } catch {
+        startingRef.current = false;
+        setStartError("학습 시작에 필요한 익명 인증에 실패했어요. 네트워크 상태를 확인하고 다시 시도해 주세요.");
+        return;
+      }
+    }
+    let roadmap;
+    try {
+      roadmap = await getReadymadeRoadmap(roadmapId);
+    } catch {
+      startingRef.current = false;
+      setStartError("로드맵을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.");
+      return;
+    }
+    if (!roadmap) {
+      startingRef.current = false;
+      setStartError("로드맵을 찾을 수 없어요.");
+      return;
+    }
+    const newId = createSessionId();
+    const snap = createSessionFromRoadmap({
+      sessionId: newId,
+      createdAt: Date.now(),
+      roadmap,
+      mode,
+    });
+    try {
+      localStorage.setItem(ACTIVE_SESSION_KEY, newId);
+      localStorage.removeItem(DRAFT_CONCEPT_KEY);
+      persistWithSync(snap, undefined, { remote: true });
+    } catch {
+      // 무시
+    }
+    navigate(pathFor(newId, "learn", 0));
   };
 
   /** 새 세션 시작(사이드바). 활성 세션/초안을 비우고 홈으로 이동한다. */
@@ -716,9 +775,10 @@ function AppWorkspace({
   const startChildLearning = async (parentId: string | undefined, childConcept: string) => {
     if (startingRef.current) return;
     startingRef.current = true;
+    // 로그인 게이트 제거: 비로그인이면 익명 로그인으로 uid 만 확보해 진행한다(추적 연속성 유지).
     if (!user) {
       try {
-        await login();
+        await ensureSignedIn();
       } catch {
         startingRef.current = false;
         return;
@@ -799,7 +859,7 @@ function AppWorkspace({
         onDeleteSession={deleteSession}
         forest={historyForest}
         authPending={authLoading}
-        loggedIn={!!user}
+        loggedIn={!!user && !user.isAnonymous}
         userName={githubId ?? user?.displayName ?? user?.email ?? undefined}
         photoURL={user?.photoURL ?? undefined}
         onLogin={() => void login()}
@@ -822,10 +882,10 @@ function AppWorkspace({
         <span className="sb-edge-grip" aria-hidden />
       </button>
 
-      {/* 모바일 드로어 어둠막 — 탭하면 닫힘 (CSS 가 모바일·open 상태에서만 노출) */}
+      {/* 모바일 드로어 어둠막 - 탭하면 닫힘 (CSS 가 모바일·open 상태에서만 노출) */}
       {pinned && <div className="sb-scrim" aria-hidden onClick={hide} />}
 
-      {/* 업데이트 소식 플라이아웃 — 사이드바(z-index 100) 뒤에서 그 오른쪽으로 확장.
+      {/* 업데이트 소식 플라이아웃 - 사이드바(z-index 100) 뒤에서 그 오른쪽으로 확장.
           조건부 렌더 + keyframe 진입 애니메이션. 스크림 클릭은 플라이아웃만 닫는다(사이드바 유지). */}
       {wnOpen && (
         <>
@@ -856,7 +916,9 @@ function AppWorkspace({
               concept={concept}
               setConcept={setConcept}
               onStart={startLearning}
+              onStartRoadmap={startReadymadeRoadmap}
               testEligible={testEligible}
+              error={startError}
             />
           )}
           {stage === "probe" && (

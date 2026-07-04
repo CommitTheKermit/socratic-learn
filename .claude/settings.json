@@ -25,6 +25,11 @@
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/css-guard.sh\"",
             "statusMessage": "CSS 가드 점검 중"
+          },
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/roadmap-seed-guard.sh\"",
+            "statusMessage": "로드맵 시드 검증 중"
           }
         ]
       }

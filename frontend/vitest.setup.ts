@@ -46,6 +46,7 @@ vi.mock("./src/state/useAuth", () => ({
     loading: false,
     login: vi.fn(),
     logout: vi.fn(),
+    ensureSignedIn: vi.fn(async () => {}),
     getIdToken: vi.fn(async () => "test-token"),
   }),
   AuthProvider: (props: { children: unknown }) => props.children,

@@ -376,7 +376,7 @@ export function Sidebar({
             <div className="sb-auth">
               <div className="sb-auth-row">
                 <div className="sb-auth-avatar">{I.userOutline}</div>
-                <div className="sb-auth-title">학습 시작을 위해 로그인이 필요해요</div>
+                <div className="sb-auth-title">로그인하면 학습 기록이 기기 간에 이어져요</div>
               </div>
               <button className="sb-login" type="button" onClick={onLogin}>
                 로그인

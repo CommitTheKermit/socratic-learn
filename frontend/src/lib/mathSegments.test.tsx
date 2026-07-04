@@ -75,6 +75,30 @@ describe("parseSegments - 가격 표기 폴백", () => {
   });
 });
 
+describe("parseSegments - 숫자로 시작하는 진짜 수식 (LaTeX 연산자 예외)", () => {
+  it("$2^n$ → inlineMath 로 인정 (지수 연산자 포함)", () => {
+    const segs = parseSegments("복잡도는 $2^n$ 이다");
+    const mathSeg = segs.find((s) => s.type === "inlineMath");
+    expect(mathSeg).toEqual({ type: "inlineMath", latex: "2^n" });
+  });
+
+  it("$3_i$ (밑첨자) → inlineMath", () => {
+    const segs = parseSegments("$3_i$");
+    expect(segs).toEqual([{ type: "inlineMath", latex: "3_i" }]);
+  });
+
+  it("$1 + 2 = 3$ (연산자 없는 순수 숫자식) → 가격 폴백으로 plain 유지", () => {
+    const segs = parseSegments("$1 + 2 = 3$");
+    expect(segs.filter((s) => s.type !== "plain")).toHaveLength(0);
+  });
+
+  it("$\\frac{1}{2}$ 처럼 숫자 직전 백슬래시 케이스는 영향 없음 (문자 시작)", () => {
+    const segs = parseSegments("$\\frac{1}{2}$");
+    const mathSeg = segs.find((s) => s.type === "inlineMath");
+    expect(mathSeg).toEqual({ type: "inlineMath", latex: "\\frac{1}{2}" });
+  });
+});
+
 describe("parseSegments - 미완성 델리미터 폴백 (스트리밍 안전)", () => {
   it("닫히지 않은 인라인 $E=mc^2 → plain 유지", () => {
     const segs = parseSegments("에너지는 $E=mc^2");
