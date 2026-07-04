@@ -152,6 +152,44 @@
   .input-bar.is-just-filled { animation: none; }
 }
 
+/* ── 로딩 스켈레톤 (자리 예약 · 레이아웃 점프 방지) ── */
+.rmap--skel .rmap-map {
+  border-left: 1px solid var(--line);
+  padding-left: 20px;
+}
+.rmap-skel-bar {
+  position: relative;
+  overflow: hidden;
+  display: block;
+  background: oklch(1 0 0 / 0.05);
+  border-radius: 8px;
+}
+.rmap-skel-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.05), transparent);
+  transform: translateX(-100%);
+  animation: rmap-sk-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes rmap-sk-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+.rmap-skel-major {
+  height: 33px;
+}
+.rmap-skel-row {
+  height: 46px;
+  border-radius: 11px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rmap-skel-bar::after {
+    animation: none;
+  }
+}
+
 /* 좁은 폭: 레일을 위로 (세로 스택) */
 @media (max-width: 560px) {
   .rmap { grid-template-columns: 1fr; gap: 12px; }

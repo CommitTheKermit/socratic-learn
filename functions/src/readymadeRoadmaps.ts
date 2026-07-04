@@ -1,17 +1,17 @@
 import { onRequest } from "firebase-functions/v2/https";
 import { getFirestore } from "firebase-admin/firestore";
 import * as logger from "firebase-functions/logger";
-import { requireAuth, recordUsage } from "./auth";
 import { CORS_ORIGINS } from "./cors";
 
 // ready-made 로드맵 라이브러리 조회 엔드포인트(Anthropic 미사용 → ANTHROPIC_API_KEY secret 불필요).
 //
 // 저장 모델: Firestore 최상위 컬렉션 readymadeRoadmaps/{roadmapId}. uid 격리가 아니라 전체 공개(읽기 전용).
 // 적재(쓰기)는 운영자만 수행하며 Admin SDK 시드 스크립트(scripts/seedReadymadeRoadmaps.mjs)로만 이뤄진다.
-// 여기 조회 엔드포인트는 requireAuth 로 익명 포함 인증 사용자에게 공개하고 쓰기 경로는 제공하지 않는다.
 //
-// 브라우저는 Firestore 에 직접 접근하지 않으므로(firestore.rules 는 클라이언트 접근 전면 차단),
-// 세션 API 와 동일하게 Functions(Admin SDK)만 이 컬렉션을 읽는다.
+// 공개 읽기: 이 두 조회 엔드포인트는 로그인 없이도 접근 가능하다(홈 화면 로드맵 패널이 로그인 전에
+// 목록을 보여줘야 하기 때문). 쓰기 경로는 제공하지 않으므로 노출되는 것은 운영자가 적재한 공개
+// 콘텐츠뿐이고 사용자 데이터는 없다. 브라우저는 Firestore 에 직접 접근하지 않고(firestore.rules 는
+// 클라이언트 접근 전면 차단) Functions(Admin SDK)만 이 컬렉션을 읽는다.
 
 /** readymadeRoadmaps 문서 1건의 저장 형태(= 시드 JSON 전체). */
 interface RoadmapDoc {
@@ -32,9 +32,17 @@ function asStr(v: unknown, fallback = ""): string {
   return typeof v === "string" ? v : fallback;
 }
 
+/** steps 배열에서 단계 제목만 뽑는다(문자열 title 만 신뢰). */
+function stepTitlesOf(steps: unknown): string[] {
+  if (!Array.isArray(steps)) return [];
+  return steps
+    .map((s) => (s && typeof s === "object" ? (s as { title?: unknown }).title : undefined))
+    .filter((t): t is string => typeof t === "string" && t.length > 0);
+}
+
 /**
  * GET /readymadeRoadmapList - 공개 로드맵 경량 메타 목록을 반환한다(본문 미포함).
- * 응답: { roadmaps: ReadymadeRoadmapListEntry[] }. subject → title 순 정렬.
+ * 응답: { roadmaps: ReadymadeRoadmapListEntry[] }. subject → title 순 정렬. 공개(인증 불필요).
  */
 export const readymadeRoadmapList = onRequest(
   { cors: CORS_ORIGINS, region: "us-central1" },
@@ -43,9 +51,6 @@ export const readymadeRoadmapList = onRequest(
       res.status(405).json({ code: "METHOD_NOT_ALLOWED", message: "GET only" });
       return;
     }
-    const uid = await requireAuth(req, res);
-    if (!uid) return;
-    recordUsage(uid, "readymadeRoadmapList");
 
     try {
       const snap = await roadmapsCol().get();
@@ -59,6 +64,7 @@ export const readymadeRoadmapList = onRequest(
             subject: asStr(data.subject),
             stepCount: Array.isArray(data.steps) ? data.steps.length : 0,
             hasPrereq: Array.isArray(data.prereqTree) && data.prereqTree.length > 0,
+            stepTitles: stepTitlesOf(data.steps),
           };
         })
         .sort((a, b) =>
@@ -79,7 +85,7 @@ export const readymadeRoadmapList = onRequest(
 
 /**
  * GET /readymadeRoadmapGet?id=<roadmapId> - 단일 로드맵 전체 본문을 반환한다.
- * 응답: { roadmap: ReadymadeRoadmap | null }(없으면 null).
+ * 응답: { roadmap: ReadymadeRoadmap | null }(없으면 null). 공개(인증 불필요).
  */
 export const readymadeRoadmapGet = onRequest(
   { cors: CORS_ORIGINS, region: "us-central1" },
@@ -88,9 +94,6 @@ export const readymadeRoadmapGet = onRequest(
       res.status(405).json({ code: "METHOD_NOT_ALLOWED", message: "GET only" });
       return;
     }
-    const uid = await requireAuth(req, res);
-    if (!uid) return;
-    recordUsage(uid, "readymadeRoadmapGet");
 
     const id = req.query.id;
     if (typeof id !== "string" || id.length === 0) {

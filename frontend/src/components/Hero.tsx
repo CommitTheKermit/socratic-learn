@@ -10,6 +10,8 @@ interface Props {
   concept: string;
   setConcept: (v: string) => void;
   onStart: () => void;
+  /** readymade 로드맵 행 클릭 → 그 로드맵을 복사해 학습 시작한다. */
+  onStartRoadmap: (roadmapId: string) => void;
   /** 테스트 모드 자격 계정이면 드롭다운에 "테스트" 항목을 노출한다. */
   testEligible?: boolean;
   /** 학습 시작 실패(익명 인증 실패 등) 안내. null 이면 표시하지 않는다. */
@@ -22,13 +24,13 @@ export function Hero({
   concept,
   setConcept,
   onStart,
+  onStartRoadmap,
   testEligible = false,
   error = null,
 }: Props) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const [guideOpen, setGuideOpen] = useState(true);
-  // 로드맵에서 주제를 고르면 입력창이 잠깐 빛나고(glow) 시작 토스트를 띄운 뒤 학습을 시작한다.
-  const [glow, setGlow] = useState(false);
+  // 로드맵 행을 고르면 시작 토스트를 띄운 뒤 그 readymade 로드맵을 복사해 학습을 시작한다.
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const grow = (el: HTMLTextAreaElement | null) => {
@@ -42,19 +44,15 @@ export function Hero({
     onStart();
   };
   /**
-   * 로드맵 중주제 클릭 → 제목을 입력창에 채우고(glow 재생) 시작 토스트를 띄운 뒤
-   * 잠깐 후 학습을 시작한다. glow 는 off→on 을 한 프레임 걸쳐 토글해 애니메이션을 재시작한다.
+   * 로드맵 행 클릭 → 시작 토스트를 띄우고 그 readymade 로드맵을 복사해 학습을 시작한다.
+   * 시작은 비동기(fetch→세션 생성→이동)이며 성공 시 화면이 전환되어 이 컴포넌트가 언마운트된다.
+   * 실패로 화면이 유지되는 경우를 대비해 토스트는 일정 시간 후 자동으로 사라진다.
    */
-  const startRoadmap = (title: string) => {
-    setConcept(title);
-    setGlow(false);
-    requestAnimationFrame(() => requestAnimationFrame(() => setGlow(true)));
+  const startRoadmap = (roadmapId: string, title: string) => {
     setToast(title);
     if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => {
-      setToast(null);
-      onStart();
-    }, 900);
+    toastTimer.current = setTimeout(() => setToast(null), 2500);
+    onStartRoadmap(roadmapId);
   };
   return (
     <section className="hero">
@@ -92,10 +90,7 @@ export function Hero({
       </h1>
       <p className="sub">한 줄로 입력하시면 도와드릴게요</p>
 
-      <form
-        className={"input-bar has-lead" + (glow ? " is-just-filled" : "")}
-        onSubmit={submit}
-      >
+      <form className="input-bar has-lead" onSubmit={submit}>
         <ModeMenu value={mode} onChange={onMode} modes={modesFor(testEligible)} />
         <textarea
           ref={ref}

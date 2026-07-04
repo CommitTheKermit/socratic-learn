@@ -19,9 +19,14 @@ import { LearnContentProvider, useLearnContent } from "./state/LearnContent";
 import { loadSession } from "./state/sessionPersist";
 import { loadSidebarPinned, saveSidebarPinned } from "./state/sidebarSetting";
 import { SessionListProvider, useSessionList } from "./state/SessionListContext";
-import { createSessionState, type SessionState } from "./state/sessionState";
+import {
+  createSessionState,
+  createSessionFromRoadmap,
+  type SessionState,
+} from "./state/sessionState";
 import { fetchAndMerge, persistWithSync } from "./state/sessionSync";
 import { generatePrereqTree } from "./api/claudeContent";
+import { getReadymadeRoadmap } from "./api/readymadeRoadmapApi";
 import { InvalidInputDialog } from "./components/InvalidInputDialog";
 import { PrereqModal, type PrereqStatus } from "./components/prereq/PrereqModal";
 import { buildHistoryForest } from "./state/historyForest";
@@ -528,6 +533,54 @@ function AppWorkspace({
     navigate(pathFor(newId, "probe"));
   };
 
+  /**
+   * readymade 로드맵 시작(메인 화면 로드맵 패널). 그 로드맵 본문을 통째 복사해 내 계정의
+   * 새 세션(learn 단계)으로 만들고 바로 학습으로 이동한다. probe(수준 확인)는 건너뛴다.
+   * startLearning 과 같은 재진입/익명 로그인 가드를 따른다.
+   */
+  const startReadymadeRoadmap = async (roadmapId: string) => {
+    if (startingRef.current) return;
+    startingRef.current = true;
+    setStartError(null);
+    if (!user) {
+      try {
+        await ensureSignedIn();
+      } catch {
+        startingRef.current = false;
+        setStartError("학습 시작에 필요한 익명 인증에 실패했어요. 네트워크 상태를 확인하고 다시 시도해 주세요.");
+        return;
+      }
+    }
+    let roadmap;
+    try {
+      roadmap = await getReadymadeRoadmap(roadmapId);
+    } catch {
+      startingRef.current = false;
+      setStartError("로드맵을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.");
+      return;
+    }
+    if (!roadmap) {
+      startingRef.current = false;
+      setStartError("로드맵을 찾을 수 없어요.");
+      return;
+    }
+    const newId = createSessionId();
+    const snap = createSessionFromRoadmap({
+      sessionId: newId,
+      createdAt: Date.now(),
+      roadmap,
+      mode,
+    });
+    try {
+      localStorage.setItem(ACTIVE_SESSION_KEY, newId);
+      localStorage.removeItem(DRAFT_CONCEPT_KEY);
+      persistWithSync(snap, undefined, { remote: true });
+    } catch {
+      // 무시
+    }
+    navigate(pathFor(newId, "learn", 0));
+  };
+
   /** 새 세션 시작(사이드바). 활성 세션/초안을 비우고 홈으로 이동한다. */
   const newSession = (suggestedConcept?: string) => {
     try {
@@ -863,6 +916,7 @@ function AppWorkspace({
               concept={concept}
               setConcept={setConcept}
               onStart={startLearning}
+              onStartRoadmap={startReadymadeRoadmap}
               testEligible={testEligible}
               error={startError}
             />

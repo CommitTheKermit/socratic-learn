@@ -311,7 +311,7 @@ export interface ReadymadeRoadmap {
   version: number;
 }
 
-/** 라이브러리 목록 1건(경량 메타, 본문 미포함). 카드 렌더링용. */
+/** 라이브러리/로드맵 패널 목록 1건(경량 메타, 본문 미포함). 카드/행 렌더링용. */
 export interface ReadymadeRoadmapListEntry {
   roadmapId: string;
   title: string;
@@ -321,6 +321,8 @@ export interface ReadymadeRoadmapListEntry {
   stepCount: number;
   /** 선행 개념 트리 보유 여부(카드 메타 "선행 개념 포함"). */
   hasPrereq: boolean;
+  /** 단계 제목 목록(메인 화면 로드맵 행의 칩). 본문은 제외한 제목만. */
+  stepTitles: string[];
 }
 
 /** GET /readymadeRoadmapList 응답. subject→title 순 정렬된 경량 메타 목록. */
