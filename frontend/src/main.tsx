@@ -7,6 +7,7 @@ import "./styles/v3.css";
 import "./styles/mobile.css";
 import "./styles/prereq.css";
 import "./styles/ask-routing.css";
+import "./styles/roadmap.css";
 import "katex/dist/katex.min.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

@@ -784,6 +784,23 @@ body {
   from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: none; }
 }
+
+/* ── Hero guide "위로 확장" 변형 ──────────────────────────────────────
+   가이드를 h1 위에 두고, 접이 패널이 토글 버튼 위로(위쪽으로) 펼쳐진다.
+   패널은 absolute 라 열려도 h1/입력바 위치를 밀지 않는다. */
+.hero-guide--up { margin-top: 0; }
+.hero-guide--up .hg-panel {
+  top: auto;
+  bottom: calc(100% + 16px);
+  animation: hgInUp .28s ease both;
+}
+@keyframes hgInUp {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+/* 위로 펼치므로 셰브론 방향 반전: 닫힘=위쪽 가리킴, 열림=아래(접기) */
+.hero-guide--up .hg-toggle .chev { transform: rotate(180deg); }
+.hero-guide--up .hg-toggle.is-open .chev { transform: rotate(0deg); }
 .hg-steps {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
