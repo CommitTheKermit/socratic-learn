@@ -49,6 +49,13 @@ export const CHANGE_TYPE_ORDER: ChangeType[] = ["feature", "improve", "fix"];
 /** 전체 버전 히스토리 (최신 → 과거). 맨 앞이 현재 버전. */
 export const CHANGELOG: VersionEntry[] = [
   {
+    version: "0.18.2",
+    date: "2026.07.06",
+    changes: [
+      { type: "fix", text: "메인 화면 로드맵이 제목 순서로 뒤섞여 보이던 것을 학습 단계 순서대로 정렬했어요." },
+    ],
+  },
+  {
     version: "0.18.1",
     date: "2026.07.06",
     changes: [
