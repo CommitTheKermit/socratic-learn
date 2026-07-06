@@ -3,6 +3,7 @@
   "title": "프래그먼트와 화면 내비게이션",
   "summary": "프래그먼트 개념과 프래그먼트·뷰 생명주기, FragmentManager 트랜잭션, Navigation Component 와 그래프, 인자 전달, 딥링크·앱 링크까지 화면을 나누고 이동시키는 방법을 익힌다.",
   "subject": "안드로이드",
+  "order": 5,
   "steps": [
     {
       "id": 1,

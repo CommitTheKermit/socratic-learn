@@ -3,6 +3,7 @@
   "title": "Jetpack Compose 기초",
   "summary": "Jetpack Compose 의 선언형 UI 사고방식과 상태·재구성·상태 호이스팅·Modifier·기본 레이아웃을 익힌다.",
   "subject": "안드로이드",
+  "order": 4,
   "steps": [
     {
       "id": 1,

@@ -303,6 +303,8 @@ export interface ReadymadeRoadmap {
   summary: string;
   /** 학습 주제(예: "안드로이드"). 라이브러리에서 주제별 그룹의 기준. */
   subject: string;
+  /** 같은 subject 안에서의 학습 권장 순서(작을수록 먼저). 목록 정렬 기준. */
+  order: number;
   /** 로드맵 단계들. body/questions 가 채워진 완성 콘텐츠(일반 세션 steps 와 동일 구조). */
   steps: Step[];
   /** 선행 개념 트리. 시작 시 새 세션의 prereqTree 로 복사된다. */
@@ -317,6 +319,8 @@ export interface ReadymadeRoadmapListEntry {
   title: string;
   summary: string;
   subject: string;
+  /** 같은 subject 안에서의 학습 권장 순서(작을수록 먼저). 목록은 이 순서로 정렬됨. */
+  order: number;
   /** 단계 수(카드 메타 "N단계"). */
   stepCount: number;
   /** 선행 개념 트리 보유 여부(카드 메타 "선행 개념 포함"). */
@@ -325,7 +329,7 @@ export interface ReadymadeRoadmapListEntry {
   stepTitles: string[];
 }
 
-/** GET /readymadeRoadmapList 응답. subject→title 순 정렬된 경량 메타 목록. */
+/** GET /readymadeRoadmapList 응답. subject→order→title 순 정렬된 경량 메타 목록. */
 export interface ReadymadeRoadmapListResponse {
   roadmaps: ReadymadeRoadmapListEntry[];
 }

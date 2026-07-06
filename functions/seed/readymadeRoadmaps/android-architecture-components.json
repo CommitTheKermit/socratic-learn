@@ -3,6 +3,7 @@
   "title": "아키텍처 컴포넌트와 의존성 주입",
   "summary": "생명주기 인식 컴포넌트와 ViewModel 로 상태를 안전하게 소유하고, LiveData·StateFlow 를 생명주기에 맞춰 수집하며, 의존성 주입의 원리와 Hilt 로 객체를 밖에서 조립하는 법을 익힌다.",
   "subject": "안드로이드",
+  "order": 9,
   "steps": [
     {
       "id": 1,

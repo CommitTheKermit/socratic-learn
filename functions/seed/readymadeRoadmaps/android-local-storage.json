@@ -3,6 +3,7 @@
   "title": "로컬 데이터 저장소",
   "summary": "저장할 데이터의 성격에 따라 도구를 고르는 기준부터 SharedPreferences·DataStore, SQLite 와 Room, 관계·마이그레이션, 파일과 저장 위치까지 안드로이드 로컬 저장을 익힌다.",
   "subject": "안드로이드",
+  "order": 8,
   "steps": [
     {
       "id": 1,

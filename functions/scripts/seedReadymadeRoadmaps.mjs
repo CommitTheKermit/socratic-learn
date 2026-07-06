@@ -40,6 +40,7 @@ function validateRoadmap(doc, file) {
   if (typeof doc.title !== "string" || !doc.title) errors.push("title");
   if (typeof doc.summary !== "string") errors.push("summary");
   if (typeof doc.subject !== "string" || !doc.subject) errors.push("subject");
+  if (typeof doc.order !== "number" || !Number.isFinite(doc.order)) errors.push("order");
   if (!Array.isArray(doc.steps) || doc.steps.length === 0) errors.push("steps");
   if (!Array.isArray(doc.prereqTree)) errors.push("prereqTree");
   if (typeof doc.version !== "number") errors.push("version");

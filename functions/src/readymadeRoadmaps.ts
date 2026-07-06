@@ -19,6 +19,8 @@ interface RoadmapDoc {
   title: string;
   summary: string;
   subject: string;
+  /** 같은 subject 안에서의 학습 권장 순서(작을수록 먼저). 없으면 맨 뒤로. */
+  order: number;
   steps: unknown[];
   prereqTree: unknown[];
   version: number;
@@ -30,6 +32,11 @@ function roadmapsCol() {
 
 function asStr(v: unknown, fallback = ""): string {
   return typeof v === "string" ? v : fallback;
+}
+
+/** order 필드를 정렬 키로. 숫자가 아니면 맨 뒤(Infinity). */
+function orderOf(v: unknown): number {
+  return typeof v === "number" && Number.isFinite(v) ? v : Number.POSITIVE_INFINITY;
 }
 
 /** steps 배열에서 단계 제목만 뽑는다(문자열 title 만 신뢰). */
@@ -62,16 +69,17 @@ export const readymadeRoadmapList = onRequest(
             title: asStr(data.title),
             summary: asStr(data.summary),
             subject: asStr(data.subject),
+            order: orderOf(data.order),
             stepCount: Array.isArray(data.steps) ? data.steps.length : 0,
             hasPrereq: Array.isArray(data.prereqTree) && data.prereqTree.length > 0,
             stepTitles: stepTitlesOf(data.steps),
           };
         })
-        .sort((a, b) =>
-          a.subject === b.subject
-            ? a.title.localeCompare(b.title, "ko")
-            : a.subject.localeCompare(b.subject, "ko"),
-        );
+        .sort((a, b) => {
+          if (a.subject !== b.subject) return a.subject.localeCompare(b.subject, "ko");
+          if (a.order !== b.order) return a.order - b.order;
+          return a.title.localeCompare(b.title, "ko");
+        });
       res.json({ roadmaps });
     } catch (e) {
       logger.error("readymadeRoadmapList failed", e);
@@ -113,6 +121,7 @@ export const readymadeRoadmapGet = onRequest(
         title: asStr(data.title),
         summary: asStr(data.summary),
         subject: asStr(data.subject),
+        order: orderOf(data.order),
         steps: Array.isArray(data.steps) ? data.steps : [],
         prereqTree: Array.isArray(data.prereqTree) ? data.prereqTree : [],
         version: typeof data.version === "number" ? data.version : 1,
