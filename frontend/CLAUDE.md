@@ -79,6 +79,10 @@ localStorage 키:
 
 저장 트리거(App.tsx): answers 는 `useDebouncedPersist`(3초 + onBlur flush), 그 외 상태/산출물 변경은 즉시 effect. 둘 다 `persistWithSync` 로 캐시+원격 저장하고 `upsertSession(snapshot)` 으로 사이드바 메모리 목록을 갱신한다(`input` 단계는 히스토리 미노출).
 
+## 로드맵 노드 모델
+
+학습 단계 노드의 중복 병합(isMerged + 정규화 백스톱), 계층형 십진수 번호(`1`/`1.1`), 브레드크럼 경로 - 상세는 [`../docs/roadmap-node-model.md`](../docs/roadmap-node-model.md) 참조 (`lib/stepTitle.ts`/`stepInsertGuard.ts`/`stepLabel.ts`/`breadcrumb.ts`).
+
 ## API 클라이언트 계층
 
 - `src/api/contract.ts` 가 경로/DTO 의 단일 출처(`ApiPaths` 키 = Function 이름 = 경로, `API_BASE_URL`). functions 와 같은 PR 에서 함께 수정(절차는 루트 CLAUDE.md).
