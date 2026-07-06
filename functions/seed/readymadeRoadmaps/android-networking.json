@@ -3,6 +3,7 @@
   "title": "안드로이드 네트워킹",
   "summary": "HTTP 통신과 권한, OkHttp, Retrofit, JSON 직렬화, 오류 처리, 리포지토리 경계까지 앱이 서버와 데이터를 주고받는 흐름을 익힌다.",
   "subject": "안드로이드",
+  "order": 7,
   "steps": [
     {
       "id": 1,

@@ -3,6 +3,7 @@
   "title": "앱 아키텍처 패턴",
   "summary": "관심사 분리가 왜 필요한지에서 출발해 MVC·MVP·MVVM·MVI 프레젠테이션 패턴과 Clean Architecture 레이어, 그리고 앱 규모에 맞춰 패턴을 고르는 트레이드오프까지 익힌다.",
   "subject": "안드로이드",
+  "order": 10,
   "steps": [
     {
       "id": 1,
