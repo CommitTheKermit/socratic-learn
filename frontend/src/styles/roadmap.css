@@ -44,7 +44,8 @@
   padding-left: 20px;
   padding-right: 6px;
   min-width: 0;
-  max-height: 260px;
+  /* 로드맵 행 3개만 보이고 나머지는 스크롤(행 50px × 3 + gap 8px × 2 = 166px). */
+  max-height: 166px;
   overflow-y: auto;
   display: flex; flex-direction: column; gap: 8px;
   overscroll-behavior: contain;
@@ -178,10 +179,10 @@
   }
 }
 .rmap-skel-major {
-  height: 33px;
+  height: 31.5px;
 }
 .rmap-skel-row {
-  height: 46px;
+  height: 50px;
   border-radius: 11px;
 }
 @media (prefers-reduced-motion: reduce) {

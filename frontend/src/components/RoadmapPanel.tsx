@@ -75,11 +75,13 @@ function RoadmapSkeleton() {
   return (
     <div className="rmap rmap--skel" aria-hidden>
       <div className="rmap-rail">
-        {[0, 1, 2, 3].map((i) => (
+        {/* 대주제 레일 placeholder 2개. */}
+        {[0, 1].map((i) => (
           <span className="rmap-skel-bar rmap-skel-major" key={i} />
         ))}
       </div>
       <div className="rmap-map">
+        {/* 실제 맵이 보여주는 행 수(3개)와 같은 높이를 예약해 로드 시 점프를 막는다. */}
         {[0, 1, 2].map((i) => (
           <span className="rmap-skel-bar rmap-skel-row" key={i} />
         ))}
