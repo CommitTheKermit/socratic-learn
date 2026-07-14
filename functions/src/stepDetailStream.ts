@@ -146,12 +146,23 @@ export const stepDetailStream = onRequest(
         emittedLen = bodyText.length;
       }
 
-      let questions: { id: string; q: string }[] = [];
+      let questions: { id: string; q: string; choices?: string[] }[] = [];
       if (markerIdx !== -1) {
         const jsonText = full.slice(markerIdx + marker.length).trim();
         try {
           const parsed = JSON.parse(jsonText);
-          if (Array.isArray(parsed)) questions = parsed;
+          // 객관식 choices 는 2개 이상 문자열 배열일 때만 유지(그 외는 서술형으로 강등).
+          if (Array.isArray(parsed)) {
+            questions = parsed.map((q: { id: string; q: string; choices?: unknown }) => {
+              const choices =
+                Array.isArray(q.choices) &&
+                q.choices.length >= 2 &&
+                q.choices.every((c: unknown) => typeof c === "string")
+                  ? (q.choices as string[])
+                  : undefined;
+              return choices ? { id: q.id, q: q.q, choices } : { id: q.id, q: q.q };
+            });
+          }
         } catch {
           logger.warn("stepDetailStream questions JSON 파싱 실패", { jsonText });
         }

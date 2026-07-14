@@ -109,6 +109,48 @@ describe("sessionState 직렬화/역직렬화", () => {
     expect(restored.steps?.[1]._meta).toEqual({ parentMainStepId: 1, siblingIndex: 0 });
   });
 
+  test("객관식 questions.choices 가 round-trip 보존된다", () => {
+    const state: SessionState = {
+      ...fullState(),
+      steps: [
+        {
+          id: 1,
+          title: "t",
+          desc: "d",
+          body: "b",
+          questions: [
+            { id: "1-1", q: "서술형 질문" },
+            { id: "1-2", q: "객관식 질문", choices: ["선택지 A", "선택지 B", "선택지 C"] },
+          ],
+        },
+      ],
+    };
+    const restored = deserializeSessionState(serializeSessionState(state));
+    expect(restored.steps?.[0].questions[0].choices).toBeUndefined();
+    expect(restored.steps?.[0].questions[1].choices).toEqual(["선택지 A", "선택지 B", "선택지 C"]);
+  });
+
+  test("손상된 choices(문자열 아님/2개 미만)는 복원에서 제거되어 서술형으로 강등된다", () => {
+    const json = JSON.stringify({
+      ...fullState(),
+      steps: [
+        {
+          id: 1,
+          title: "t",
+          desc: "",
+          body: "",
+          questions: [
+            { id: "1-1", q: "q1", choices: ["하나뿐"] },
+            { id: "1-2", q: "q2", choices: ["a", 2] },
+            { id: "1-3", q: "q3", choices: "not-array" },
+          ],
+        },
+      ],
+    });
+    const qs = deserializeSessionState(json).steps?.[0].questions;
+    expect(qs?.every((q) => q.choices === undefined)).toBe(true);
+  });
+
   test("손상된 _meta(타입 불일치)는 복원에서 제거된다", () => {
     const json = JSON.stringify({
       ...fullState(),
