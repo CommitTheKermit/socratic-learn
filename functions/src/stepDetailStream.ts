@@ -146,12 +146,27 @@ export const stepDetailStream = onRequest(
         emittedLen = bodyText.length;
       }
 
-      let questions: { id: string; q: string }[] = [];
+      let questions: { id: string; q: string; choices?: string[] }[] = [];
       if (markerIdx !== -1) {
         const jsonText = full.slice(markerIdx + marker.length).trim();
         try {
           const parsed = JSON.parse(jsonText);
-          if (Array.isArray(parsed)) questions = parsed;
+          // 객관식 choices 는 스키마와 같은 2-4개 비어 있지 않은 문자열일 때만 유지한다.
+          if (Array.isArray(parsed)) {
+            questions = parsed.flatMap((value: unknown) => {
+              if (value == null || typeof value !== "object") return [];
+              const q = value as { id?: unknown; q?: unknown; choices?: unknown };
+              if (typeof q.id !== "string" || typeof q.q !== "string") return [];
+              const choices =
+                Array.isArray(q.choices) &&
+                q.choices.length >= 2 &&
+                q.choices.length <= 4 &&
+                q.choices.every((c: unknown) => typeof c === "string" && c.trim().length > 0)
+                  ? (q.choices as string[])
+                  : undefined;
+              return [choices ? { id: q.id, q: q.q, choices } : { id: q.id, q: q.q }];
+            });
+          }
         } catch {
           logger.warn("stepDetailStream questions JSON 파싱 실패", { jsonText });
         }

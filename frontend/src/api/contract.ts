@@ -47,7 +47,8 @@ export interface StreamDeltaPayload {
 }
 export interface StepDetailStreamComplete {
   body: string;
-  questions: { id: string; q: string }[];
+  /** choices 가 있으면 객관식(프론트가 1, 2, 3 번호 선택 UI 렌더), 없으면 서술형. */
+  questions: { id: string; q: string; choices?: string[] }[];
 }
 export interface StreamErrorPayload {
   code: string;
