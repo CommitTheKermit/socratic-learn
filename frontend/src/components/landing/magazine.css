@@ -150,9 +150,6 @@ html:has(.mag-root) { scroll-behavior: smooth; }
 .mag-root .m-shots img{position:absolute;inset:0;width:100%;height:100%;
   object-fit:contain;object-position:center top;opacity:0;transition:opacity .55s ease}
 .mag-root .m-shots img.is-on{opacity:1}
-/* 완료 스크린샷(넓고 짧음): 폭은 다른 단계와 동일하게 두고, 짧은 비율로
-   낭비되던 위아래 여백만 없앤다(내용 스케일은 유지). */
-.mag-root .m-frame.is-sm .m-shots{aspect-ratio:2504/996}
 
 /* 스크롤 고정(scrollytelling) 스텝퍼 - 섹션이 화면에 pin 되고 스크롤로 스텝 전환 */
 /* 실제 높이는 JS 가 제어(펼침 400vh / 접힘 100vh). CSS 는 no-JS 폴백 최소값만. */

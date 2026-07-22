@@ -27,6 +27,7 @@ const STEPS = [
     desc: "몇 가지 질문으로 지금 아는 만큼을 가늠해요. 답을 보고 이후 단계와 설명 깊이를 맞춰요.",
     shot: "/screens/stage-probe.png",
     url: "socratic.learn - 수준 확인",
+    aspect: "1472 / 1468",
   },
   {
     num: "02",
@@ -35,6 +36,7 @@ const STEPS = [
     desc: "필요한 만큼만 설명을 읽어요. 표와 코드로 개념 하나를 차근차근 짚어 나가요.",
     shot: "/screens/stage-learn.png",
     url: "socratic.learn - 학습 진행",
+    aspect: "2186 / 1140",
   },
   {
     num: "03",
@@ -43,6 +45,7 @@ const STEPS = [
     desc: "직접 답하며 이해를 확인해요. 막히면 모르겠다고 넘겨도 괜찮아요.",
     shot: "/screens/stage-questions.png",
     url: "socratic.learn - 확인 질문",
+    aspect: "2174 / 826",
   },
   {
     num: "04",
@@ -51,14 +54,15 @@ const STEPS = [
     desc: "오늘 익힌 것과 도달한 수준을 정리해요. 이해도에 맞춰 다음 학습으로 이어가요.",
     shot: "/screens/stage-done.png",
     url: "socratic.learn - 완료",
+    aspect: "1476 / 820",
   },
 ];
 
 function BrowserFrame({ activeShot }: { activeShot: number | "all" }) {
-  // 완료(마지막) 스크린샷은 원본이 넓고 짧아, 프레임 자체를 더 작게(짧은 비율) 표시한다.
-  const isDone = activeShot !== "all" && activeShot === STEPS.length - 1;
+  // 프레임(스크린샷 영역) 비율을 현재 보여줄 스크린샷의 원본 비율에 맞춰, 빈 여백 없이 꽉 차게 한다.
+  const aspect = activeShot === "all" ? "2000 / 1300" : STEPS[activeShot].aspect;
   return (
-    <div className={`m-frame${isDone ? " is-sm" : ""}`}>
+    <div className="m-frame">
       <div className="m-frame-bar">
         <span className="m-dots">
           <i />
@@ -67,7 +71,7 @@ function BrowserFrame({ activeShot }: { activeShot: number | "all" }) {
         </span>
         <span className="m-u">{activeShot === "all" ? "socratic.learn" : STEPS[activeShot].url}</span>
       </div>
-      <div className="m-shots">
+      <div className="m-shots" style={{ aspectRatio: aspect }}>
         {STEPS.map((s, i) => (
           <img
             key={s.num}
