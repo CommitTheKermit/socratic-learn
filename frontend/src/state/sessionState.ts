@@ -146,13 +146,24 @@ function asSteps(v: unknown): Step[] | undefined {
     const o = x as Record<string, unknown>;
     if (typeof o.id !== "number" || typeof o.title !== "string") continue;
     const questions = Array.isArray(o.questions)
-      ? o.questions.filter(
-          (q): q is { id: string; q: string } =>
-            q != null &&
-            typeof q === "object" &&
-            typeof (q as { id?: unknown }).id === "string" &&
-            typeof (q as { q?: unknown }).q === "string",
-        )
+      ? o.questions
+          .filter(
+            (q): q is { id: string; q: string; choices?: unknown } =>
+              q != null &&
+              typeof q === "object" &&
+              typeof (q as { id?: unknown }).id === "string" &&
+              typeof (q as { q?: unknown }).q === "string",
+          )
+          .map((q) => {
+            // 객관식 choices 는 문자열 2개 이상일 때만 복원(아니면 서술형으로 강등).
+            const choices =
+              Array.isArray(q.choices) &&
+              q.choices.length >= 2 &&
+              q.choices.every((c: unknown) => typeof c === "string")
+                ? (q.choices as string[])
+                : undefined;
+            return choices ? { id: q.id, q: q.q, choices } : { id: q.id, q: q.q };
+          })
       : [];
     // 분기(삽입) 단계의 _meta 는 라벨(1.1 등) 계산의 유일한 근거이므로 복원해야 한다.
     // 누락하면 재로딩 시 분기 단계가 원본으로 인식되어 번호가 어긋난다(1.1 → 2).

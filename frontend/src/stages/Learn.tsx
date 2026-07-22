@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLearnContent } from "../state/LearnContent";
 import { Markdown } from "../lib/markdown";
-import { LEVEL_LABELS, type Step } from "./data";
+import { LEVEL_LABELS, choiceAnswerText, evalQuestionText, type Step } from "./data";
 import { pickRandomPlaceholder } from "./placeholders";
 import { describeErrorCode } from "../lib/errors";
 import { I } from "../components/icons";
@@ -97,6 +97,67 @@ function QaAnswer({
       onChange={(e) => onChange(e.target.value)}
       onBlur={onBlur}
     />
+  );
+}
+
+/**
+ * 객관식 확인 질문의 선택지 리스트(세로 버튼). 클릭 = 단일 선택.
+ * 답변 값은 "2. 선택지 텍스트" 형태 문자열로 저장해 평가 파이프라인(answers)을 그대로 탄다.
+ */
+function QaChoices({
+  choices,
+  value,
+  locked,
+  onSelect,
+}: {
+  choices: string[];
+  value: string;
+  locked: boolean;
+  onSelect: (v: string) => void;
+}) {
+  return (
+    <div className="qa-choices" role="radiogroup">
+      {choices.map((c, i) => {
+        const text = choiceAnswerText(i, c);
+        const selected = value === text;
+        return (
+          <button
+            key={i}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            className={"qa-choice" + (selected ? " is-selected" : "")}
+            disabled={locked}
+            onClick={() => {
+              if (!locked && !selected) onSelect(text);
+            }}
+          >
+            <span className="qa-choice-num" aria-hidden>
+              {i + 1}
+            </span>
+            <span className="qa-choice-label">
+              <MathText text={c} />
+            </span>
+            {selected && (
+              <svg
+                className="qa-choice-check"
+                viewBox="0 0 24 24"
+                width="14"
+                height="14"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
+            )}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -280,7 +341,7 @@ export function StageLearn({
   };
   // 본문에서 고른 문구를 질문으로 시드해 바로 모달을 연다.
   const openAskWith = (sel: string) => {
-    const q = `'${sel}' — 여기서 정확히 무슨 뜻이에요?`;
+    const q = `'${sel}' - 여기서 정확히 무슨 뜻이에요?`;
     setSelChip(null);
     window.getSelection()?.removeAllRanges();
     setAskStatus("idle");
@@ -613,7 +674,7 @@ export function StageLearn({
       .join("\n");
     const qList = step.questions
       .filter((q) => !skips[q.id])
-      .map((q) => ({ id: q.id, q: q.q, answer: answers[q.id] || "" }));
+      .map((q) => ({ id: q.id, q: evalQuestionText(q), answer: answers[q.id] || "" }));
     void branch.retryBranch({
       concept,
       level: safeLevel,
@@ -712,7 +773,7 @@ export function StageLearn({
     step: s,
     questions: s.questions
       .filter((q) => !skips[q.id])
-      .map((q) => ({ id: q.id, q: q.q, answer: answers[q.id] || "" })),
+      .map((q) => ({ id: q.id, q: evalQuestionText(q), answer: answers[q.id] || "" })),
     roadmapOutlineText: steps.map((x, i) => `${i + 1}. ${x.title} - ${x.desc}`).join("\n"),
   });
 
@@ -923,24 +984,42 @@ export function StageLearn({
                 </div>
               ) : (
                 <>
-                  <QaAnswer
-                    value={val}
-                    readOnly={locked}
-                    onChange={(v) => {
-                      if (locked) return;
-                      setAnswers({ ...answers, [q.id]: v });
-                    }}
-                    onBlur={() => {
-                      onAnswerCommit?.();
-                      if (sessionId && val && !locked) {
-                        logEvent("sl_answer_edit", {
-                          session_id: sessionId,
-                          step_idx: stepIdx,
-                          question_id: q.id,
-                        });
-                      }
-                    }}
-                  />
+                  {q.choices?.length ? (
+                    <QaChoices
+                      choices={q.choices}
+                      value={val}
+                      locked={locked}
+                      onSelect={(v) => {
+                        setAnswers({ ...answers, [q.id]: v });
+                        if (sessionId) {
+                          logEvent("sl_answer_edit", {
+                            session_id: sessionId,
+                            step_idx: stepIdx,
+                            question_id: q.id,
+                          });
+                        }
+                      }}
+                    />
+                  ) : (
+                    <QaAnswer
+                      value={val}
+                      readOnly={locked}
+                      onChange={(v) => {
+                        if (locked) return;
+                        setAnswers({ ...answers, [q.id]: v });
+                      }}
+                      onBlur={() => {
+                        onAnswerCommit?.();
+                        if (sessionId && val && !locked) {
+                          logEvent("sl_answer_edit", {
+                            session_id: sessionId,
+                            step_idx: stepIdx,
+                            question_id: q.id,
+                          });
+                        }
+                      }}
+                    />
+                  )}
                   {ev && !isSkipped && (
                     <div className="qa-feedback">
                       <span className="qa-feedback-label">AI 피드백</span>

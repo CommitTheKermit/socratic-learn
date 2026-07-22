@@ -120,6 +120,22 @@ export function levelReason(
 export interface StepQuestion {
   id: string;
   q: string;
+  /** 객관식(판별/분류) 선택지. 없으면 서술형(textarea). 화면이 1, 2, 3 번호를 붙인다. */
+  choices?: string[];
+}
+
+/**
+ * 평가(answerEval/branchEval)에 보낼 질문 텍스트. 객관식은 q 에 선택지가 없으므로
+ * 채점 모델이 선택지를 알 수 있게 번호 목록을 덧붙인다.
+ */
+export function evalQuestionText(q: StepQuestion): string {
+  if (!q.choices?.length) return q.q;
+  return `${q.q}\n선택지: ${q.choices.map((c, i) => `${i + 1}. ${c}`).join(" / ")}`;
+}
+
+/** 객관식 선택 시 답변으로 저장/표시할 문자열 ("2. 선택지 텍스트"). */
+export function choiceAnswerText(index: number, choice: string): string {
+  return `${index + 1}. ${choice}`;
 }
 
 /**
@@ -213,7 +229,7 @@ export const STAGE_LABELS: Record<Stage, string> = {
   done: "완료",
 };
 
-// 답변 모드 — 입력바 왼쪽 드롭다운. 선택 모드가 학습 강도(질문 수·분기·채점)를 정한다.
+// 답변 모드 - 입력바 왼쪽 드롭다운. 선택 모드가 학습 강도(질문 수·분기·채점)를 정한다.
 // (모드값을 probe/eval 로직이 소비하는 부분은 별도 단계. 현재는 UI/선택까지.)
 export interface AnswerMode {
   id: string;
@@ -242,7 +258,7 @@ export function modesFor(testEligible: boolean): AnswerMode[] {
   return testEligible ? [...ANSWER_MODES, TEST_MODE] : ANSWER_MODES;
 }
 
-// 메인 가이드 — 학습 4단계 흐름 (입력바 아래 접이식)
+// 메인 가이드 - 학습 4단계 흐름 (입력바 아래 접이식)
 export const HOW_STEPS = [
   { n: "01", title: "수준 확인", desc: "몇 가지 질문으로 지금 아는 만큼을 가늠해요" },
   { n: "02", title: "단계 제시", desc: "개념을 작은 단계로 나눠 학습 순서를 그려요" },
