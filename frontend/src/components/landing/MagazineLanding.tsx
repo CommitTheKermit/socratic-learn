@@ -85,7 +85,25 @@ function BrowserFrame({ activeShot }: { activeShot: number | "all" }) {
 export function MagazineLanding() {
   const rootRef = useRef<HTMLDivElement>(null);
   const stepsRef = useRef<HTMLElement>(null);
+  // collapsed = pin 해제 상태(위로 스크롤 시). 예약 스크롤 높이를 접어 위로 자유롭게 지나가게 함.
+  const collapsedRef = useRef(false);
+  // suppress = 네비 클릭으로 프로그램 스크롤 중일 때 collapse 를 잠시 억제.
+  const suppressRef = useRef(false);
   const [activeStep, setActiveStep] = useState(0);
+
+  // pin 예약 높이 제어: 펼침 = STEPS*100vh(아래로 스텝 진행), 접힘 = 100vh(위로 프리패스).
+  const expandSteps = () => {
+    const s = stepsRef.current;
+    if (!s) return;
+    collapsedRef.current = false;
+    s.style.height = STEPS.length * window.innerHeight + "px";
+  };
+  const collapseSteps = () => {
+    const s = stepsRef.current;
+    if (!s) return;
+    collapsedRef.current = true;
+    s.style.height = window.innerHeight + "px";
+  };
   // compact = pin 없이 세로 카드(모바일/reduced-motion). 초기값을 동기로 산정해 깜빡임 방지.
   const [compact, setCompact] = useState(
     () =>
@@ -107,40 +125,79 @@ export function MagazineLanding() {
     };
   }, []);
 
-  // 스크롤 진행도 → 활성 스텝(pin 모드에서만)
+  // 스크롤 → 활성 스텝 + 방향 감지 pin(아래로만 고정, 위로는 프리패스)
   useEffect(() => {
     if (compact) return;
     const section = stepsRef.current;
     if (!section) return;
     let raf = 0;
-    const onScroll = () => {
-      if (raf) return;
-      raf = requestAnimationFrame(() => {
-        raf = 0;
+    let lastY = window.scrollY;
+
+    const apply = () => {
+      raf = 0;
+      const rect = section.getBoundingClientRect();
+      const y = window.scrollY;
+      const goingUp = y < lastY - 0.5;
+      const goingDown = y > lastY + 0.5;
+      lastY = y;
+
+      // 섹션이 화면에 고정(pin)된 상태인가
+      const pinned = rect.top <= 0 && rect.bottom > window.innerHeight;
+
+      if (!collapsedRef.current) {
+        // 아래로 내려가는 동안만 스텝 진행. 위로 올리면 pin 을 접어 자유롭게 지나가게 함.
+        if (!suppressRef.current && goingUp && pinned && rect.top < -1) {
+          const targetY = rect.top + y; // 섹션 상단의 문서 좌표
+          collapseSteps();
+          window.scrollTo(0, targetY); // 같은 화면(현재 패널)을 유지 → 시각적 점프 없음
+          lastY = targetY;
+          return;
+        }
         const range = section.offsetHeight - window.innerHeight;
-        if (range <= 0) return;
-        const p = Math.min(1, Math.max(0, -section.getBoundingClientRect().top / range));
-        const idx = Math.min(STEPS.length - 1, Math.floor(p * STEPS.length));
-        setActiveStep((prev) => (prev === idx ? prev : idx));
-      });
+        if (range > 0) {
+          const p = Math.min(1, Math.max(0, -rect.top / range));
+          const idx = Math.min(STEPS.length - 1, Math.floor(p * STEPS.length));
+          setActiveStep((prev) => (prev === idx ? prev : idx));
+        }
+      } else if (goingDown && rect.top > 1) {
+        // 다시 위에서 아래로 진입하면 pin 복원 → 스텝 진행 재개
+        expandSteps();
+      }
     };
+
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(apply);
+    };
+    const onResize = () => {
+      if (!collapsedRef.current) expandSteps();
+      onScroll();
+    };
+
+    expandSteps();
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll, { passive: true });
+    window.addEventListener("resize", onResize, { passive: true });
     return () => {
       window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
+      window.removeEventListener("resize", onResize);
       cancelAnimationFrame(raf);
+      section.style.height = "";
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [compact]);
 
-  // 스텝 네비 클릭 → 해당 스텝 구간으로 부드럽게 스크롤
+  // 스텝 네비 클릭 → 해당 스텝 구간으로 부드럽게 스크롤(뒤로 가도 collapse 억제)
   const scrollToStep = (i: number) => {
     const section = stepsRef.current;
     if (!section) return;
+    if (collapsedRef.current) expandSteps();
+    suppressRef.current = true;
     const range = section.offsetHeight - window.innerHeight;
     const y = window.scrollY + section.getBoundingClientRect().top + (i / STEPS.length) * range + 4;
     window.scrollTo({ top: y, behavior: "smooth" });
+    window.setTimeout(() => {
+      suppressRef.current = false;
+    }, 700);
   };
 
   useEffect(() => {

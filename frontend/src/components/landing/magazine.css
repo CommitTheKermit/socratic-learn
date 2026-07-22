@@ -155,7 +155,8 @@ html:has(.mag-root) { scroll-behavior: smooth; }
 .mag-root .m-frame.is-sm .m-shots{aspect-ratio:2504/996}
 
 /* 스크롤 고정(scrollytelling) 스텝퍼 - 섹션이 화면에 pin 되고 스크롤로 스텝 전환 */
-.mag-root .m-steps{position:relative;min-height:calc(100vh * 4)}
+/* 실제 높이는 JS 가 제어(펼침 400vh / 접힘 100vh). CSS 는 no-JS 폴백 최소값만. */
+.mag-root .m-steps{position:relative;min-height:100vh}
 .mag-root .m-steps-sticky{position:sticky;top:0;min-height:100vh;display:flex;flex-direction:column;
   justify-content:center;gap:24px;padding:28px 0}
 .mag-root .m-steps-nav{display:grid;grid-template-columns:repeat(4,1fr);
