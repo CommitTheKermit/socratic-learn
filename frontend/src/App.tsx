@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import { Sidebar } from "./components/Sidebar";
+import { MagazineLanding } from "./components/landing/MagazineLanding";
 import { ProgressBar } from "./components/ProgressBar";
 import { Hero } from "./components/Hero";
 import { SessionLoadOverlay } from "./components/SessionLoadOverlay";
@@ -1010,6 +1011,7 @@ export default function App() {
     <SessionListProvider>
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/landing" element={<MagazineLanding />} />
         <Route path="/s/:sessionId" element={<AppShell stage="input" />} />
         <Route path="/s/:sessionId/probe" element={<AppShell stage="probe" />} />
         <Route path="/s/:sessionId/learn/:stepIdx" element={<AppShell stage="learn" />} />
