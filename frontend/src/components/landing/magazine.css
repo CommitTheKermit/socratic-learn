@@ -136,17 +136,55 @@ html:has(.mag-root) { scroll-behavior: smooth; }
 .mag-root .m-how-head{display:flex;align-items:baseline;justify-content:space-between;padding:12px 0;
   border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
 .mag-root .m-how-head .m-l .m-n{color:var(--cyan);font-family:var(--disp);font-weight:900;margin-right:8px}
-.mag-root .m-how-grid{display:grid;grid-template-columns:repeat(4,1fr)}
-.mag-root .m-how-cell{padding:26px 22px 30px;border-left:1px solid var(--rule);min-height:186px;display:flex;flex-direction:column}
-.mag-root .m-how-cell:first-child{border-left:0}
-.mag-root .m-how-cell .m-num{font-family:var(--disp);font-weight:900;font-size:52px;line-height:0.9;
+
+/* 공용: 브라우저 크롬 프레임 + 스크린샷 */
+.mag-root .m-frame{border:1px solid rgba(255,255,255,0.22);border-radius:8px;overflow:hidden;
+  background:var(--elev);box-shadow:0 40px 90px -50px oklch(0 0 0 / 0.9)}
+.mag-root .m-frame-bar{display:flex;align-items:center;gap:10px;padding:10px 14px;
+  border-bottom:1px solid rgba(255,255,255,0.12);background:oklch(1 0 0 / 0.03)}
+.mag-root .m-frame-bar .m-dots{display:flex;gap:6px}
+.mag-root .m-frame-bar .m-dots i{width:9px;height:9px;border-radius:50%;background:oklch(1 0 0 / 0.2)}
+.mag-root .m-frame-bar .m-u{flex:1;text-align:center;font-family:var(--mono);font-size:11px;
+  letter-spacing:0.06em;color:var(--dim)}
+.mag-root .m-shots{position:relative;aspect-ratio:2000/1300;background:var(--bg)}
+.mag-root .m-shots img{position:absolute;inset:0;width:100%;height:100%;
+  object-fit:contain;object-position:center top;opacity:0;transition:opacity .55s ease}
+.mag-root .m-shots img.is-on{opacity:1}
+
+/* 스크롤 고정(scrollytelling) 스텝퍼 - 섹션이 화면에 pin 되고 스크롤로 스텝 전환 */
+.mag-root .m-steps{position:relative;min-height:calc(100vh * 4)}
+.mag-root .m-steps-sticky{position:sticky;top:0;min-height:100vh;display:flex;flex-direction:column;
+  justify-content:center;gap:24px;padding:28px 0}
+.mag-root .m-steps-nav{display:grid;grid-template-columns:repeat(4,1fr);
+  border:1px solid var(--rule);border-radius:3px;overflow:hidden}
+.mag-root .m-steps-nav button{position:relative;display:flex;flex-direction:column;gap:5px;
+  padding:12px 15px;text-align:left;border-left:1px solid var(--rule-soft);transition:background .3s ease}
+.mag-root .m-steps-nav button:first-child{border-left:0}
+.mag-root .m-steps-nav .m-sn-num{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:0.1em;color:var(--dim)}
+.mag-root .m-steps-nav .m-sn-label{font-size:13px;font-weight:700;letter-spacing:-0.01em;color:var(--muted)}
+.mag-root .m-steps-nav button.is-on{background:var(--elev-2)}
+.mag-root .m-steps-nav button.is-on .m-sn-num{color:var(--cyan)}
+.mag-root .m-steps-nav button.is-on .m-sn-label{color:var(--fg)}
+.mag-root .m-steps-nav .m-sn-bar{position:absolute;left:0;top:0;height:2px;width:100%;
+  background:var(--holo);transform:scaleX(0);transform-origin:left;transition:transform .45s cubic-bezier(.22,.61,.36,1)}
+.mag-root .m-steps-nav button.is-on .m-sn-bar{transform:scaleX(1)}
+
+.mag-root .m-steps-stage{display:grid;grid-template-columns:1fr 300px;gap:36px;align-items:center}
+.mag-root .m-steps-copy{align-self:center;animation:mStepIn .5s cubic-bezier(.22,.61,.36,1)}
+.mag-root .m-steps-kick{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--cyan)}
+.mag-root .m-steps-copy h3{margin:12px 0 0;font-size:clamp(24px,3vw,34px);font-weight:800;letter-spacing:-0.03em;line-height:1.1}
+.mag-root .m-steps-copy p{margin:14px 0 0;font-size:14.5px;color:var(--muted);line-height:1.6;max-width:32ch}
+@keyframes mStepIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+/* compact(모바일/reduced-motion) - pin 없이 세로 카드로 나열, 스크린샷 항상 표시 */
+.mag-root .m-step-cards{display:flex;flex-direction:column;border-top:1px solid var(--rule)}
+.mag-root .m-step-card{padding:26px 0;border-top:1px solid var(--rule-soft)}
+.mag-root .m-step-card:first-child{border-top:0}
+.mag-root .m-step-card .m-sc-head{display:flex;align-items:baseline;gap:10px;margin-bottom:14px}
+.mag-root .m-step-card .m-sc-num{font-family:var(--disp);font-weight:900;font-size:22px;
   background:var(--holo);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-.mag-root .m-how-cell h3{margin:auto 0 8px;font-size:18px;font-weight:800;letter-spacing:-0.02em}
-.mag-root .m-how-cell p{margin:0;font-size:13px;color:var(--muted);line-height:1.5}
-.mag-root .m-how-cell.m-on{background:var(--holo);color:var(--holo-on)}
-.mag-root .m-how-cell.m-on .m-num{-webkit-text-fill-color:currentColor;background:none;color:var(--bg)}
-.mag-root .m-how-cell.m-on h3{color:var(--holo-on)}
-.mag-root .m-how-cell.m-on p{color:var(--holo-on-dim)}
+.mag-root .m-step-card h3{margin:0;font-size:20px;font-weight:800;letter-spacing:-0.02em}
+.mag-root .m-step-card .m-sc-desc{margin:12px 0 0;font-size:14px;color:var(--muted);line-height:1.6}
 
 /* ── GET STARTED ───────────────────────────────────────────────────── */
 .mag-root .m-get{position:relative;overflow:hidden;background:var(--elev);color:var(--fg);
@@ -214,13 +252,8 @@ html:has(.mag-root) { scroll-behavior: smooth; }
   .mag-root .m-itv-grid .m-r{padding-left:0;padding-top:16px}
   .mag-root .m-why-grid{grid-template-columns:1fr}
   .mag-root .m-why-col.m-new{border-left:0;border-top:1px solid var(--rule)}
-  .mag-root .m-how-grid{grid-template-columns:1fr 1fr}
-  .mag-root .m-how-cell:nth-child(-n+2){border-top:0}
-  .mag-root .m-how-cell:nth-child(odd){border-left:0}
-  .mag-root .m-how-cell{border-top:1px solid var(--rule)}
 }
 @media(max-width:520px){
   .mag-root .m-masthead{font-size:10px;letter-spacing:0.08em}
-  .mag-root .m-how-grid{grid-template-columns:1fr}
-  .mag-root .m-how-cell{border-left:0}
+  .mag-root .m-steps-nav .m-sn-label{display:none}
 }

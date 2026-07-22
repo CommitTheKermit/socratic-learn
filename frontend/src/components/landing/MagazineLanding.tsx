@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import "./magazine.css";
 
@@ -10,11 +10,136 @@ import "./magazine.css";
  * 스코핑한 useEffect 로 옮겼다(전역 document 오염 방지). get 섹션 스크린샷은
  * base64 를 public/landing-app-shot.jpg 로 추출해 참조한다.
  *
+ * "작동 방식" 섹션은 스크롤 고정(scrollytelling) 스텝퍼다. 섹션이 뷰포트에 pin
+ * 되고, 스크롤 진행도에 따라 활성 스텝(수준 확인 → 개념 학습 → 확인 질문 → 완료)이
+ * 1→2→3→4 로 전환되며 각 단계 스크린샷 + 설명이 크로스페이드된다. 모바일/reduced-
+ * motion 에서는 pin 없이 세로 카드로 나열(compact).
+ *
  * 클래스명은 전부 `m-` 접두사를 쓴다. 앱 전역 CSS(v3.css 의 `.hero` 등)가
  * 같은 이름 규칙으로 `.mag-root` 안 레이아웃을 덮어쓰는 것을 막기 위함.
  */
+
+const STEPS = [
+  {
+    num: "01",
+    kicker: "Diagnose",
+    title: "수준 확인",
+    desc: "몇 가지 질문으로 지금 아는 만큼을 가늠해요. 답을 보고 이후 단계와 설명 깊이를 맞춰요.",
+    shot: "/screens/stage-probe.png",
+    url: "socratic.learn - 수준 확인",
+  },
+  {
+    num: "02",
+    kicker: "Learn",
+    title: "개념 학습",
+    desc: "필요한 만큼만 설명을 읽어요. 표와 코드로 개념 하나를 차근차근 짚어 나가요.",
+    shot: "/screens/stage-learn.png",
+    url: "socratic.learn - 학습 진행",
+  },
+  {
+    num: "03",
+    kicker: "Answer",
+    title: "확인 질문",
+    desc: "직접 답하며 이해를 확인해요. 막히면 모르겠다고 넘겨도 괜찮아요.",
+    shot: "/screens/stage-questions.png",
+    url: "socratic.learn - 확인 질문",
+  },
+  {
+    num: "04",
+    kicker: "Done",
+    title: "완료",
+    desc: "오늘 익힌 것과 도달한 수준을 정리해요. 이해도에 맞춰 다음 학습으로 이어가요.",
+    shot: "/screens/stage-done.png",
+    url: "socratic.learn - 완료",
+  },
+];
+
+function BrowserFrame({ activeShot }: { activeShot: number | "all" }) {
+  return (
+    <div className="m-frame">
+      <div className="m-frame-bar">
+        <span className="m-dots">
+          <i />
+          <i />
+          <i />
+        </span>
+        <span className="m-u">{activeShot === "all" ? "socratic.learn" : STEPS[activeShot].url}</span>
+      </div>
+      <div className="m-shots">
+        {STEPS.map((s, i) => (
+          <img
+            key={s.num}
+            src={s.shot}
+            alt={`${s.title} 화면`}
+            loading="lazy"
+            className={activeShot === "all" || i === activeShot ? "is-on" : ""}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function MagazineLanding() {
   const rootRef = useRef<HTMLDivElement>(null);
+  const stepsRef = useRef<HTMLElement>(null);
+  const [activeStep, setActiveStep] = useState(0);
+  // compact = pin 없이 세로 카드(모바일/reduced-motion). 초기값을 동기로 산정해 깜빡임 방지.
+  const [compact, setCompact] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      (matchMedia("(prefers-reduced-motion:reduce)").matches || matchMedia("(max-width:820px)").matches),
+  );
+
+  // compact 여부 추적(reduced-motion / 화면폭 변화)
+  useEffect(() => {
+    const rm = matchMedia("(prefers-reduced-motion:reduce)");
+    const narrow = matchMedia("(max-width:820px)");
+    const update = () => setCompact(rm.matches || narrow.matches);
+    update();
+    rm.addEventListener("change", update);
+    narrow.addEventListener("change", update);
+    return () => {
+      rm.removeEventListener("change", update);
+      narrow.removeEventListener("change", update);
+    };
+  }, []);
+
+  // 스크롤 진행도 → 활성 스텝(pin 모드에서만)
+  useEffect(() => {
+    if (compact) return;
+    const section = stepsRef.current;
+    if (!section) return;
+    let raf = 0;
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const range = section.offsetHeight - window.innerHeight;
+        if (range <= 0) return;
+        const p = Math.min(1, Math.max(0, -section.getBoundingClientRect().top / range));
+        const idx = Math.min(STEPS.length - 1, Math.floor(p * STEPS.length));
+        setActiveStep((prev) => (prev === idx ? prev : idx));
+      });
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      cancelAnimationFrame(raf);
+    };
+  }, [compact]);
+
+  // 스텝 네비 클릭 → 해당 스텝 구간으로 부드럽게 스크롤
+  const scrollToStep = (i: number) => {
+    const section = stepsRef.current;
+    if (!section) return;
+    const range = section.offsetHeight - window.innerHeight;
+    const y = window.scrollY + section.getBoundingClientRect().top + (i / STEPS.length) * range + 4;
+    window.scrollTo({ top: y, behavior: "smooth" });
+  };
 
   useEffect(() => {
     const root = rootRef.current;
@@ -38,7 +163,6 @@ export function MagazineLanding() {
       [".m-pull", "wipe", 0],
       [".m-why h2", "rise", 0],
       [".m-why-col", "rise", 110],
-      [".m-how-cell", "up", 90],
       [".m-get .m-k", "rise", 0],
       [".m-get h2", "rise", 0],
       [".m-get .m-dek", "rise", 0],
@@ -112,6 +236,8 @@ export function MagazineLanding() {
 
     return () => io?.disconnect();
   }, []);
+
+  const active = STEPS[activeStep];
 
   return (
     <div className="mag-root" ref={rootRef}>
@@ -289,35 +415,59 @@ export function MagazineLanding() {
           </div>
         </section>
 
-        {/* ── HOW IT WORKS ── */}
+        {/* ── HOW IT WORKS · 스크롤 고정 스텝퍼 ── */}
         <div className="m-how-head" id="how">
           <span className="m-kick m-l">
             <span className="m-n">03</span>작동 방식
           </span>
           <span className="m-kick">How it works</span>
         </div>
-        <section className="m-how-grid">
-          <div className="m-how-cell">
-            <span className="m-num">01</span>
-            <h3>수준 확인</h3>
-            <p>몇 가지 질문으로 지금 아는 만큼을 가늠한다.</p>
+
+        {compact ? (
+          <div className="m-step-cards">
+            {STEPS.map((s, i) => (
+              <article className="m-step-card" key={s.num}>
+                <div className="m-sc-head">
+                  <span className="m-sc-num">{s.num}</span>
+                  <h3>{s.title}</h3>
+                </div>
+                <BrowserFrame activeShot={i} />
+                <p className="m-sc-desc">{s.desc}</p>
+              </article>
+            ))}
           </div>
-          <div className="m-how-cell">
-            <span className="m-num">02</span>
-            <h3>단계 제시</h3>
-            <p>개념을 작은 단계로 나눠 학습 순서를 그린다.</p>
-          </div>
-          <div className="m-how-cell m-on">
-            <span className="m-num">03</span>
-            <h3>학습 진행</h3>
-            <p>설명을 읽고, 직접 답하며 이해를 확인한다.</p>
-          </div>
-          <div className="m-how-cell">
-            <span className="m-num">04</span>
-            <h3>완료</h3>
-            <p>무엇을 알게 됐는지 정리한다.</p>
-          </div>
-        </section>
+        ) : (
+          <section className="m-steps" ref={stepsRef} aria-label="작동 방식 4단계">
+            <div className="m-steps-sticky">
+              <div className="m-steps-nav" role="tablist">
+                {STEPS.map((s, i) => (
+                  <button
+                    type="button"
+                    key={s.num}
+                    role="tab"
+                    aria-selected={i === activeStep}
+                    className={i === activeStep ? "is-on" : ""}
+                    onClick={() => scrollToStep(i)}
+                  >
+                    <span className="m-sn-bar" aria-hidden="true" />
+                    <span className="m-sn-num">{s.num}</span>
+                    <span className="m-sn-label">{s.title}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="m-steps-stage">
+                <BrowserFrame activeShot={activeStep} />
+                <div className="m-steps-copy" key={activeStep}>
+                  <span className="m-steps-kick">
+                    Step {active.num} · {active.kicker}
+                  </span>
+                  <h3>{active.title}</h3>
+                  <p>{active.desc}</p>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* ── GET STARTED ── */}
         <section className="m-get" id="get">
