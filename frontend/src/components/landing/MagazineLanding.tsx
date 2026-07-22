@@ -55,8 +55,10 @@ const STEPS = [
 ];
 
 function BrowserFrame({ activeShot }: { activeShot: number | "all" }) {
+  // 완료(마지막) 스크린샷은 원본이 넓고 짧아, 프레임 자체를 더 작게(짧은 비율) 표시한다.
+  const isDone = activeShot !== "all" && activeShot === STEPS.length - 1;
   return (
-    <div className="m-frame">
+    <div className={`m-frame${isDone ? " is-sm" : ""}`}>
       <div className="m-frame-bar">
         <span className="m-dots">
           <i />

@@ -150,6 +150,9 @@ html:has(.mag-root) { scroll-behavior: smooth; }
 .mag-root .m-shots img{position:absolute;inset:0;width:100%;height:100%;
   object-fit:contain;object-position:center top;opacity:0;transition:opacity .55s ease}
 .mag-root .m-shots img.is-on{opacity:1}
+/* 완료 스크린샷(넓고 짧음): 프레임을 더 작게 + 짧은 비율 + 중앙 정렬 */
+.mag-root .m-frame.is-sm{max-width:600px;margin-inline:auto}
+.mag-root .m-frame.is-sm .m-shots{aspect-ratio:2504/996}
 
 /* 스크롤 고정(scrollytelling) 스텝퍼 - 섹션이 화면에 pin 되고 스크롤로 스텝 전환 */
 .mag-root .m-steps{position:relative;min-height:calc(100vh * 4)}
