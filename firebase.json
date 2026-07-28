@@ -9,6 +9,18 @@
   "hosting": {
     "public": "frontend/dist",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "headers": [
+      {
+        "//": "기본: SPA 셸(index.html + 모든 라우트)은 캐시하지 않고 매번 재검증. 새 배포가 즉시 반영되고 라우트 누락으로 인한 오리다이렉트를 막는다. (Firebase 는 나중 규칙이 우선하므로 자산 규칙을 아래에 둔다.)",
+        "source": "**",
+        "headers": [{ "key": "Cache-Control", "value": "no-cache, max-age=0, must-revalidate" }]
+      },
+      {
+        "//": "해시된 정적 자산(파일명이 빌드마다 바뀜)은 장기 불변 캐시. ** 보다 뒤에 두어 자산에 한해 override 한다.",
+        "source": "/assets/**",
+        "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+      }
+    ],
     "rewrites": [{ "source": "**", "destination": "/index.html" }]
   },
   "emulators": {
