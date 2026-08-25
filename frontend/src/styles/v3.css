@@ -1840,8 +1840,8 @@ body {
 .qa-choice {
   position: relative;
   display: flex; align-items: center; gap: 14px;
-  min-height: 56px;
-  padding: 14px 16px;
+  min-height: 46px;
+  padding: 9px 16px;
   border-radius: 12px;
   cursor: pointer;
   overflow: hidden;
@@ -1868,7 +1868,7 @@ body {
 
 .qa-choice-num {
   flex: none;
-  width: 22px; height: 22px;
+  width: 28px; height: 28px;
   border-radius: 9px;
   display: grid; place-items: center;
   font-family: var(--font-mono);
@@ -1926,7 +1926,7 @@ body {
 }
 
 @media (max-width: 640px) {
-  .qa-choice { min-height: 60px; padding: 14px; gap: 12px; }
+  .qa-choice { min-height: 48px; padding: 10px 14px; gap: 12px; }
   .qa-choice-label { font-size: 15px; }
 }
 @media (prefers-reduced-motion: reduce) {
