@@ -1868,7 +1868,7 @@ body {
 
 .qa-choice-num {
   flex: none;
-  width: 28px; height: 28px;
+  width: 28px; height: 22px;
   border-radius: 9px;
   display: grid; place-items: center;
   font-family: var(--font-mono);
