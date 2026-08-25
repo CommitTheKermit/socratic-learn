@@ -150,8 +150,8 @@ export function QaChoices({
               <svg
                 className="qa-choice-check"
                 viewBox="0 0 24 24"
-                width="14"
-                height="14"
+                width="15"
+                height="15"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2.4"
