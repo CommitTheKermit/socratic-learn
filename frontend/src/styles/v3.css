@@ -1882,7 +1882,7 @@ body {
   min-width: 0;
   font-size: 14.5px;
   line-height: 1.45;
-  color: var(--fg-mut);
+  color: var(--fg);
   text-wrap: pretty;
   transition: color .18s ease;
 }
@@ -1910,7 +1910,7 @@ body {
   font-weight: 700;
   box-shadow: none;
 }
-.qa-choice.is-selected .qa-choice-label { color: var(--fg); font-weight: 600; }
+.qa-choice.is-selected .qa-choice-label { font-weight: 600; }
 
 /* 잠김 - 제출/평가 후 */
 .qa-choice.is-disabled { cursor: default; }
