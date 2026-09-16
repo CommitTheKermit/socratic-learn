@@ -14,6 +14,7 @@ import { PrereqTrigger } from "../components/prereq/PrereqTrigger";
 import { ParentReturnBanner } from "../components/prereq/ParentReturnBanner";
 import { PI } from "../components/prereq/prereqIcons";
 import type { PrereqStageControls } from "../components/prereq/types";
+import { CameraAnswer, useCameraAnswerMode } from "../components/CameraAnswer";
 
 interface Props {
   concept: string;
@@ -110,10 +111,14 @@ function TextRow({
   p,
   value,
   onChange,
+  cameraMode,
+  disabled,
 }: {
   p: ProbeTextQ;
   value: string | undefined;
   onChange: (v: string) => void;
+  cameraMode: boolean;
+  disabled: boolean;
 }) {
   return (
     <div className="probe-row">
@@ -121,13 +126,16 @@ function TextRow({
         <MathText text={p.q} /> <span className="probe-badge">선택</span>
       </div>
       <div className="probe-sub">건너뛰셔도 괜찮아요.</div>
-      <textarea
-        className="probe-text"
-        rows={2}
-        placeholder={p.placeholder}
-        value={value ?? ""}
-        onChange={(e) => onChange(e.target.value)}
-      />
+      <CameraAnswer cameraMode={cameraMode} value={value ?? ""} onText={onChange} disabled={disabled}>
+        <textarea
+          className="probe-text"
+          aria-label={p.q}
+          rows={2}
+          placeholder={p.placeholder}
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      </CameraAnswer>
     </div>
   );
 }
@@ -156,6 +164,7 @@ export function StageProbe({
   const [showRequiredError, setShowRequiredError] = useState(false);
   const [checkingOverwhelm, setCheckingOverwhelm] = useState(false);
   const [retreat, setRetreat] = useState<OverwhelmDecision | null>(null);
+  const { cameraMode, modeSwitch } = useCameraAnswerMode();
 
   const buildProbeSummary = (): string => {
     const lines: string[] = [];
@@ -237,6 +246,7 @@ export function StageProbe({
 
         {!loading && probeQuestions.length > 0 && (
           <div className="probe-list">
+            {modeSwitch}
             {probeQuestions.map((p) => {
               if (p.kind === "choice") {
                 return (
@@ -273,6 +283,8 @@ export function StageProbe({
               return (
                 <TextRow
                   key={p.id}
+                  cameraMode={cameraMode}
+                  disabled={checkingOverwhelm}
                   p={p}
                   value={probes.p3}
                   onChange={(nv) => setProbes((prev) => ({ ...prev, p3: nv }))}

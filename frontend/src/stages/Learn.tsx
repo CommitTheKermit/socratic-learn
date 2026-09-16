@@ -21,6 +21,7 @@ import { ParentReturnBanner } from "../components/prereq/ParentReturnBanner";
 import { DepthLimitCard } from "../components/prereq/DepthLimitCard";
 import type { PrereqStageControls } from "../components/prereq/types";
 import { loadOrient, saveOrient, type Orient } from "../state/orientSetting";
+import { CameraAnswer, useCameraAnswerMode } from "../components/CameraAnswer";
 
 /**
  * LLM 이 돌려준 분기 옵션을 결정론적으로 보정한다.
@@ -74,11 +75,13 @@ function QaAnswer({
   readOnly,
   onChange,
   onBlur,
+  labelledBy,
 }: {
   value: string;
   readOnly: boolean;
   onChange: (v: string) => void;
   onBlur: () => void;
+  labelledBy: string;
 }) {
   const [placeholder] = useState(pickRandomPlaceholder);
   if (readOnly) {
@@ -92,6 +95,7 @@ function QaAnswer({
   return (
     <textarea
       className="qa-answer"
+      aria-labelledby={labelledBy}
       placeholder={placeholder}
       value={value}
       onChange={(e) => onChange(e.target.value)}
@@ -254,6 +258,7 @@ export function StageLearn({
     insertStepAt,
   } = useLearnContent();
   const branch = useBranchPhase();
+  const { cameraMode, modeSwitch } = useCameraAnswerMode();
   const [branchVisible, setBranchVisible] = useState(false);
   // 분기 옵션 선택 완료 step.id 집합(branchedStepIds)과 분기 스냅샷(stepBranches)은
   // LearnContent 가 보유·영속화한다. markBranched 로만 추가되며 새로고침/세션 복원 시 유지된다.
@@ -904,6 +909,7 @@ export function StageLearn({
 
   const questionsList = step ? (
     <>
+      {detailReady && step.questions.some((q) => !q.choices?.length) && modeSwitch}
       {evalStatus === "error" && evalError && (
         <div className="probe-result" role="alert">
           <p className="pr-reason">{describeErrorCode(evalError.code, evalError.message)}</p>
@@ -1011,24 +1017,33 @@ export function StageLearn({
                       }}
                     />
                   ) : (
-                    <QaAnswer
+                    <CameraAnswer
+                      key={`${step.id}-${q.id}`}
+                      cameraMode={cameraMode}
                       value={val}
-                      readOnly={locked}
-                      onChange={(v) => {
-                        if (locked) return;
-                        setAnswers({ ...answers, [q.id]: v });
-                      }}
-                      onBlur={() => {
-                        onAnswerCommit?.();
-                        if (sessionId && val && !locked) {
-                          logEvent("sl_answer_edit", {
-                            session_id: sessionId,
-                            step_idx: stepIdx,
-                            question_id: q.id,
-                          });
-                        }
-                      }}
-                    />
+                      disabled={locked || isEvaluating}
+                      onText={(text) => setAnswers({ ...answers, [q.id]: text })}
+                    >
+                      <QaAnswer
+                        labelledBy={`question-${q.id}`}
+                        value={val}
+                        readOnly={locked}
+                        onChange={(v) => {
+                          if (locked) return;
+                          setAnswers({ ...answers, [q.id]: v });
+                        }}
+                        onBlur={() => {
+                          onAnswerCommit?.();
+                          if (sessionId && val && !locked) {
+                            logEvent("sl_answer_edit", {
+                              session_id: sessionId,
+                              step_idx: stepIdx,
+                              question_id: q.id,
+                            });
+                          }
+                        }}
+                      />
+                    </CameraAnswer>
                   )}
                   {ev && !isSkipped && (
                     <div className="qa-feedback">
