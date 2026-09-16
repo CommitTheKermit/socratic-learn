@@ -49,6 +49,15 @@ export const CHANGE_TYPE_ORDER: ChangeType[] = ["feature", "improve", "fix"];
 /** 전체 버전 히스토리 (최신 → 과거). 맨 앞이 현재 버전. */
 export const CHANGELOG: VersionEntry[] = [
   {
+    version: "0.20.0",
+    date: "2026.09.16",
+    changes: [
+      { type: "feature", text: "모바일에서 답변을 촬영하면 글자를 인식해 답변칸에 넣을 수 있어요." },
+      { type: "feature", text: "객관식 확인 질문을 번호가 붙은 선택지로 답할 수 있어요." },
+      { type: "improve", text: "객관식 선택지의 간격과 글자 색을 다듬어 읽기 편해졌어요." },
+    ],
+  },
+  {
     version: "0.18.2",
     date: "2026.07.06",
     changes: [
