@@ -32,10 +32,18 @@ const stepDetailSchema = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["id", "q"],
+        required: ["id", "q", "choices"],
         properties: {
           id: { type: "string", description: "단계번호-순번 형식 (예: 1-1)" },
-          q: { type: "string" },
+          q: { type: "string", description: "질문 문장. 선택지를 문장 안에 나열하지 않는다." },
+          choices: {
+            anyOf: [
+              { type: "array", minItems: 2, maxItems: 4, items: { type: "string" } },
+              { type: "null" },
+            ],
+            description:
+              "객관식(판별/분류) 질문의 선택지 텍스트. 번호/라벨 없이 텍스트만. 서술형 질문은 null.",
+          },
         },
       },
     },
@@ -60,10 +68,18 @@ const stepDetailSchemaTest = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["id", "q"],
+        required: ["id", "q", "choices"],
         properties: {
           id: { type: "string", description: "단계번호-순번 형식 (예: 1-1)" },
-          q: { type: "string" },
+          q: { type: "string", description: "질문 문장. 선택지를 문장 안에 나열하지 않는다." },
+          choices: {
+            anyOf: [
+              { type: "array", minItems: 2, maxItems: 4, items: { type: "string" } },
+              { type: "null" },
+            ],
+            description:
+              "객관식(판별/분류) 질문의 선택지 텍스트. 번호/라벨 없이 텍스트만. 서술형 질문은 null.",
+          },
         },
       },
     },
@@ -77,7 +93,7 @@ interface RoadmapOutlineItem {
 
 interface StepDetail {
   body: string;
-  questions: { id: string; q: string }[];
+  questions: { id: string; q: string; choices?: string[] | null }[];
 }
 
 export const stepDetail = onRequest(
@@ -160,7 +176,13 @@ export const stepDetail = onRequest(
         res.status(502).json({ code: "INVALID_RESPONSE", message: "단계 상세 응답이 비어 있습니다." });
         return;
       }
-      res.json(parsed);
+      // 스키마의 choices:null(서술형)은 응답에서 제거해 {id,q} 기존 형태를 유지한다.
+      res.json({
+        body: parsed.body,
+        questions: parsed.questions.map(({ id, q, choices }) =>
+          choices?.length ? { id, q, choices } : { id, q },
+        ),
+      });
     } catch (e) {
       logger.error("stepDetail function failed", e);
       const status = e instanceof Anthropic.APIError ? e.status ?? 502 : 500;

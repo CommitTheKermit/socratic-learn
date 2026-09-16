@@ -8,6 +8,8 @@ import type {
   PrereqNode,
   PrereqTreeResponse,
   ValidateInputResponse,
+  AnswerOcrRequest,
+  AnswerOcrResponse,
 } from "./contract";
 import type { ProbeQuestion, Step } from "../stages/data";
 import { authHeaders } from "./authHeaders";
@@ -18,6 +20,25 @@ export class ClaudeContentError extends Error {
     super(message);
     this.code = code;
   }
+}
+
+/** 사진은 별도 OCR Function으로만 보낸다. Anthropic에는 전달하지 않는다. */
+export async function recognizeAnswerImage(imageBase64: string, signal: AbortSignal): Promise<string> {
+  const payload: AnswerOcrRequest = { imageBase64 };
+  const res = await fetch(`${API_BASE_URL}${ApiPaths.ANSWER_OCR}`, {
+    method: "POST",
+    headers: await authHeaders(),
+    body: JSON.stringify(payload),
+    signal,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.message || "사진을 읽지 못했어요. 잠시 후 다시 시도해 주세요.");
+  }
+  const body: AnswerOcrResponse = await res.json();
+  if (typeof body.text !== "string") throw new Error("인식 결과를 읽지 못했어요.");
+  if (!body.text.trim()) throw new Error("글자를 찾지 못했어요. 답안을 밝고 선명하게 다시 촬영해 주세요.");
+  return body.text.trim();
 }
 
 // Firebase Functions(probe) 로 이전됨. 브라우저는 더 이상 Anthropic 을 직접 호출하지 않는다.

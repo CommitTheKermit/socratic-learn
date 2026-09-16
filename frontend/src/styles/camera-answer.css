@@ -1,0 +1,18 @@
+.lv-seg.camera-mode-switch { display: flex; margin-block: 12px; width: fit-content; }
+.camera-actions { display: flex; flex-wrap: wrap; gap: 8px; padding-block: 8px; }
+.camera-actions button, .camera-mode-switch button { min-height: 44px; }
+.camera-note { color: var(--fg-mut); font-size: 13px; line-height: 1.6; margin-block: 8px; }
+.camera-dialog {
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--line-3);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  width: min(560px, calc(100% - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+}
+.camera-dialog::backdrop { background: oklch(0 0 0 / 0.7); }
+.camera-dialog h3 { margin: 0; }
+.camera-preview { display: block; width: 100%; max-height: 45dvh; object-fit: contain; border-radius: var(--radius-sm); }
+.camera-dialog button:focus-visible, .camera-answer button:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }

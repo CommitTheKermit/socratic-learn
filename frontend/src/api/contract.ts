@@ -11,6 +11,7 @@ export const ApiPaths = {
   OUTLINE: "/outline",
   STEP_DETAIL: "/stepDetail",
   ANSWER_EVAL: "/answerEval",
+  ANSWER_OCR: "/answerOcr",
   BRANCH_EVAL: "/branchEval",
   // learn 단계 '질문하기' 라우터. 한 줄 질문을 prereq|newStep|none 으로 분류(분류 전용 LLM 콜).
   ASK_ROUTE: "/askRoute",
@@ -47,7 +48,8 @@ export interface StreamDeltaPayload {
 }
 export interface StepDetailStreamComplete {
   body: string;
-  questions: { id: string; q: string }[];
+  /** choices 가 있으면 객관식(프론트가 1, 2, 3 번호 선택 UI 렌더), 없으면 서술형. */
+  questions: { id: string; q: string; choices?: string[] }[];
 }
 export interface StreamErrorPayload {
   code: string;
@@ -147,6 +149,15 @@ export interface AnswerEvalRequest {
   stepBody: string;
   questions: { id: string; q: string; answer: string }[];
   mode?: LearnMode;
+}
+
+/** JPEG 본문만 전송한다. 사진은 세션/Storage에 저장하지 않는다. */
+export interface AnswerOcrRequest {
+  imageBase64: string;
+}
+
+export interface AnswerOcrResponse {
+  text: string;
 }
 
 export interface BranchEvalRequest {

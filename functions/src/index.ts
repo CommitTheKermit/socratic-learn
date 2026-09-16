@@ -7,6 +7,7 @@ export { stepDetail } from "./stepDetail";
 export { stepDetailStream } from "./stepDetailStream";
 export { testEligible } from "./testEligible";
 export { answerEval } from "./answerEval";
+export { answerOcr } from "./answerOcr";
 export { branchEval } from "./branchEval";
 export { askRoute } from "./askRoute";
 export { validateInput } from "./validateInput";

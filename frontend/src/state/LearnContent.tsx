@@ -9,6 +9,7 @@ import {
 } from "react";
 import {
   PROBE_QUESTIONS as FALLBACK_PROBES,
+  evalQuestionText,
   type ProbeQuestion,
   type Step,
 } from "../stages/data";
@@ -352,7 +353,7 @@ export function LearnContentProvider({
       try {
         const items = step.questions
           .filter((q) => !skips[q.id])
-          .map((q) => ({ id: q.id, q: q.q, answer: answers[q.id] || "" }));
+          .map((q) => ({ id: q.id, q: evalQuestionText(q), answer: answers[q.id] || "" }));
         const evalResult = await generateAnswerEvaluation(
           concept,
           level,

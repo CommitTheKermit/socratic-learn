@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLearnContent } from "../state/LearnContent";
 import { Markdown } from "../lib/markdown";
-import { LEVEL_LABELS, type Step } from "./data";
+import { LEVEL_LABELS, choiceAnswerText, evalQuestionText, type Step } from "./data";
 import { pickRandomPlaceholder } from "./placeholders";
 import { describeErrorCode } from "../lib/errors";
 import { I } from "../components/icons";
@@ -21,6 +21,7 @@ import { ParentReturnBanner } from "../components/prereq/ParentReturnBanner";
 import { DepthLimitCard } from "../components/prereq/DepthLimitCard";
 import type { PrereqStageControls } from "../components/prereq/types";
 import { loadOrient, saveOrient, type Orient } from "../state/orientSetting";
+import { CameraAnswer, useCameraAnswerMode } from "../components/CameraAnswer";
 
 /**
  * LLM 이 돌려준 분기 옵션을 결정론적으로 보정한다.
@@ -74,11 +75,13 @@ function QaAnswer({
   readOnly,
   onChange,
   onBlur,
+  labelledBy,
 }: {
   value: string;
   readOnly: boolean;
   onChange: (v: string) => void;
   onBlur: () => void;
+  labelledBy: string;
 }) {
   const [placeholder] = useState(pickRandomPlaceholder);
   if (readOnly) {
@@ -92,11 +95,81 @@ function QaAnswer({
   return (
     <textarea
       className="qa-answer"
+      aria-labelledby={labelledBy}
       placeholder={placeholder}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       onBlur={onBlur}
     />
+  );
+}
+
+/**
+ * 객관식 확인 질문의 선택지 리스트(세로 버튼). 클릭 = 단일 선택.
+ * 답변 값은 "2. 선택지 텍스트" 형태 문자열로 저장해 평가 파이프라인(answers)을 그대로 탄다.
+ */
+export function QaChoices({
+  name,
+  labelledBy,
+  choices,
+  value,
+  locked,
+  onSelect,
+}: {
+  name: string;
+  labelledBy: string;
+  choices: string[];
+  value: string;
+  locked: boolean;
+  onSelect: (v: string) => void;
+}) {
+  return (
+    <div className="qa-choices" role="radiogroup" aria-labelledby={labelledBy}>
+      {choices.map((c, i) => {
+        const text = choiceAnswerText(i, c);
+        const selected = value === text;
+        return (
+          <label
+            key={i}
+            className={
+              "qa-choice" + (selected ? " is-selected" : "") + (locked ? " is-disabled" : "")
+            }
+          >
+            <input
+              className="qa-choice-input"
+              type="radio"
+              name={name}
+              value={text}
+              checked={selected}
+              disabled={locked}
+              onChange={() => onSelect(text)}
+            />
+            <span className="qa-choice-num" aria-hidden>
+              {i + 1}
+            </span>
+            <span className="qa-choice-label">
+              <MathText text={c} />
+            </span>
+            {selected && (
+              <svg
+                className="qa-choice-check"
+                viewBox="0 0 24 24"
+                width="15"
+                height="15"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
+            )}
+          </label>
+        );
+      })}
+    </div>
   );
 }
 
@@ -185,6 +258,7 @@ export function StageLearn({
     insertStepAt,
   } = useLearnContent();
   const branch = useBranchPhase();
+  const { cameraMode, modeSwitch } = useCameraAnswerMode();
   const [branchVisible, setBranchVisible] = useState(false);
   // 분기 옵션 선택 완료 step.id 집합(branchedStepIds)과 분기 스냅샷(stepBranches)은
   // LearnContent 가 보유·영속화한다. markBranched 로만 추가되며 새로고침/세션 복원 시 유지된다.
@@ -280,7 +354,7 @@ export function StageLearn({
   };
   // 본문에서 고른 문구를 질문으로 시드해 바로 모달을 연다.
   const openAskWith = (sel: string) => {
-    const q = `'${sel}' — 여기서 정확히 무슨 뜻이에요?`;
+    const q = `'${sel}' - 여기서 정확히 무슨 뜻이에요?`;
     setSelChip(null);
     window.getSelection()?.removeAllRanges();
     setAskStatus("idle");
@@ -613,7 +687,7 @@ export function StageLearn({
       .join("\n");
     const qList = step.questions
       .filter((q) => !skips[q.id])
-      .map((q) => ({ id: q.id, q: q.q, answer: answers[q.id] || "" }));
+      .map((q) => ({ id: q.id, q: evalQuestionText(q), answer: answers[q.id] || "" }));
     void branch.retryBranch({
       concept,
       level: safeLevel,
@@ -712,7 +786,7 @@ export function StageLearn({
     step: s,
     questions: s.questions
       .filter((q) => !skips[q.id])
-      .map((q) => ({ id: q.id, q: q.q, answer: answers[q.id] || "" })),
+      .map((q) => ({ id: q.id, q: evalQuestionText(q), answer: answers[q.id] || "" })),
     roadmapOutlineText: steps.map((x, i) => `${i + 1}. ${x.title} - ${x.desc}`).join("\n"),
   });
 
@@ -835,6 +909,7 @@ export function StageLearn({
 
   const questionsList = step ? (
     <>
+      {detailReady && step.questions.some((q) => !q.choices?.length) && modeSwitch}
       {evalStatus === "error" && evalError && (
         <div className="probe-result" role="alert">
           <p className="pr-reason">{describeErrorCode(evalError.code, evalError.message)}</p>
@@ -872,7 +947,7 @@ export function StageLearn({
             >
               <div className="qa-head">
                 <span className="qa-num">Q{i + 1}</span>
-                <span className="qa-question"><MathText text={q.q} /></span>
+                <span id={`question-${q.id}`} className="qa-question"><MathText text={q.q} /></span>
                 {ev && !isSkipped && (
                   <span className={`grade-badge grade-${ev.grade}`}>{GRADE_LABEL[ev.grade]}</span>
                 )}
@@ -923,24 +998,53 @@ export function StageLearn({
                 </div>
               ) : (
                 <>
-                  <QaAnswer
-                    value={val}
-                    readOnly={locked}
-                    onChange={(v) => {
-                      if (locked) return;
-                      setAnswers({ ...answers, [q.id]: v });
-                    }}
-                    onBlur={() => {
-                      onAnswerCommit?.();
-                      if (sessionId && val && !locked) {
-                        logEvent("sl_answer_edit", {
-                          session_id: sessionId,
-                          step_idx: stepIdx,
-                          question_id: q.id,
-                        });
-                      }
-                    }}
-                  />
+                  {q.choices?.length ? (
+                    <QaChoices
+                      name={`answer-${q.id}`}
+                      labelledBy={`question-${q.id}`}
+                      choices={q.choices}
+                      value={val}
+                      locked={locked}
+                      onSelect={(v) => {
+                        setAnswers({ ...answers, [q.id]: v });
+                        if (sessionId) {
+                          logEvent("sl_answer_edit", {
+                            session_id: sessionId,
+                            step_idx: stepIdx,
+                            question_id: q.id,
+                          });
+                        }
+                      }}
+                    />
+                  ) : (
+                    <CameraAnswer
+                      key={`${step.id}-${q.id}`}
+                      cameraMode={cameraMode}
+                      value={val}
+                      disabled={locked || isEvaluating}
+                      onText={(text) => setAnswers({ ...answers, [q.id]: text })}
+                    >
+                      <QaAnswer
+                        labelledBy={`question-${q.id}`}
+                        value={val}
+                        readOnly={locked}
+                        onChange={(v) => {
+                          if (locked) return;
+                          setAnswers({ ...answers, [q.id]: v });
+                        }}
+                        onBlur={() => {
+                          onAnswerCommit?.();
+                          if (sessionId && val && !locked) {
+                            logEvent("sl_answer_edit", {
+                              session_id: sessionId,
+                              step_idx: stepIdx,
+                              question_id: q.id,
+                            });
+                          }
+                        }}
+                      />
+                    </CameraAnswer>
+                  )}
                   {ev && !isSkipped && (
                     <div className="qa-feedback">
                       <span className="qa-feedback-label">AI 피드백</span>
