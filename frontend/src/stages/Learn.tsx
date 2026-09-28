@@ -22,6 +22,7 @@ import { DepthLimitCard } from "../components/prereq/DepthLimitCard";
 import type { PrereqStageControls } from "../components/prereq/types";
 import { loadOrient, saveOrient, type Orient } from "../state/orientSetting";
 import { CameraAnswer, useCameraAnswerMode } from "../components/CameraAnswer";
+import { AnswerFeedback } from "../components/AnswerFeedback";
 
 /**
  * LLM 이 돌려준 분기 옵션을 결정론적으로 보정한다.
@@ -1046,10 +1047,7 @@ export function StageLearn({
                     </CameraAnswer>
                   )}
                   {ev && !isSkipped && (
-                    <div className="qa-feedback">
-                      <span className="qa-feedback-label">AI 피드백</span>
-                      <p><MathText text={ev.feedback} /></p>
-                    </div>
+                    <AnswerFeedback feedback={ev.feedback} sessionId={sessionId} stepIdx={stepIdx} />
                   )}
                   {!locked && (
                     <div className="qa-foot">

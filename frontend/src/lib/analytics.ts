@@ -9,6 +9,7 @@
 import { setUserId as firebaseSetUserId, logEvent as firebaseLogEvent } from "firebase/analytics";
 import { analytics } from "./firebase";
 import type { LearnMode } from "../api/contract";
+import type { CampaignAttribution, LearningEntryMethod } from "./growthMetrics";
 
 // ─────────────────────────────────────────────────────────
 // EventMap: 7개 sl_ 이벤트명 → 파라미터 타입 매핑
@@ -101,6 +102,11 @@ export interface SlAskPrereqParams extends SlCommonParams {
  * 계측 포인트가 사용하는 logEvent 의 타입 인자 출처.
  */
 export interface SlEventMap {
+  sl_entry_view: CampaignAttribution & { entry_page: "home" | "landing" };
+  sl_start_attempt: CampaignAttribution & { entry_method: LearningEntryMethod };
+  sl_start_failed: CampaignAttribution & { entry_method: LearningEntryMethod; reason: "auth" | "roadmap_load" | "roadmap_missing" };
+  sl_learning_created: CampaignAttribution & { learning_session_id: string; entry_method: LearningEntryMethod };
+  sl_feedback_viewed: CampaignAttribution & { learning_session_id: string; step_idx: number };
   sl_session_start: SlSessionStartParams;
   sl_stage_enter: SlStageEnterParams;
   sl_step_enter: SlStepEnterParams;
