@@ -111,10 +111,12 @@ https://socratic-learn-web.web.app/landing?utm_source=threads&utm_medium=organic
 - Instagram 프로필: https://socratic-learn-web.web.app/landing?utm_source=instagram&utm_medium=organic_social&utm_campaign=relaunch_202609&utm_content=carousel_01
 - LinkedIn 본문: https://socratic-learn-web.web.app/landing?utm_source=linkedin&utm_medium=organic_social&utm_campaign=relaunch_202609&utm_content=story_01
 - Threads 본문: https://socratic-learn-web.web.app/landing?utm_source=threads&utm_medium=organic_social&utm_campaign=relaunch_202609&utm_content=question_01
-- GeekNews Show: https://socratic-learn-web.web.app/landing?utm_source=geeknews&utm_medium=community&utm_campaign=relaunch_202609&utm_content=show_01
+- GeekNews Show: https://socratic-learn-web.web.app/?utm_source=geeknews&utm_medium=community&utm_campaign=relaunch_202609&utm_content=show_01
 - Disquiet: https://socratic-learn-web.web.app/landing?utm_source=disquiet&utm_medium=community&utm_campaign=relaunch_202609&utm_content=show_01
 - 스터디 공유: https://socratic-learn-web.web.app/landing?utm_source=study&utm_medium=community&utm_campaign=relaunch_202609&utm_content=invite_01
 
 ## 게시 후 기록
+
+커뮤니티 본문과 기존 사용자 인터뷰는 [별도 초안](community-and-feedback.md)을 사용한다. GeekNews는 직접 체험 가능한 홈으로 연결하고 기존 게시 이력을 먼저 확인한다.
 
 `results.csv`에 게시 URL과 관찰 시점을 남긴다. 소셜 노출·클릭과 제품 내 첫 피드백 경험을 나눠 기록한다. 계정 통계나 GA를 확인하지 못했으면 숫자를 만들지 않는다. 다음 게시물은 실제 질문·불편에 답하는 내용으로 작성한다.
