@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { I } from "../icons";
 import "./magazine.css";
 
 const LEARNING_SCREENS = [
@@ -23,38 +24,17 @@ const LEARNING_SCREENS = [
   },
 ];
 
-function LearningBoard() {
-  return (
-    <figure className="bc-board-wrap">
-      <div className="bc-board">
-        <div className="bc-board-title">코루틴과 스레드 공부하기 <span aria-hidden="true">☆</span></div>
-        <div className="bc-board-grid">
-          <div className="bc-board-feature"><h3>현재 이해도</h3><div className="bc-mini bc-diagnosis"><span className="bc-mini-label">시작 전 질문</span><strong>스레드가 기다리는 동안,<br />다른 일을 할 수 있을까요?</strong><p>아는 만큼 편하게 답해 주세요.</p><div className="bc-mini-answer">“아직 잘 모르겠어요.”</div><span className="bc-mini-note">괜찮아요. 기초부터 살펴봐요.</span></div></div>
-          <div className="bc-board-feature"><h3>학습 로드맵</h3><div className="bc-mini bc-roadmap"><ol><li><span>01</span>프로세스와 스레드</li><li><span>02</span>블로킹과 대기</li><li className="bc-current"><span>03</span>코루틴의 일시 중단</li><li><span>04</span>다시 실행되는 순간</li></ol><p>개념을 작은 단계로 나눠서</p></div></div>
-          <div className="bc-board-feature"><h3>개념 설명</h3><div className="bc-mini"><strong>기다리는 방법의 차이</strong><p>코루틴이 일시 중단되면 스레드는 다른 작업을 실행할 수 있어요.</p><pre><code>{'delay(1000)\n// 코루틴을 일시 중단'}</code></pre><span className="bc-mini-note">설명과 코드로 하나씩 살펴보기</span></div></div>
-          <div className="bc-board-feature"><h3>내 답변과 피드백</h3><div className="bc-mini"><div className="bc-answer-line"><span>내 답변</span><p>코루틴은 기다리는 동안 스레드를 놓아줘요.</p></div><div className="bc-feedback-line"><span>피드백 예시</span><p>좋아요. 그럼 다시 실행될 때도 같은 스레드일까요?</p></div></div></div>
-          <div className="bc-board-feature"><h3>막히면 한 걸음 뒤로</h3><div className="bc-mini bc-prereq"><strong>먼저 알아두면 좋은 개념</strong><div>프로세스</div><span aria-hidden="true">↓</span><div>스레드</div><span aria-hidden="true">↓</span><div className="bc-current">코루틴</div></div></div>
-          <div className="bc-board-feature"><h3>이어지는 학습</h3><div className="bc-mini bc-history"><p><span aria-hidden="true">✓</span> 프로세스와 스레드</p><p><span aria-hidden="true">✓</span> 블로킹과 대기</p><p><span aria-hidden="true">◉</span> 코루틴의 일시 중단</p><div className="bc-history-note">잠깐 쉬어도 괜찮아요.<br />기록에서 다시 이어가세요.</div></div></div>
-        </div>
-        <div className="bc-board-bottom"><span>배우고 싶은 다른 개념</span><p>액티비티 생명주기 <b>·</b> 의존성 주입 <b>·</b> 상태와 재구성</p></div>
-      </div>
-      {/* 실제 앱의 스크린샷과 편집한 설명용 보드를 명확하게 구분한다. */}
-      <figcaption>학습 흐름을 재구성한 예시입니다. <a href="#demo">실제 화면 보기</a></figcaption>
-    </figure>
-  );
-}
-
 function LearningPreview() {
   const [selected, setSelected] = useState(0);
   const screen = LEARNING_SCREENS[selected];
 
   return (
-    <figure className="bc-preview">
-      <div className="bc-preview-heading">
+    <figure className="ep-preview">
+      <div className="ep-preview-heading">
         <span>실제 학습 화면</span>
         <span>안드로이드 학습 예시</span>
       </div>
-      <div className="bc-preview-controls" aria-label="학습 화면 선택">
+      <div className="ep-preview-controls" aria-label="학습 화면 선택">
         {LEARNING_SCREENS.map((item, index) => (
           <button
             key={item.src}
@@ -68,99 +48,88 @@ function LearningPreview() {
         ))}
       </div>
       {/* 원본 화면의 색과 비율을 유지해 소개 페이지와 실제 제품의 차이를 숨기지 않는다. */}
-      <div className="bc-screen" id="learning-preview-image">
+      <div className="ep-screen" id="learning-preview-image">
         <img src={screen.src} alt={screen.alt} />
       </div>
       <figcaption>
         <p aria-live="polite">{screen.caption}</p>
-        <a href={screen.src} target="_blank" rel="noreferrer">화면 크게 보기<span className="bc-sr-only"> (새 탭)</span></a>
+        <a href={screen.src} target="_blank" rel="noreferrer">화면 크게 보기<span className="ep-sr-only"> (새 탭)</span></a>
       </figcaption>
     </figure>
   );
 }
 
-/** /landing 전용. 제품 소개의 모든 시작 동작은 기존 홈으로 연결한다. */
+const TOPICS = [
+  { title: "액티비티 생명주기", tag: "Android", code: "onCreate()\nonStart()\nonResume()", description: "화면을 나갔다 돌아오면 어떤 함수가 호출될까요?" },
+  { title: "코루틴과 스레드", tag: "Kotlin", code: "launch {\n  delay(1000)\n  loadData()\n}", description: "일시 중단된 동안 스레드는 무엇을 할까요?" },
+  { title: "상태와 재구성", tag: "Compose", code: "var count by remember {\n  mutableStateOf(0)\n}", description: "값 하나가 바뀌면 화면의 어디가 다시 그려질까요?" },
+  { title: "의존성 주입", tag: "Architecture", code: "class ViewModel(\n  val repository: Repository\n)", description: "객체를 안에서 만들지 않고 밖에서 받는 이유는 뭘까요?" },
+];
+
+function LearningPath() {
+  return (
+    <div className="ep-path" role="img" aria-label="학습 순서 예시: 현재 이해도를 확인하고 프로세스, 스레드, 비동기 처리의 기초를 살펴본 뒤 코루틴을 학습하고 직접 설명합니다.">
+      {/* 선은 아래 노드의 중심을 연결한다. 예시 경로이며 사용자의 실제 진도를 나타내지 않는다. */}
+      <svg viewBox="0 0 900 440" preserveAspectRatio="none" aria-hidden="true"><path d="M450 38 L150 158 L450 398 M450 38 L450 158 L450 278 L450 398 M450 38 L750 158 L750 278 L450 398" /></svg>
+      <span className="ep-path-start">현재 이해도 확인</span>
+      <span className="ep-path-left">프로세스</span><span className="ep-path-center">스레드</span><span className="ep-path-right">비동기 처리</span>
+      <span className="ep-path-middle">블로킹과 일시 중단</span><span className="ep-path-side">코루틴</span>
+      <span className="ep-path-end">내 말로 설명하기</span>
+    </div>
+  );
+}
+
+/** 레퍼런스의 정보 순서만 가져오고 색상과 서체는 앱의 공통 토큰을 사용한다. */
 export function MagazineLanding() {
   return (
-    <div className="bc-root">
-      <a className="bc-skip" href="#landing-main">본문으로 건너뛰기</a>
-      <header className="bc-header">
-        <Link className="bc-return" to="/">학습하던 곳으로 돌아가기</Link>
-        <Link className="bc-brand" to="/landing" aria-label="Socratic 소개 페이지"><span aria-hidden="true">S</span></Link>
-        <Link className="bc-top-start" to="/">처음 오셨나요? 바로 시작하기</Link>
+    <div className="ep-root">
+      <a className="ep-skip" href="#landing-main">본문으로 건너뛰기</a>
+      <header className="ep-header">
+        <Link className="ep-brand" to="/landing"><span className="sb-brand-mark" aria-hidden="true">{I.brand}</span>Socratic</Link>
+        <nav aria-label="소개 페이지 메뉴"><a href="#topics">학습 주제</a><a href="#about">학습 방법</a><a href="#faq">궁금한 점</a><Link className="ep-login" to="/">이어서 공부하기</Link><Link className="ep-button" to="/">시작하기</Link></nav>
       </header>
-      <main className="bc-main" id="landing-main">
-        <section className="bc-hero" aria-labelledby="landing-title">
-          <LearningBoard />
-          <div className="bc-hero-content">
-            <nav className="bc-directory" aria-label="Socratic 둘러보기">
-              <p><Link to="/">바로 시작하기</Link><span>회원가입 없이 개념 하나부터</span></p>
-              <p><a href="#letter">왜 Socratic인가요?</a><span>읽고 끝나는 공부가 아쉬웠다면</span></p>
-              <p><a href="#how">학습 방법</a><span>설명하고, 답하고, 다시 생각하기</span></p>
-              <p><a href="#demo">실제 화면 둘러보기</a><span>어떻게 배우는지 먼저 살펴보세요</span></p>
-              <p><a href="#topics">안드로이드 로드맵</a><span>무엇부터 배울지 고민될 때</span></p>
-              <p><a href="#questions">궁금한 점</a><span>로그인, 학습 기록, AI 피드백</span></p>
-              <p><a href="mailto:commit3921@gmail.com">만든 사람에게</a><span>불편했던 점도 편하게 알려주세요</span></p>
-            </nav>
-            <div className="bc-hero-actions">
-              <Link className="bc-button" to="/">Socratic 시작하기</Link>
-              <span className="bc-or">또는</span>
-              <a className="bc-tour" href="#demo"><span className="bc-tour-thumb"><img src="/screens/stage-learn.png" alt="" /><span aria-hidden="true">↗</span></span><span><strong>학습 화면 먼저 보기</strong><small>설명부터 직접 답하기까지</small></span></a>
-            </div>
-            <h1 id="landing-title">읽으면 아는 개념을,<br />내 말로 설명할 수 있게.<br />질문하며 배우는<br />Socratic입니다.</h1>
-          </div>
+      <main id="landing-main">
+        <section className="ep-hero">
+          <h1>공부하다 막힌 개념을<br />가져오세요.</h1>
+          <Link className="ep-button" to="/">개념 하나 공부하기 <span aria-hidden="true">→</span></Link>
+          <p>회원가입 없이 시작할 수 있어요.</p>
         </section>
 
-        <article className="bc-letter" id="letter" aria-label="Socratic을 소개합니다">
-          <p>안녕하세요.</p><p>혹시 이런 순간이 익숙한가요?</p>
-          <p>강의를 보고, 글을 읽고, 코드를 따라 쳤습니다. 읽을 때는 분명 이해한 것 같았는데, 누군가 “그래서 그게 뭐야?”라고 물으면 어디서부터 설명해야 할지 막힙니다.</p>
-          <p>다시 검색하면 또 익숙한 설명이 나옵니다. 고개는 끄덕여지지만, <strong>정말 내가 이해한 건지 확인할 기회</strong>는 좀처럼 생기지 않습니다.</p>
-          <p>Socratic에서는 잠깐 멈춰 직접 답해 봅니다. 지금 아는 것을 확인하고, 개념을 작게 나누고, 설명을 읽은 뒤 자기 말로 풀어봅니다. 막히는 곳이 있다면 그 지점에서 질문을 이어갑니다.</p>
-          <p>처음부터 잘 답할 필요는 없습니다. “모르겠어요”도 출발점이 됩니다. 답변에 대한 AI 피드백을 살펴보며 더 알아볼 부분을 찾아가세요.</p>
-          <p>오늘 공부하다가 헷갈렸던 개념 하나를 가져와 보세요.<br /><a href="#demo">실제 학습 화면</a>을 먼저 둘러보셔도 좋습니다.</p>
-          <p>여러분의 다음 공부에 도움이 되길 바랍니다.</p>
-          <div className="bc-signature">Socratic</div>
-          <p className="bc-letter-signoff">질문하며 배우는 개발 개념<br /><a href="mailto:commit3921@gmail.com">만든 사람에게 의견 보내기</a></p>
-        </article>
-
-        <section className="bc-section bc-topics" id="topics">
-          <h2>이런 개념에서 시작해 보세요.</h2>
-          <p className="bc-section-lead">무엇부터 공부할지 막막하다면, 홈에 준비된 안드로이드 로드맵을 따라가 보세요.</p>
-          <div className="bc-topic-grid">
-            <div><span className="bc-topic-symbol" aria-hidden="true">{'{ }'}</span><h3>앱이 실행되는 원리</h3><p>액티비티 생명주기<br />앱 컴포넌트와 인텐트</p></div>
-            <div><span className="bc-topic-symbol" aria-hidden="true">⇄</span><h3>기다리는 코드의 동작</h3><p>비동기 처리와 코루틴<br />Flow와 스레드 전환</p></div>
-            <div><span className="bc-topic-symbol" aria-hidden="true">⌘</span><h3>함께 맞물리는 구조</h3><p>의존성 주입<br />앱 아키텍처 패턴</p></div>
+        <section className="ep-about" id="about">
+          <div className="ep-intro">
+            <p>설명을 읽을 때는 알겠는데, 막상 말하려면 막히는 개념이 있죠. Socratic에서는 설명을 읽은 다음 <strong>질문에 직접 답해 봅니다.</strong> AI가 답변을 보고, 빠진 내용이나 잘못 이해한 부분을 짚어줍니다.</p>
+            <aside><p>“코루틴이 멈춰 있는 동안<br />스레드는 뭘 하나요?”</p><span>코루틴을 공부할 때 나올 수 있는 질문</span></aside>
           </div>
-          <Link to="/" className="bc-inline-link">내가 공부할 개념 찾아보기</Link>
+          <div className="ep-explanation"><h2>읽고 나서, 답해 보세요.</h2><p>처음에는 지금 아는 내용을 물어봅니다. 그 답변을 바탕으로 학습 순서를 정하고, 개념을 나눠 설명합니다. 어렵다면 추가로 질문하거나 선행 개념부터 살펴볼 수 있어요.</p></div>
         </section>
 
-        <section className="bc-section bc-how" id="how">
-          <h2>배운 내용을 직접 설명하는 시간.<br />그렇게 한 단계씩 나아갑니다.</h2>
-          <div className="bc-how-grid">
-            <div><span>01</span><h3>지금 아는 것 확인하기</h3><p>몇 가지 질문에 답하며 시작해요. 아는 만큼을 바탕으로 학습 순서와 설명 깊이를 맞춥니다.</p></div>
-            <div><span>02</span><h3>개념 하나씩 살펴보기</h3><p>설명과 코드를 읽고 직접 답해요. 어렵다면 선행 개념을 살펴보거나 추가 질문을 할 수 있어요.</p></div>
-            <div><span>03</span><h3>피드백으로 돌아보기</h3><p>내 답변에서 보완할 부분을 확인해요. 더 공부할 내용을 선택하고 다음 단계로 이어갑니다.</p></div>
-          </div>
-        </section>
-
-        <section className="bc-section bc-demo" id="demo">
-          <h2>말로만 설명하면 아쉬우니까.<br />실제 화면을 보여드릴게요.</h2>
-          <p className="bc-section-lead">아래 버튼을 눌러 학습 화면을 바꿔 보세요. 실제 서비스는 어두운 테마로 제공됩니다.</p>
+        <section className="ep-demo" id="demo">
+          <div className="ep-section-heading"><h2>이렇게 공부합니다.</h2><p>안드로이드 개념을 공부하는 실제 화면입니다.<br />아래 버튼을 눌러 설명과 질문 화면을 살펴보세요.</p></div>
           <LearningPreview />
-          <Link className="bc-button" to="/">내가 궁금한 개념으로 시작하기</Link>
         </section>
 
-        <section className="bc-section bc-questions" id="questions">
-          <h2>시작하기 전에 궁금한 것들.</h2>
-          <details><summary>안드로이드만 공부할 수 있나요?</summary><p>다른 개발 개념도 직접 입력할 수 있어요. 홈에는 안드로이드 학습 로드맵이 준비되어 있습니다.</p></details>
-          <details><summary>로그인해야 하나요?</summary><p>회원가입 없이 학습을 시작할 수 있어요. 기기 간에 학습 기록을 이어가고 싶다면 GitHub로 로그인해 주세요.</p></details>
-          <details><summary>답을 모르겠으면 어떻게 하나요?</summary><p>모르겠다고 답하거나 질문을 건너뛸 수 있어요. 학습 중 막히는 부분은 질문하거나 선행 개념부터 살펴볼 수 있습니다.</p></details>
-          <details><summary>AI의 설명과 평가는 항상 정확한가요?</summary><p>설명과 평가에는 오류가 있을 수 있어요. 중요한 내용은 공식 문서와 함께 확인하고, 이상한 피드백은 아래 연락처로 알려주세요.</p></details>
+        <section className="ep-roadmap">
+          <div className="ep-roadmap-intro"><p>모르는 용어가 또 나오면, 그 개념부터.<br />이미 아는 내용이라면 다음으로 넘어가면 됩니다.</p><p className="ep-note">학습 중 선행 개념을 따로 살펴보고, 원래 공부하던 내용으로 돌아올 수 있어요.</p></div>
+          <h2>어디서부터 볼지 같이 정합니다.</h2><p className="ep-lead">코루틴을 공부할 때의 학습 순서 예시</p>
+          <LearningPath />
+          <p className="ep-note">실제 학습 순서는 입력한 개념과 수준 확인 답변에 따라 달라집니다.</p>
         </section>
 
-        <section className="bc-goodbye"><h2>오늘도, 하나 더 이해하는 하루.</h2><Link className="bc-button" to="/">Socratic 시작하기</Link><p>회원가입 없이 개념 하나부터 시작하세요.</p></section>
+        <section className="ep-topics" id="topics">
+          <h2>오늘 공부할 개념이 있나요?</h2><p className="ep-lead">직접 입력해도 되고, 홈의 안드로이드 로드맵에서 골라도 됩니다.</p>
+          <div className="ep-topic-grid">{TOPICS.map(topic => <Link className="ep-topic" to="/" key={topic.title}><div className="ep-topic-code"><pre aria-hidden="true">{topic.code}</pre><span>{topic.tag}</span></div><div className="ep-topic-body"><h3>{topic.title}</h3><p>{topic.description}</p><span>홈에서 학습 주제 선택하기</span></div></Link>)}</div>
+        </section>
+
+        <section className="ep-faq" id="faq"><h2>시작하기 전에</h2>
+          <details><summary>안드로이드만 공부할 수 있나요?</summary><p>다른 개발 개념도 직접 입력할 수 있습니다. 홈의 로드맵은 안드로이드 주제로 준비되어 있어요.</p></details>
+          <details><summary>답을 모르겠으면 어떻게 하나요?</summary><p>모르겠다고 답하거나 질문을 건너뛸 수 있어요. 공부하다 막히면 추가 질문을 하거나 선행 개념을 살펴보세요.</p></details>
+          <details><summary>공부한 기록은 남나요?</summary><p>같은 브라우저에서 학습 기록을 다시 볼 수 있어요. 다른 기기에서도 이어서 공부하려면 GitHub로 로그인해 주세요.</p></details>
+          <details><summary>AI의 설명이 틀릴 수도 있나요?</summary><p>네. 설명과 답변 평가에 오류가 있을 수 있습니다. 중요한 내용은 공식 문서와 함께 확인해 주세요.</p></details>
+        </section>
+
+        <section className="ep-start"><h2>방금 헷갈렸던 개념부터.</h2><p>긴 질문이 아니어도 괜찮아요. ‘의존성 주입’처럼 개념 이름만 적어보세요.</p><Link className="ep-button" to="/">공부 시작하기 <span aria-hidden="true">→</span></Link></section>
       </main>
-      <footer className="bc-footer"><Link to="/landing">Socratic</Link><span>질문하며 배우는 개발 개념</span><a href="mailto:commit3921@gmail.com">의견 보내기</a></footer>
+      <footer className="ep-footer"><Link className="ep-brand" to="/landing">Socratic</Link><a href="mailto:commit3921@gmail.com">의견 보내기</a><a href="#landing-main">맨 위로</a></footer>
     </div>
   );
 }
