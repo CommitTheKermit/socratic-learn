@@ -1,5 +1,22 @@
 # Firebase Analytics (GA4) 설정 체크리스트
 
+## 2026-09-28 성장 실험 추가
+
+신규 이벤트·집계 정의와 채널 링크는 [성장 실험 문서](growth/README.md)를 기준으로 한다.
+
+| 이벤트 | 발생 조건 | 주요 값 |
+| --- | --- | --- |
+| sl_entry_view | 소개 페이지 또는 홈 진입 | entry_page, campaign_* |
+| sl_start_attempt | 인증 전 학습 시작 시도 | entry_method, campaign_* |
+| sl_start_failed | 인증 또는 로드맵 조회 실패 | reason, entry_method, campaign_* |
+| sl_learning_created | 새 학습을 생성해 이동 | learning_session_id, entry_method, campaign_* |
+| sl_feedback_viewed | 활성 탭에서 피드백이 화면에 보임 | learning_session_id, step_idx, campaign_* |
+
+기존 sl_session_start는 현재 learn 단계 진입에서 발생한다. 아래 옛 설명의 input → probe 전환과 다르므로 시작 클릭이나 전체 시작 시도 수로 해석하지 않는다. 새 이벤트의 learning_session_id는 기존 이벤트의 session_id와 같은 학습 식별값이다.
+
+실제 GA 수집과 campaign_source/medium/name/content, entry_page, entry_method, reason의 보고서 설정은 배포 후 확인해야 한다. 학습 ID를 고유 값이 많은 맞춤 측정기준으로 무조건 등록하지 말고 원시 이벤트 분석에서 사용하는 편이 낫다. 코드 배선 검증과 실제 운영 수집 확인은 별개다.
+
+
 > 이 문서의 단계는 **콘솔에서 직접 클릭/입력**해야 하는 부분이다(코드로 대체 불가).
 > 프로젝트: `socratic-learn-web` (commit3921 계정).
 > 완료 후 `frontend/.env.local` 에 `VITE_FIREBASE_MEASUREMENT_ID` 를 추가한다.

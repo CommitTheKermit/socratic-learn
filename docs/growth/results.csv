@@ -1,0 +1,4 @@
+platform,content_id,status,published_url,published_at,observed_at,impressions,link_clicks,entry_users,learning_users,feedback_users,returning_users_7d,spend_usd,notes
+instagram,carousel_01,draft,,,,,,,,,,,not_published
+linkedin,story_01,draft,,,,,,,,,,,not_published
+threads,question_01,draft,,,,,,,,,,,not_published

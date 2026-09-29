@@ -37,6 +37,8 @@ import { useTestEligible } from "./state/useTestEligible";
 import { hasSynced, markSynced } from "./state/fetchOncePerSession";
 import type { LearnMode, PrereqNode } from "./api/contract";
 import { logEvent } from "./lib/analytics";
+import { GrowthEntryTracker } from "./components/GrowthEntryTracker";
+import { trackLearningCreated, trackStartAttempt, trackStartFailure } from "./lib/growthMetrics";
 
 type AccentVars = CSSProperties & {
   "--holo"?: string;
@@ -508,6 +510,7 @@ function AppWorkspace({
     // 세션이 두 개 발급되는 것을 막는다(성공 시 navigate 로 언마운트되어 ref 는 버려진다).
     if (startingRef.current) return;
     startingRef.current = true;
+    trackStartAttempt("concept");
     setStartError(null);
     // 로그인 강제 게이트 제거: 비로그인이면 익명 로그인으로 uid 만 확보해 그대로 진행한다
     // (usage/세션 추적은 익명 uid 로 이어진다). GitHub 로그인은 사이드바에서 선택적으로 승격한다.
@@ -516,6 +519,7 @@ function AppWorkspace({
         await ensureSignedIn();
       } catch {
         startingRef.current = false;
+        trackStartFailure("concept", "auth");
         setStartError("학습 시작에 필요한 익명 인증에 실패했어요. 네트워크 상태를 확인하고 다시 시도해 주세요.");
         return;
       }
@@ -531,6 +535,7 @@ function AppWorkspace({
     } catch {
       // 무시
     }
+    trackLearningCreated(newId, "concept");
     navigate(pathFor(newId, "probe"));
   };
 
@@ -542,12 +547,14 @@ function AppWorkspace({
   const startReadymadeRoadmap = async (roadmapId: string) => {
     if (startingRef.current) return;
     startingRef.current = true;
+    trackStartAttempt("roadmap");
     setStartError(null);
     if (!user) {
       try {
         await ensureSignedIn();
       } catch {
         startingRef.current = false;
+        trackStartFailure("roadmap", "auth");
         setStartError("학습 시작에 필요한 익명 인증에 실패했어요. 네트워크 상태를 확인하고 다시 시도해 주세요.");
         return;
       }
@@ -557,11 +564,13 @@ function AppWorkspace({
       roadmap = await getReadymadeRoadmap(roadmapId);
     } catch {
       startingRef.current = false;
+      trackStartFailure("roadmap", "roadmap_load");
       setStartError("로드맵을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.");
       return;
     }
     if (!roadmap) {
       startingRef.current = false;
+      trackStartFailure("roadmap", "roadmap_missing");
       setStartError("로드맵을 찾을 수 없어요.");
       return;
     }
@@ -579,6 +588,7 @@ function AppWorkspace({
     } catch {
       // 무시
     }
+    trackLearningCreated(newId, "roadmap");
     navigate(pathFor(newId, "learn", 0));
   };
 
@@ -972,7 +982,6 @@ function AppWorkspace({
 
           {stage === "done" && (
             <StageDone
-              level={estimatedLevel}
               onPrev={() => goStage("learn", Math.max(0, steps.length - 1))}
               onRestart={newSession}
             />
@@ -1009,6 +1018,7 @@ export default function App() {
   // 워크스페이스가 재마운트되어도 Provider 는 유지되어 사이드바 목록이 깜빡이지 않는다.
   return (
     <SessionListProvider>
+      <GrowthEntryTracker />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/landing" element={<MagazineLanding />} />

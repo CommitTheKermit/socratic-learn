@@ -41,7 +41,7 @@ const MATH_STEPS: Step[] = [
 function renderDone(steps: Step[] = MATH_STEPS) {
   return render(
     <LearnContentProvider initial={{ steps }}>
-      <StageDone level={2} onPrev={() => {}} onRestart={() => {}} />
+      <StageDone onPrev={() => {}} onRestart={() => {}} />
     </LearnContentProvider>,
   );
 }

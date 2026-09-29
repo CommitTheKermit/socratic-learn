@@ -1,568 +1,135 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import { I } from "../icons";
 import "./magazine.css";
 
-/**
- * SOCRATIC 학습 매거진 랜딩 (/landing).
- *
- * claude.ai/design 핸드오프 "Socratic Magazine Landing.html" + magazine.css 를
- * 이식한 것. 원본의 스크롤 리빌 + 워드마크 타이핑 스크립트를 컴포넌트 루트로
- * 스코핑한 useEffect 로 옮겼다(전역 document 오염 방지). get 섹션 스크린샷은
- * base64 를 public/landing-app-shot.jpg 로 추출해 참조한다.
- *
- * "작동 방식" 섹션은 스크롤 고정(scrollytelling) 스텝퍼다. 섹션이 뷰포트에 pin
- * 되고, 스크롤 진행도에 따라 활성 스텝(수준 확인 → 개념 학습 → 확인 질문 → 완료)이
- * 1→2→3→4 로 전환되며 각 단계 스크린샷 + 설명이 크로스페이드된다. 모바일/reduced-
- * motion 에서는 pin 없이 세로 카드로 나열(compact).
- *
- * 클래스명은 전부 `m-` 접두사를 쓴다. 앱 전역 CSS(v3.css 의 `.hero` 등)가
- * 같은 이름 규칙으로 `.mag-root` 안 레이아웃을 덮어쓰는 것을 막기 위함.
- */
-
-const STEPS = [
+const LEARNING_SCREENS = [
   {
-    num: "01",
-    kicker: "Diagnose",
-    title: "수준 확인",
-    desc: "몇 가지 질문으로 지금 아는 만큼을 가늠해요. 답을 보고 이후 단계와 설명 깊이를 맞춰요.",
-    shot: "/screens/stage-probe.png",
-    url: "socratic.learn - 수준 확인",
-    aspect: "1472 / 1468",
+    label: "설명 읽기",
+    src: "/screens/stage-learn.png",
+    alt: "안드로이드 학습 화면. 앱이 화면에 뜨는 원리를 설명과 코드로 학습합니다.",
+    caption: "개념 하나를 설명과 코드로 살펴봅니다. 막히는 부분은 질문하거나 선행 개념으로 돌아갈 수 있어요.",
   },
   {
-    num: "02",
-    kicker: "Learn",
-    title: "개념 학습",
-    desc: "필요한 만큼만 설명을 읽어요. 표와 코드로 개념 하나를 차근차근 짚어 나가요.",
-    shot: "/screens/stage-learn.png",
-    url: "socratic.learn - 학습 진행",
-    aspect: "2186 / 1140",
+    label: "직접 답하기",
+    src: "/screens/stage-questions.png",
+    alt: "확인 질문 화면. Activity와 레이아웃의 역할을 자기 말로 설명한 답변 예시입니다.",
+    caption: "읽은 내용을 자기 말로 설명해 봅니다. 답변을 제출하면 AI 피드백을 받을 수 있어요.",
   },
   {
-    num: "03",
-    kicker: "Answer",
-    title: "확인 질문",
-    desc: "직접 답하며 이해를 확인해요. 막히면 모르겠다고 넘겨도 괜찮아요.",
-    shot: "/screens/stage-questions.png",
-    url: "socratic.learn - 확인 질문",
-    aspect: "2174 / 826",
-  },
-  {
-    num: "04",
-    kicker: "Done",
-    title: "완료",
-    desc: "오늘 익힌 것과 도달한 수준을 정리해요. 이해도에 맞춰 다음 학습으로 이어가요.",
-    shot: "/screens/stage-done.png",
-    url: "socratic.learn - 완료",
-    aspect: "1476 / 820",
+    label: "수준 확인하기",
+    src: "/screens/stage-probe.png",
+    alt: "학습을 시작하기 전 현재 이해 정도를 확인하는 질문 화면입니다.",
+    caption: "학습은 몇 가지 질문에서 시작합니다. 지금 아는 내용을 바탕으로 학습 순서와 설명 깊이를 맞춰요.",
   },
 ];
 
-function BrowserFrame({ activeShot }: { activeShot: number | "all" }) {
-  // 프레임(스크린샷 영역) 비율을 현재 보여줄 스크린샷의 원본 비율에 맞춰, 빈 여백 없이 꽉 차게 한다.
-  const aspect = activeShot === "all" ? "2000 / 1300" : STEPS[activeShot].aspect;
+function LearningPreview() {
+  const [selected, setSelected] = useState(0);
+  const screen = LEARNING_SCREENS[selected];
+
   return (
-    <div className="m-frame">
-      <div className="m-frame-bar">
-        <span className="m-dots">
-          <i />
-          <i />
-          <i />
-        </span>
-        <span className="m-u">{activeShot === "all" ? "socratic.learn" : STEPS[activeShot].url}</span>
+    <figure className="ep-preview">
+      <div className="ep-preview-heading">
+        <span>실제 학습 화면</span>
+        <span>안드로이드 학습 예시</span>
       </div>
-      <div className="m-shots" style={{ aspectRatio: aspect }}>
-        {STEPS.map((s, i) => (
-          <img
-            key={s.num}
-            src={s.shot}
-            alt={`${s.title} 화면`}
-            loading="lazy"
-            className={activeShot === "all" || i === activeShot ? "is-on" : ""}
-          />
+      <div className="ep-preview-controls" aria-label="학습 화면 선택">
+        {LEARNING_SCREENS.map((item, index) => (
+          <button
+            key={item.src}
+            type="button"
+            aria-pressed={selected === index}
+            aria-controls="learning-preview-image"
+            onClick={() => setSelected(index)}
+          >
+            {item.label}
+          </button>
         ))}
       </div>
+      {/* 원본 화면의 색과 비율을 유지해 소개 페이지와 실제 제품의 차이를 숨기지 않는다. */}
+      <div className="ep-screen" id="learning-preview-image">
+        <img src={screen.src} alt={screen.alt} />
+      </div>
+      <figcaption>
+        <p aria-live="polite">{screen.caption}</p>
+        <a href={screen.src} target="_blank" rel="noreferrer">화면 크게 보기<span className="ep-sr-only"> (새 탭)</span></a>
+      </figcaption>
+    </figure>
+  );
+}
+
+const TOPICS = [
+  { title: "액티비티 생명주기", tag: "Android", code: "onCreate()\nonStart()\nonResume()", description: "화면을 나갔다 돌아오면 어떤 함수가 호출될까요?" },
+  { title: "코루틴과 스레드", tag: "Kotlin", code: "launch {\n  delay(1000)\n  loadData()\n}", description: "일시 중단된 동안 스레드는 무엇을 할까요?" },
+  { title: "상태와 재구성", tag: "Compose", code: "var count by remember {\n  mutableStateOf(0)\n}", description: "값 하나가 바뀌면 화면의 어디가 다시 그려질까요?" },
+  { title: "의존성 주입", tag: "Architecture", code: "class ViewModel(\n  val repository: Repository\n)", description: "객체를 안에서 만들지 않고 밖에서 받는 이유는 뭘까요?" },
+];
+
+function LearningPath() {
+  return (
+    <div className="ep-path" role="img" aria-label="학습 순서 예시: 현재 이해도를 확인하고 프로세스, 스레드, 비동기 처리의 기초를 살펴본 뒤 코루틴을 학습하고 직접 설명합니다.">
+      {/* 선은 아래 노드의 중심을 연결한다. 예시 경로이며 사용자의 실제 진도를 나타내지 않는다. */}
+      <svg viewBox="0 0 900 440" preserveAspectRatio="none" aria-hidden="true"><path d="M450 38 L150 158 L450 398 M450 38 L450 158 L450 278 L450 398 M450 38 L750 158 L750 278 L450 398" /></svg>
+      <span className="ep-path-start">현재 이해도 확인</span>
+      <span className="ep-path-left">프로세스</span><span className="ep-path-center">스레드</span><span className="ep-path-right">비동기 처리</span>
+      <span className="ep-path-middle">블로킹과 일시 중단</span><span className="ep-path-side">코루틴</span>
+      <span className="ep-path-end">내 말로 설명하기</span>
     </div>
   );
 }
 
+/** 레퍼런스의 정보 순서만 가져오고 색상과 서체는 앱의 공통 토큰을 사용한다. */
 export function MagazineLanding() {
-  const rootRef = useRef<HTMLDivElement>(null);
-  const stepsRef = useRef<HTMLElement>(null);
-  // collapsed = pin 해제 상태(위로 스크롤 시). 예약 스크롤 높이를 접어 위로 자유롭게 지나가게 함.
-  const collapsedRef = useRef(false);
-  // suppress = 네비 클릭으로 프로그램 스크롤 중일 때 collapse 를 잠시 억제.
-  const suppressRef = useRef(false);
-  const [activeStep, setActiveStep] = useState(0);
-
-  // pin 예약 높이 제어: 펼침 = STEPS*100vh(아래로 스텝 진행), 접힘 = 100vh(위로 프리패스).
-  const expandSteps = () => {
-    const s = stepsRef.current;
-    if (!s) return;
-    collapsedRef.current = false;
-    s.style.height = STEPS.length * window.innerHeight + "px";
-  };
-  const collapseSteps = () => {
-    const s = stepsRef.current;
-    if (!s) return;
-    collapsedRef.current = true;
-    s.style.height = window.innerHeight + "px";
-  };
-  // compact = pin 없이 세로 카드(모바일/reduced-motion). 초기값을 동기로 산정해 깜빡임 방지.
-  const [compact, setCompact] = useState(
-    () =>
-      typeof window !== "undefined" &&
-      (matchMedia("(prefers-reduced-motion:reduce)").matches || matchMedia("(max-width:820px)").matches),
-  );
-
-  // compact 여부 추적(reduced-motion / 화면폭 변화)
-  useEffect(() => {
-    const rm = matchMedia("(prefers-reduced-motion:reduce)");
-    const narrow = matchMedia("(max-width:820px)");
-    const update = () => setCompact(rm.matches || narrow.matches);
-    update();
-    rm.addEventListener("change", update);
-    narrow.addEventListener("change", update);
-    return () => {
-      rm.removeEventListener("change", update);
-      narrow.removeEventListener("change", update);
-    };
-  }, []);
-
-  // 스크롤 → 활성 스텝 + 방향 감지 pin(아래로만 고정, 위로는 프리패스)
-  useEffect(() => {
-    if (compact) return;
-    const section = stepsRef.current;
-    if (!section) return;
-    let raf = 0;
-    let lastY = window.scrollY;
-
-    const apply = () => {
-      raf = 0;
-      const rect = section.getBoundingClientRect();
-      const y = window.scrollY;
-      const goingUp = y < lastY - 0.5;
-      const goingDown = y > lastY + 0.5;
-      lastY = y;
-
-      // 섹션이 화면에 고정(pin)된 상태인가
-      const pinned = rect.top <= 0 && rect.bottom > window.innerHeight;
-
-      if (!collapsedRef.current) {
-        // 아래로 내려가는 동안만 스텝 진행. 위로 올리면 pin 을 접어 자유롭게 지나가게 함.
-        if (!suppressRef.current && goingUp && pinned && rect.top < -1) {
-          const targetY = rect.top + y; // 섹션 상단의 문서 좌표
-          collapseSteps();
-          window.scrollTo(0, targetY); // 같은 화면(현재 패널)을 유지 → 시각적 점프 없음
-          lastY = targetY;
-          return;
-        }
-        const range = section.offsetHeight - window.innerHeight;
-        if (range > 0) {
-          const p = Math.min(1, Math.max(0, -rect.top / range));
-          const idx = Math.min(STEPS.length - 1, Math.floor(p * STEPS.length));
-          setActiveStep((prev) => (prev === idx ? prev : idx));
-        }
-      } else if (goingDown && rect.top > 1) {
-        // 다시 위에서 아래로 진입하면 pin 복원 → 스텝 진행 재개
-        expandSteps();
-      }
-    };
-
-    const onScroll = () => {
-      if (!raf) raf = requestAnimationFrame(apply);
-    };
-    const onResize = () => {
-      if (!collapsedRef.current) expandSteps();
-      onScroll();
-    };
-
-    expandSteps();
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onResize, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onResize);
-      cancelAnimationFrame(raf);
-      section.style.height = "";
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [compact]);
-
-  // 스텝 네비 클릭 → 해당 스텝 구간으로 부드럽게 스크롤(뒤로 가도 collapse 억제)
-  const scrollToStep = (i: number) => {
-    const section = stepsRef.current;
-    if (!section) return;
-    if (collapsedRef.current) expandSteps();
-    suppressRef.current = true;
-    const range = section.offsetHeight - window.innerHeight;
-    const y = window.scrollY + section.getBoundingClientRect().top + (i / STEPS.length) * range + 4;
-    window.scrollTo({ top: y, behavior: "smooth" });
-    window.setTimeout(() => {
-      suppressRef.current = false;
-    }, 700);
-  };
-
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
-
-    const reduce = matchMedia("(prefers-reduced-motion:reduce)").matches;
-
-    // [selector, mode, staggerStepMs (0 = none)]
-    const groups: [string, string, number][] = [
-      [".m-hero .m-lead h1", "rise", 0],
-      [".m-hero .m-lead .m-dek", "rise", 0],
-      [".m-toc-row", "up", 70],
-      [".m-toc-new", "wipe", 0],
-      [".m-shead", "rise", 0],
-      [".m-how-head", "rise", 0],
-      [".m-feature .m-body h2", "rise", 0],
-      [".m-feature .m-cols p", "rise", 90],
-      [".m-where", "wipe", 0],
-      [".m-itv h2", "rise", 0],
-      [".m-itv-grid .m-qa", "up", 80],
-      [".m-pull", "wipe", 0],
-      [".m-why h2", "rise", 0],
-      [".m-why-col", "rise", 110],
-      [".m-get .m-k", "rise", 0],
-      [".m-get h2", "rise", 0],
-      [".m-get .m-dek", "rise", 0],
-      [".m-shot", "rise", 0],
-      [".m-foot", "up", 0],
-    ];
-    groups.forEach((g) => {
-      root.querySelectorAll<HTMLElement>(g[0]).forEach((el, i) => {
-        el.setAttribute("data-rv", g[1]);
-        if (g[2]) el.style.setProperty("--d", i * g[2] + "ms");
-      });
-    });
-
-    let io: IntersectionObserver | undefined;
-    if (!reduce) {
-      io = new IntersectionObserver(
-        (ents) => {
-          ents.forEach((e) => {
-            if (e.isIntersecting) {
-              e.target.classList.add("in");
-              io!.unobserve(e.target);
-            }
-          });
-        },
-        { threshold: 0.12, rootMargin: "0px 0px -8% 0px" },
-      );
-      root.querySelectorAll("[data-rv]").forEach((el) => io!.observe(el));
-
-      // masthead wordmark: type in letter-by-letter (real glyph boundaries)
-      const word = root.querySelector<HTMLElement>(".m-word");
-      if (word) {
-        word.classList.add("m-typing");
-        const caret = document.createElement("span");
-        caret.className = "m-caret";
-        word.appendChild(caret);
-        const svg = word.querySelector("svg");
-        const txt = svg && svg.querySelector("text");
-        const run = () => {
-          if (!svg || !txt) return;
-          const VB = 1000;
-          const n = (txt as SVGTextElement).getNumberOfChars();
-          const b = [0];
-          for (let i = 0; i < n; i++) {
-            try {
-              b.push((txt as SVGTextElement).getEndPositionOfChar(i).x / VB);
-            } catch {
-              b.push((i + 1) / n);
-            }
-          }
-          const per = 150;
-          const total = per * n;
-          const ck: Keyframe[] = [];
-          const sk: Keyframe[] = [];
-          b.forEach((f, i) => {
-            const off = i / n;
-            sk.push({ clipPath: "inset(0 " + (1 - f) * 100 + "% 0 0)", offset: off, easing: "steps(1)" });
-            ck.push({ left: "calc(" + f * 100 + "% - 6px)", opacity: 1, offset: off, easing: "steps(1)" });
-          });
-          svg.animate(sk, { duration: total, fill: "forwards" });
-          const ca = caret.animate(ck, { duration: total, fill: "forwards" });
-          ca.onfinish = () => caret.remove();
-        };
-        requestAnimationFrame(() =>
-          requestAnimationFrame(() => {
-            if (txt && (txt as SVGTextElement).getNumberOfChars) run();
-            else if (svg) svg.style.clipPath = "none";
-          }),
-        );
-      }
-    }
-
-    return () => io?.disconnect();
-  }, []);
-
-  const active = STEPS[activeStep];
-
   return (
-    <div className="mag-root" ref={rootRef}>
-      <div className="m-page">
-        {/* ── masthead ── */}
-        <header className="m-masthead">
-          <nav>
-            <a href="#why">왜</a>
-            <span className="m-sep">·</span>
-            <a href="#how">작동 방식</a>
-            <span className="m-sep">·</span>
-            <a href="#get">시작</a>
-          </nav>
-        </header>
-
-        {/* ── giant wordmark ── */}
-        <div className="m-word">
-          <svg viewBox="0 0 1000 168" width="100%" preserveAspectRatio="xMidYMid meet" role="img" aria-label="SOCRATIC">
-            <defs>
-              <linearGradient id="holoword" x1="0" y1="0" x2="1" y2="0.35">
-                <stop offset="0" stopColor="#A8FFC9" />
-                <stop offset="0.35" stopColor="#7DE3FF" />
-                <stop offset="0.7" stopColor="#C8B6FF" />
-                <stop offset="1" stopColor="#FFB3D9" />
-              </linearGradient>
-            </defs>
-            <text x="0" y="150" textLength="1000" lengthAdjust="spacingAndGlyphs">
-              SOCRATIC
-            </text>
-          </svg>
-        </div>
-
-        {/* ── hero ── */}
-        <section className="m-hero">
-          <div className="m-lead">
-            <h1>정답을 주지 않는다</h1>
-            <p className="m-dek">지금 아는 것에서 출발해, 질문을 따라 스스로 이해에 이르는 대화형 학습.</p>
-          </div>
-          <aside className="m-toc">
-            <div className="m-toc-row">
-              <span className="m-n">01</span>
-              <span className="m-t">정답을 주지 않는 수업</span>
-            </div>
-            <div className="m-toc-row">
-              <span className="m-n">02</span>
-              <span className="m-t">스레드는 왜 비싼가 - 대화 전문</span>
-            </div>
-            <div className="m-toc-row">
-              <span className="m-n">03</span>
-              <span className="m-t">네 단계 학습법</span>
-            </div>
-            <div className="m-toc-row">
-              <span className="m-n">04</span>
-              <span className="m-t">깊이 조절 모드</span>
-            </div>
-            <div className="m-toc-new">
-              <div className="m-h">
-                <b>New</b> 무료 체험
-              </div>
-              <p>결제 없이 지금 바로 첫 학습을 시작하세요.</p>
-            </div>
-          </aside>
+    <div className="ep-root">
+      <a className="ep-skip" href="#landing-main">본문으로 건너뛰기</a>
+      <header className="ep-header">
+        <Link className="ep-brand" to="/landing"><span className="sb-brand-mark" aria-hidden="true">{I.brand}</span>Socratic</Link>
+        <nav aria-label="소개 페이지 메뉴"><a href="#topics">학습 주제</a><a href="#about">학습 방법</a><a href="#faq">궁금한 점</a><Link className="ep-login" to="/">이어서 공부하기</Link><Link className="ep-button" to="/">시작하기</Link></nav>
+      </header>
+      <main id="landing-main">
+        <section className="ep-hero">
+          <h1>공부하다 막힌 개념을<br />가져오세요.</h1>
+          <Link className="ep-button" to="/">개념 하나 공부하기 <span aria-hidden="true">→</span></Link>
+          <p>회원가입 없이 시작할 수 있어요.</p>
         </section>
 
-        {/* ── FEATURE ── */}
-        <div className="m-shead">
-          <span className="m-kick">Feature</span>
-        </div>
-        <section className="m-feature">
-          <div className="m-body">
-            <h2>
-              설명을 듣는 것이 아니라,
-              <br />
-              스스로 설명하게 되는 학습
-            </h2>
-            <div className="m-cols">
-              <p>
-                강의는 모두에게 같은 진도를 밀어붙인다. 소크라틱은 먼저 질문으로 지금의 이해를 확인하고, 딱 그 지점에서 한
-                걸음씩 나아간다.
-              </p>
-              <p>
-                그래서 남는 것은 <b>외운 지식이 아니라 설명할 수 있는 이해</b>다. 개념 하나를 스스로의 말로 풀어낼 수 있을
-                때까지 대화가 이어진다.
-              </p>
-            </div>
+        <section className="ep-about" id="about">
+          <div className="ep-intro">
+            <p>설명을 읽을 때는 알겠는데, 막상 말하려면 막히는 개념이 있죠. Socratic에서는 설명을 읽은 다음 <strong>질문에 직접 답해 봅니다.</strong> AI가 답변을 보고 빠진 내용이나 잘못 이해한 부분을 짚어줍니다.</p>
+            <aside><p>“코루틴이 멈춰 있는 동안<br />스레드는 뭘 하나요?”</p><span>코루틴을 공부할 때 나올 수 있는 질문</span></aside>
           </div>
-          <aside className="m-where">
-            <span className="m-k">Where it starts</span>
-            <span className="m-big">1</span>
-            <span className="m-cap">개념 하나면 시작된다</span>
-          </aside>
+          <div className="ep-explanation"><h2>읽고 나서, 답해 보세요.</h2><p>처음에는 지금 아는 내용을 물어봅니다. 그 답변을 바탕으로 학습 순서를 정하고 개념을 나눠 설명합니다. 어렵다면 추가로 질문하거나 선행 개념부터 살펴볼 수 있어요.</p></div>
         </section>
 
-        {/* ── INTERVIEW ── */}
-        <div className="m-shead">
-          <span className="m-kick">Interview</span>
-        </div>
-        <section className="m-itv">
-          <h2>정답 대신 질문으로. 스레드가 왜 비싼지를 둘러싼 한 토막.</h2>
-          <div className="m-itv-grid">
-            <div className="m-l">
-              <div className="m-qa">
-                <p className="m-q">
-                  <span className="m-m">Q</span>스레드 하나를 만들 때 OS는 무엇을 미리 확보하나요?
-                </p>
-                <p className="m-a">
-                  <span className="m-m">A</span>콜 스택을 위한 메모리요.
-                </p>
-              </div>
-              <div className="m-qa">
-                <p className="m-q">
-                  <span className="m-m">Q</span>그럼 스레드가 1만 개면 그 메모리는 얼마가 될까요?
-                </p>
-                <p className="m-a">
-                  <span className="m-m">A</span>스레드당 약 1MB니까… 약 10GB요.
-                </p>
-              </div>
-            </div>
-            <div className="m-r">
-              <div className="m-qa">
-                <p className="m-q">
-                  <span className="m-m">Q</span>바로 그 지점이에요. 그래서 코루틴이 필요합니다.
-                </p>
-              </div>
-              <div className="m-pull">
-                <p>
-                  “답을 주면 외우고,
-                  <br />
-                  질문을 주면 이해한다.”
-                </p>
-              </div>
-            </div>
-          </div>
+        <section className="ep-demo" id="demo">
+          <div className="ep-section-heading"><h2>이렇게 공부합니다.</h2><p>안드로이드 개념을 공부하는 실제 화면입니다.<br />아래 버튼을 눌러 설명과 질문 화면을 살펴보세요.</p></div>
+          <LearningPreview />
         </section>
 
-        {/* ── WHY ── */}
-        <div className="m-shead" id="why" />
-        <section className="m-why">
-          <h2>설명을 쌓는 대신, 아는 곳에서 시작한다</h2>
-          <div className="m-why-grid">
-            <div className="m-why-col m-old">
-              <div className="m-ch">기존의 강의</div>
-              <ul>
-                <li>
-                  <span className="m-s">-</span>설명을 일방적으로 쏟아붓는다
-                </li>
-                <li>
-                  <span className="m-s">-</span>모두에게 같은 진도로 간다
-                </li>
-                <li>
-                  <span className="m-s">-</span>읽고 넘어가면 이해로 친다
-                </li>
-                <li>
-                  <span className="m-s">-</span>답을 외운다
-                </li>
-              </ul>
-            </div>
-            <div className="m-why-col m-new">
-              <div className="m-ch">소크라틱 학습</div>
-              <ul>
-                <li>
-                  <span className="m-s">→</span>질문으로 스스로 답에 이른다
-                </li>
-                <li>
-                  <span className="m-s">→</span>지금 수준에서 시작한다
-                </li>
-                <li>
-                  <span className="m-s">→</span>직접 답하며 확인한다
-                </li>
-                <li>
-                  <span className="m-s">→</span>스스로 설명하게 된다
-                </li>
-              </ul>
-            </div>
-          </div>
+        <section className="ep-roadmap">
+          <div className="ep-roadmap-intro"><p>모르는 용어가 또 나오면, 그 개념부터.<br />이미 아는 내용이라면 다음으로 넘어가면 됩니다.</p><p className="ep-note">학습 중 선행 개념을 따로 살펴보고 원래 공부하던 내용으로 돌아올 수 있어요.</p></div>
+          <h2>어디서부터 볼지 같이 정합니다.</h2><p className="ep-lead">코루틴을 공부할 때의 학습 순서 예시</p>
+          <LearningPath />
+          <p className="ep-note">실제 학습 순서는 입력한 개념과 수준 확인 답변에 따라 달라집니다.</p>
         </section>
 
-        {/* ── HOW IT WORKS · 스크롤 고정 스텝퍼 ── */}
-        <div className="m-how-head" id="how">
-          <span className="m-kick m-l">
-            <span className="m-n">03</span>작동 방식
-          </span>
-          <span className="m-kick">How it works</span>
-        </div>
-
-        {compact ? (
-          <div className="m-step-cards">
-            {STEPS.map((s, i) => (
-              <article className="m-step-card" key={s.num}>
-                <div className="m-sc-head">
-                  <span className="m-sc-num">{s.num}</span>
-                  <h3>{s.title}</h3>
-                </div>
-                <BrowserFrame activeShot={i} />
-                <p className="m-sc-desc">{s.desc}</p>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <section className="m-steps" ref={stepsRef} aria-label="작동 방식 4단계">
-            <div className="m-steps-sticky">
-              <div className="m-steps-nav" role="tablist">
-                {STEPS.map((s, i) => (
-                  <button
-                    type="button"
-                    key={s.num}
-                    role="tab"
-                    aria-selected={i === activeStep}
-                    className={i === activeStep ? "is-on" : ""}
-                    onClick={() => scrollToStep(i)}
-                  >
-                    <span className="m-sn-bar" aria-hidden="true" />
-                    <span className="m-sn-num">{s.num}</span>
-                    <span className="m-sn-label">{s.title}</span>
-                  </button>
-                ))}
-              </div>
-              <div className="m-steps-stage">
-                <BrowserFrame activeShot={activeStep} />
-                <div className="m-steps-copy" key={activeStep}>
-                  <span className="m-steps-kick">
-                    Step {active.num} · {active.kicker}
-                  </span>
-                  <h3>{active.title}</h3>
-                  <p>{active.desc}</p>
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* ── GET STARTED ── */}
-        <section className="m-get" id="get">
-          <div className="m-in">
-            <h2>
-              개념 한 줄로
-              <br />
-              지금 시작하세요.
-            </h2>
-            <p className="m-dek">계정도, 준비물도 필요 없어요. 궁금한 개념 한 줄이면 됩니다. 지금 만나는 실제 화면입니다.</p>
-            <figure className="m-shot">
-              <Link to="/" className="m-shot-link" aria-label="Socratic 서비스 메인으로 이동해 학습 시작하기">
-                <figcaption>
-                  <span className="m-dots">
-                    <i />
-                    <i />
-                    <i />
-                  </span>
-                  <span className="m-u">socratic.learn</span>
-                </figcaption>
-                <img src="/landing-app-shot.jpg" alt="Socratic 학습 화면 미리보기 - 눌러서 시작" />
-              </Link>
-            </figure>
-          </div>
+        <section className="ep-topics" id="topics">
+          <h2>오늘 공부할 개념이 있나요?</h2><p className="ep-lead">직접 입력해도 되고 홈의 안드로이드 로드맵에서 골라도 됩니다.</p>
+          <div className="ep-topic-grid">{TOPICS.map(topic => <Link className="ep-topic" to="/" key={topic.title}><div className="ep-topic-code"><pre aria-hidden="true">{topic.code}</pre><span>{topic.tag}</span></div><div className="ep-topic-body"><h3>{topic.title}</h3><p>{topic.description}</p><span>홈에서 학습 주제 선택하기</span></div></Link>)}</div>
         </section>
 
-        {/* ── footer ── */}
-        <footer className="m-foot">
-          <span className="m-mid">- 08 -</span>
-          <span>© 2026 · 왜 · 작동 방식 · 시작</span>
-        </footer>
-      </div>
+        <section className="ep-faq" id="faq"><h2>시작하기 전에</h2>
+          <details><summary>안드로이드만 공부할 수 있나요?</summary><p>다른 개발 개념도 직접 입력할 수 있습니다. 홈의 로드맵은 안드로이드 주제로 준비되어 있어요.</p></details>
+          <details><summary>답을 모르겠으면 어떻게 하나요?</summary><p>모르겠다고 답하거나 질문을 건너뛸 수 있어요. 공부하다 막히면 추가 질문을 하거나 선행 개념을 살펴보세요.</p></details>
+          <details><summary>공부한 기록은 남나요?</summary><p>같은 브라우저에서 학습 기록을 다시 볼 수 있어요. 다른 기기에서도 이어서 공부하려면 GitHub로 로그인해 주세요.</p></details>
+          <details><summary>AI의 설명이 틀릴 수도 있나요?</summary><p>네. 설명과 답변 평가에 오류가 있을 수 있습니다. 중요한 내용은 공식 문서와 함께 확인해 주세요.</p></details>
+        </section>
+
+        <section className="ep-start"><h2>방금 헷갈렸던 개념부터.</h2><p>긴 질문이 아니어도 괜찮아요. ‘의존성 주입’처럼 개념 이름만 적어보세요.</p><Link className="ep-button" to="/">공부 시작하기 <span aria-hidden="true">→</span></Link></section>
+      </main>
+      <footer className="ep-footer"><Link className="ep-brand" to="/landing">Socratic</Link><a href="mailto:commit3921@gmail.com">의견 보내기</a><a href="#landing-main">맨 위로</a></footer>
     </div>
   );
 }
