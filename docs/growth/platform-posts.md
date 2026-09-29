@@ -2,6 +2,12 @@
 
 상태: 검토용 초안. 실제 게시하지 않았다. 작성자 경험은 사용자가 말한 배포·피드백·재방문 감소 사실만 사용했다. 이전 사용자의 피드백 문장을 만들어 인용하지 않는다. 작성 시점: 2026-09-28.
 
+2026-09-29 확인: LinkedIn 우정현 계정과 Threads @friendship_hyunn 계정에 로그인되어 있다. 사용자 지시로 모든 글은 게시 직전에 허락을 받는다. LinkedIn의 기존 개발·서비스 실험 글과 말투를 확인했으며 첫 모집은 LinkedIn 한 건부터 제안한다. 기존 글 반응을 이번 서비스 전환의 증거로 사용하지 않는다.
+
+- LinkedIn 프로필: https://www.linkedin.com/in/%EC%A0%95%ED%98%84-%EC%9A%B0-5529493b4/
+- Threads 프로필: https://www.threads.com/@friendship_hyunn
+- 첫 LinkedIn 첨부안: 별도 파일 첨부 없이 본문의 서비스 링크와 자동 공유 미리보기 사용. 미리보기 이미지의 공개 URL은 https://socratic-learn-web.web.app/social/socratic-learn.png 이다. 실제 작성창에서 미리보기 생성 여부는 게시 승인 후 확인한다.
+
 ## 포맷을 선택한 근거
 
 | 플랫폼 | 확인한 근거 | 이번 서비스에 적용할 가설 |
