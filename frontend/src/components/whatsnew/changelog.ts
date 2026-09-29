@@ -49,6 +49,15 @@ export const CHANGE_TYPE_ORDER: ChangeType[] = ["feature", "improve", "fix"];
 /** 전체 버전 히스토리 (최신 → 과거). 맨 앞이 현재 버전. */
 export const CHANGELOG: VersionEntry[] = [
   {
+    version: "0.21.0",
+    date: "2026.09.29",
+    changes: [
+      { type: "improve", text: "소개 페이지에서 학습 화면과 사용 순서를 확인하고 바로 시작할 수 있어요." },
+      { type: "improve", text: "링크를 공유하면 서비스 소개 이미지가 함께 표시돼요." },
+      { type: "fix", text: "학습 완료 화면에서 근거 없이 수준이 오른 것으로 표시하던 부분을 고쳤어요." },
+    ],
+  },
+  {
     version: "0.20.0",
     date: "2026.09.16",
     changes: [
