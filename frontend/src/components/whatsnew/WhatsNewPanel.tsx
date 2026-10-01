@@ -1,3 +1,4 @@
+import { t } from "../../i18n/translate";
 import { CHANGELOG, CHANGE_CATEGORY, CHANGE_TYPE_ORDER } from "./changelog";
 import "./whatsnew.css";
 
@@ -32,10 +33,10 @@ export function WhatsNewPanel({ onClose }: { onClose?: () => void }) {
     <div className="wn-panel">
       <div className="wn-head">
         <div className="wn-head-titles">
-          <h2 className="wn-title">업데이트 소식</h2>
+          <h2 className="wn-title">{t("업데이트 소식")}</h2>
         </div>
         <span className="wn-spacer" />
-        <button className="wn-close" type="button" aria-label="닫기" onClick={onClose}>
+        <button className="wn-close" type="button" aria-label={t("닫기")} onClick={onClose}>
           <WnX />
         </button>
       </div>
@@ -61,7 +62,7 @@ export function WhatsNewPanel({ onClose }: { onClose?: () => void }) {
                     <span className={"wnD-badge wnD-badge--" + c.type}>{cat.glyph}</span>
                     <span className="wnD-body">
                       <span className={"wnD-catname wnD-catname--" + c.type}>{cat.full}</span>
-                      <span className="wnD-text">{c.text}</span>
+                      <span className="wnD-text">{t(c.text)}</span>
                     </span>
                   </div>
                 );

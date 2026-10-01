@@ -1,3 +1,4 @@
+import { t } from "../i18n/translate";
 import {
   useCallback,
   useEffect,
@@ -90,7 +91,7 @@ export function ModeMenu({ value, onChange, modes = ANSWER_MODES }: Props) {
         className="mode-trigger"
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-label={"답변 모드: " + sel.name}
+        aria-label={t("답변 모드: ") + sel.name}
         onClick={() => setOpen((v) => !v)}
         onKeyDown={onKey}
       >
@@ -100,7 +101,7 @@ export function ModeMenu({ value, onChange, modes = ANSWER_MODES }: Props) {
         <span className="mode-chev">{I.chevSmall}</span>
       </button>
       {open && (
-        <div className="mode-menu" role="listbox" aria-label="답변 모드">
+        <div className="mode-menu" role="listbox" aria-label={t("답변 모드")}>
           {modes.map((m, i) => (
             <button
               key={m.id}

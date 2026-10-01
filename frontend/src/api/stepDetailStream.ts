@@ -1,3 +1,5 @@
+import { getLanguage } from "../i18n/language";
+import { t } from "../i18n/translate";
 import {
   API_BASE_URL,
   ApiPaths,
@@ -35,22 +37,22 @@ export function streamStepDetail(
       response = await fetch(`${API_BASE_URL}${ApiPaths.STEP_DETAIL_STREAM}`, {
         method: "POST",
         headers: await authHeaders({ Accept: "text/event-stream" }),
-        body: JSON.stringify(req),
+        body: JSON.stringify({ ...req, language: getLanguage() }),
         signal: controller.signal,
       });
     } catch (e) {
       if ((e as Error)?.name === "AbortError") return;
-      handlers.onError?.({ code: "NETWORK_ERROR", message: (e as Error)?.message ?? "네트워크 오류" });
+      handlers.onError?.({ code: "NETWORK_ERROR", message: (e as Error)?.message ?? t("네트워크 오류") });
       return;
     }
 
     if (!response.ok || !response.body) {
       let code = "CLAUDE_API_ERROR";
-      let message = `본문 스트리밍 요청 실패: HTTP ${response.status}`;
+      let message = `${t("요청이 실패했어요.")}: HTTP ${response.status}`;
       try {
         const body = await response.json();
         if (body?.code) code = body.code as string;
-        if (body?.message) message = body.message as string;
+        if (body?.message && (getLanguage() === "ko" || !/[가-힣]/.test(body.message))) message = body.message as string;
       } catch {
         /* ignore */
       }
@@ -78,7 +80,7 @@ export function streamStepDetail(
       if (buffer.trim()) dispatch(buffer, handlers);
     } catch (e) {
       if ((e as Error)?.name === "AbortError") return;
-      handlers.onError?.({ code: "STREAM_ERROR", message: (e as Error)?.message ?? "스트림 읽기 실패" });
+      handlers.onError?.({ code: "STREAM_ERROR", message: (e as Error)?.message ?? t("스트림 읽기 실패") });
     }
   })();
 

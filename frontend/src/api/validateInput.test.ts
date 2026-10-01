@@ -34,7 +34,7 @@ describe("validateInput 클라이언트", () => {
     const [url, opts] = spy.mock.calls[0] as [string, RequestInit];
     expect(url).toContain(ApiPaths.VALIDATE_INPUT);
     expect(opts.method).toBe("POST");
-    expect(JSON.parse(opts.body as string)).toEqual({ text: "미분" });
+    expect(JSON.parse(opts.body as string)).toEqual({ text: "미분", language: "ko" });
   });
 
   test("valid=false 면 false 를 반환한다(부적합 분기)", async () => {

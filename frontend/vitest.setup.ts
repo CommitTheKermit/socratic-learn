@@ -51,3 +51,6 @@ vi.mock("./src/state/useAuth", () => ({
   }),
   AuthProvider: (props: { children: unknown }) => props.children,
 }));
+
+// Existing UI regression cases use Korean; locale cases explicitly override this.
+Object.defineProperty(navigator, "language", { configurable: true, value: "ko-KR" });

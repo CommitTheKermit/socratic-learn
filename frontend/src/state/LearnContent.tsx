@@ -1,3 +1,4 @@
+import { t } from "../i18n/translate";
 import {
   createContext,
   useCallback,
@@ -321,7 +322,7 @@ export function LearnContentProvider({
         if (!settled && !isStale()) {
           setStepDetailErrors((m) => ({
             ...m,
-            [stepIdx]: { code: "STREAM_ERROR", message: "본문 스트림이 완료되지 않았습니다." },
+            [stepIdx]: { code: "STREAM_ERROR", message: t("본문 스트림이 완료되지 않았습니다.") },
           }));
           setStepDetailStatus((m) => ({ ...m, [stepIdx]: "error" }));
         }

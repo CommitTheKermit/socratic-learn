@@ -1,3 +1,4 @@
+import { t } from "../i18n/translate";
 import { useCallback, useState } from "react";
 import type { BranchOption, EvaluationResponse } from "../api/contract";
 import type { Step } from "../stages/data";
@@ -79,7 +80,7 @@ export function useBranchPhase() {
         setSnapshot((cur) => ({
           ...cur,
           mode: "error",
-          errorMessage: "응답을 분기 형식으로 해석하지 못했습니다.",
+          errorMessage: t("응답을 분기 형식으로 해석하지 못했습니다."),
           technicalDetail: result.parseError,
           options: [],
           evaluationText: "",
@@ -101,7 +102,7 @@ export function useBranchPhase() {
       setSnapshot((cur) => ({
         ...cur,
         mode: "error",
-        errorMessage: "분기 옵션을 불러오지 못했어요. 잠시 후 다시 시도해주세요.",
+        errorMessage: t("분기 옵션을 불러오지 못했어요. 잠시 후 다시 시도해주세요."),
         technicalDetail: `${err.code}: ${err.message}`,
         options: [],
         evaluationText: "",

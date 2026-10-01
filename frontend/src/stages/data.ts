@@ -1,3 +1,5 @@
+import { getLanguage } from "../i18n/language";
+import { t } from "../i18n/translate";
 export type ProbeChoiceQ = {
   id: "p1";
   kind: "choice";
@@ -34,42 +36,42 @@ export const PROBE_QUESTIONS: ProbeQuestion[] = [
   {
     id: "p1",
     kind: "choice",
-    q: "이 개념을 들었을 때 어떤 느낌이 드시나요?",
+    q: t("이 개념을 들었을 때 어떤 느낌이 드시나요?"),
     options: [
-      { value: 0, label: "단어 자체가 처음이에요" },
-      { value: 1, label: "어디서 들어본 적은 있어요" },
-      { value: 2, label: "어떤 맥락에서 쓰이는지 알아요" },
-      { value: 3, label: "직접 다뤄본 적이 있어요" },
+      { value: 0, label: t("단어 자체가 처음이에요") },
+      { value: 1, label: t("어디서 들어본 적은 있어요") },
+      { value: 2, label: t("어떤 맥락에서 쓰이는지 알아요") },
+      { value: 3, label: t("직접 다뤄본 적이 있어요") },
     ],
   },
   {
     id: "p2",
     kind: "multi",
-    q: "연관 있어 보이는 단어를 모두 골라주세요",
-    sub: "정확하지 않아도 괜찮아요. 감으로 골라도 됩니다.",
+    q: t("연관 있어 보이는 단어를 모두 골라주세요"),
+    sub: t("정확하지 않아도 괜찮아요. 감으로 골라도 됩니다."),
     options: [
-      { value: "thread", label: "스레드", correct: true },
+      { value: "thread", label: t("스레드"), correct: true },
       { value: "suspend", label: "suspend", correct: true },
       { value: "async", label: "async/await", correct: true },
-      { value: "callback", label: "콜백", correct: true },
-      { value: "index", label: "DB 인덱스", correct: false },
-      { value: "shader", label: "셰이더", correct: false },
+      { value: "callback", label: t("콜백"), correct: true },
+      { value: "index", label: t("DB 인덱스"), correct: false },
+      { value: "shader", label: t("셰이더"), correct: false },
     ],
   },
   {
     id: "p3",
     kind: "text",
-    q: "이 개념이 해결하려는 문제를 한 줄로 적어볼까요?",
-    placeholder: "모르면 비워두셔도 괜찮아요",
+    q: t("이 개념이 해결하려는 문제를 한 줄로 적어볼까요?"),
+    placeholder: t("모르면 비워두셔도 괜찮아요"),
   },
 ];
 
 export const LEVEL_LABELS = [
-  "처음 만나는 단계",
-  "단어를 알고 있는 단계",
-  "맥락을 이해하는 단계",
-  "직접 다뤄본 단계",
-  "설명할 수 있는 단계",
+  t("처음 만나는 단계"),
+  t("단어를 알고 있는 단계"),
+  t("맥락을 이해하는 단계"),
+  t("직접 다뤄본 단계"),
+  t("설명할 수 있는 단계"),
 ];
 
 function findChoice(qs: ProbeQuestion[]): ProbeChoiceQ | undefined {
@@ -100,6 +102,16 @@ export function levelReason(
   level: number,
   questions: ProbeQuestion[] = PROBE_QUESTIONS,
 ): string {
+  if (getLanguage() === "en") {
+    const choice = findChoice(questions)?.options.find((option) => option.value === probes.p1);
+    const picks = probes.p2 ?? [];
+    const options = findMulti(questions)?.options ?? [];
+    const correct = picks.filter((value) => options.find((option) => option.value === value)?.correct).length;
+    return [choice ? `You selected “${choice.label}”.` : "",
+      picks.length ? `You identified ${correct} related terms (${picks.length - correct} unrelated selections).` : "",
+      probes.p3?.trim() ? "You also wrote an explanation." : "",
+    ].filter(Boolean).join(" ") || "Estimated from your answers.";
+  }
   const parts: string[] = [];
   const p1 = findChoice(questions)?.options.find((o) => o.value === probes.p1);
   if (p1) parts.push(`"${p1.label}"라고 답하셨고`);
@@ -112,9 +124,9 @@ export function levelReason(
       `연관 단어 ${correct}개를 정확히 고르셨어요${wrong ? ` (관련 없는 단어 ${wrong}개 포함)` : ""}`,
     );
   }
-  if ((probes.p3 ?? "").trim().length > 8) parts.push("문장으로도 적어주셨네요");
+  if ((probes.p3 ?? "").trim().length > 8) parts.push(t("문장으로도 적어주셨네요"));
   void level;
-  return parts.length ? parts.join(", ") + "." : "답변을 기준으로 추정한 결과입니다.";
+  return parts.length ? parts.join(", ") + "." : t("답변을 기준으로 추정한 결과입니다.");
 }
 
 export interface StepQuestion {
@@ -223,10 +235,10 @@ suspend fun fetchUser(id: Int): User {
 export type Stage = "input" | "probe" | "learn" | "done";
 
 export const STAGE_LABELS: Record<Stage, string> = {
-  input: "개념 입력",
-  probe: "수준 확인",
-  learn: "학습 진행",
-  done: "완료",
+  input: t("개념 입력"),
+  probe: t("수준 확인"),
+  learn: t("학습 진행"),
+  done: t("완료"),
 };
 
 // 답변 모드 - 입력바 왼쪽 드롭다운. 선택 모드가 학습 강도(질문 수·분기·채점)를 정한다.
@@ -239,18 +251,18 @@ export interface AnswerMode {
 }
 
 export const ANSWER_MODES: AnswerMode[] = [
-  { id: "light", name: "가볍게", cvar: "--mode-light", desc: "핵심만 빠르게. 질문 2~3개, 분기 없이 쭉 진행" },
-  { id: "socratic", name: "소크라틱", cvar: "--mode-socratic", desc: "균형 있게. 질문 4~5개, 갈래 분기 포함" },
-  { id: "deep", name: "깊게", cvar: "--mode-deep", desc: "끝까지 파고들기. 질문 5개+, 더 혹독한 점검과 추궁" },
+  { id: "light", name: t("가볍게"), cvar: "--mode-light", desc: t("핵심만 빠르게. 질문 2~3개, 분기 없이 쭉 진행") },
+  { id: "socratic", name: t("소크라틱"), cvar: "--mode-socratic", desc: t("균형 있게. 질문 4~5개, 갈래 분기 포함") },
+  { id: "deep", name: t("깊게"), cvar: "--mode-deep", desc: t("끝까지 파고들기. 질문 5개+, 더 혹독한 점검과 추궁") },
 ];
 
 // 테스트 모드 - testModeUsers 자격 계정에만 드롭다운에 노출되는 빠른 점검용 축소 모드.
 // 진단 1문항 / 로드맵 2단계 / 단계 확인질문 2개 / 후퇴 판단 생략으로 LLM 호출·출력을 줄인다.
 export const TEST_MODE: AnswerMode = {
   id: "test",
-  name: "테스트",
+  name: t("테스트"),
   cvar: "--mode-test",
-  desc: "빠른 점검용. 진단·단계·질문 최소화, LLM 호출 절약",
+  desc: t("빠른 점검용. 진단·단계·질문 최소화, LLM 호출 절약"),
 };
 
 // 자격 여부에 따라 드롭다운에 보일 모드 목록. 자격자에게만 테스트 모드를 덧붙인다.
@@ -260,10 +272,10 @@ export function modesFor(testEligible: boolean): AnswerMode[] {
 
 // 메인 가이드 - 학습 4단계 흐름 (입력바 아래 접이식)
 export const HOW_STEPS = [
-  { n: "01", title: "수준 확인", desc: "몇 가지 질문으로 지금 아는 만큼을 가늠해요" },
-  { n: "02", title: "단계 제시", desc: "개념을 작은 단계로 나눠 학습 순서를 그려요" },
-  { n: "03", title: "학습 진행", desc: "설명을 읽고, 직접 답하며 이해를 확인해요" },
-  { n: "04", title: "완료", desc: "무엇을 알게 됐는지 정리해드려요" },
+  { n: "01", title: t("수준 확인"), desc: t("몇 가지 질문으로 지금 아는 만큼을 가늠해요") },
+  { n: "02", title: t("단계 제시"), desc: t("개념을 작은 단계로 나눠 학습 순서를 그려요") },
+  { n: "03", title: t("학습 진행"), desc: t("설명을 읽고, 직접 답하며 이해를 확인해요") },
+  { n: "04", title: t("완료"), desc: t("무엇을 알게 됐는지 정리해드려요") },
 ];
 
 export const ACCENT_PRESETS: string[][] = [
@@ -278,8 +290,8 @@ export const ACCENT_PRESETS: string[][] = [
 ];
 
 export const PHASES = [
-  { id: "input", label: "개념 입력" },
-  { id: "probe", label: "수준 확인" },
-  { id: "learn", label: "학습 진행" },
-  { id: "done", label: "완료" },
+  { id: "input", label: t("개념 입력") },
+  { id: "probe", label: t("수준 확인") },
+  { id: "learn", label: t("학습 진행") },
+  { id: "done", label: t("완료") },
 ] as const;

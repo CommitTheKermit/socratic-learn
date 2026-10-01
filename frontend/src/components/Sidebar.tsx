@@ -1,3 +1,5 @@
+import { getLanguage } from "../i18n/language";
+import { t } from "../i18n/translate";
 import { memo, useState, Fragment, type ReactElement, type RefObject } from "react";
 import { I } from "./icons";
 import { STAGE_LABELS, type Stage } from "../stages/data";
@@ -18,7 +20,12 @@ export interface SessionItemProps {
 function relTime(ts: number): string {
   if (!ts) return "";
   const m = Math.floor((Date.now() - ts) / 60000);
-  if (m < 1) return "방금";
+  if (getLanguage() === "en") {
+    const unit = m < 60 ? "minute" : m < 1440 ? "hour" : "day";
+    const amount = m < 60 ? m : m < 1440 ? Math.floor(m / 60) : Math.floor(m / 1440);
+    return new Intl.RelativeTimeFormat("en", { numeric: "auto" }).format(-amount, unit);
+  }
+  if (m < 1) return t("방금");
   if (m < 60) return `${m}분 전`;
   const h = Math.floor(m / 60);
   if (h < 24) return `${h}시간 전`;
@@ -56,14 +63,14 @@ export const SessionItem = memo(function SessionItem({
           <span className="sb-hi-meta">
             <span className="stg">{STAGE_LABELS[stage]}</span>
             <span className="sep">·</span>
-            {isActive ? "진행 중" : relTime(createdAt)}
+            {isActive ? t("진행 중") : relTime(createdAt)}
           </span>
         </span>
       </button>
       <button
         className="sb-hi-del"
         type="button"
-        aria-label="세션 삭제"
+        aria-label={t("세션 삭제")}
         onClick={() => onDelete(sessionId)}
       >
         {I.trash}
@@ -122,7 +129,7 @@ function renderHistoryNode(node: HistoryNode, h: ForestHandlers, key: string): R
             <span className="sb-sub-meta">
               <span className="stg">{STAGE_LABELS[node.stage as Stage]}</span>
               <span className="sep"> · </span>
-              {isActive ? "진행 중" : relTime(node.createdAt ?? 0)}
+              {isActive ? t("진행 중") : relTime(node.createdAt ?? 0)}
             </span>
           </span>
         </button>
@@ -212,15 +219,15 @@ export function Sidebar({
       ref={drawerRef}
       tabIndex={-1}
       role="navigation"
-      aria-label="사이드바"
+      aria-label={t("사이드바")}
       aria-hidden={drawerState === "hidden" ? true : undefined}
     >
       <div className="sb-brand">
         <button
           className="sb-brand-home"
           type="button"
-          aria-label="메인으로 이동"
-          title="메인으로 이동"
+          aria-label={t("메인으로 이동")}
+          title={t("메인으로 이동")}
           onClick={onNewSession}
         >
           <span className="sb-brand-mark">{I.brand}</span>
@@ -228,8 +235,8 @@ export function Sidebar({
         </button>
         <button
           className="sb-collapse"
-          aria-label="사이드바 숨기기"
-          title="사이드바 숨기기"
+          aria-label={t("사이드바 숨기기")}
+          title={t("사이드바 숨기기")}
           onClick={onHide}
           type="button"
         >
@@ -243,13 +250,11 @@ export function Sidebar({
         onClick={onNewSession}
       >
         <span className="ico">{I.newLearn}</span>
-        새로 학습하기
-      </button>
+        {t("새로 학습하기")}</button>
 
       <button className="sb-item sb-wn" type="button" onClick={onWhatsNew}>
         <span className="ico">{I.sparkle}</span>
-        업데이트
-        {wnUnseen && <span className="wn-sb-dot is-ping" aria-hidden />}
+        {t("업데이트")}{wnUnseen && <span className="wn-sb-dot is-ping" aria-hidden />}
       </button>
 
       <div className="sb-divider" />
@@ -261,8 +266,7 @@ export function Sidebar({
         type="button"
       >
         <span className="ico">{I.history}</span>
-        학습 히스토리
-        <span className="chev">{I.chevSmall}</span>
+        {t("학습 히스토리")}<span className="chev">{I.chevSmall}</span>
       </button>
 
       {historyOpen &&
@@ -296,7 +300,7 @@ export function Sidebar({
             </div>
           ) : (
             <div className="sb-history-list">
-              <div className="sb-empty">히스토리가 없습니다</div>
+              <div className="sb-empty">{t("히스토리가 없습니다")}</div>
             </div>
           )
         ) : isActive ? (
@@ -311,8 +315,7 @@ export function Sidebar({
                   <span className="sb-hi-meta">
                     <span className="stg">{STAGE_LABELS[stage]}</span>
                     <span className="sep">·</span>
-                    진행 중
-                  </span>
+                    {t("진행 중")}</span>
                 </span>
               </button>
             </div>
@@ -323,7 +326,7 @@ export function Sidebar({
           <HistorySkeleton />
         ) : (
           <div className="sb-history-list">
-            <div className="sb-empty">히스토리가 없습니다</div>
+            <div className="sb-empty">{t("히스토리가 없습니다")}</div>
           </div>
         ))}
 
@@ -336,7 +339,7 @@ export function Sidebar({
         >
           <span className="sb-feedback-ico">{I.mail}</span>
           <span className="sb-feedback-text">
-            <span className="sb-feedback-title">피드백 부탁드립니다!</span>
+            <span className="sb-feedback-title">{t("피드백 부탁드립니다!")}</span>
             <span className="sb-feedback-mail">commit3921@gmail.com</span>
           </span>
         </a>
@@ -359,14 +362,14 @@ export function Sidebar({
                     referrerPolicy="no-referrer"
                   />
                 ) : (
-                  (userName?.[0] ?? "유").toUpperCase()
+                  (userName?.[0] ?? t("유")).toUpperCase()
                 )}
               </div>
-              <div className="sb-user-name">{userName ?? "사용자"}</div>
+              <div className="sb-user-name">{userName ?? t("사용자")}</div>
               <button
                 className="sb-signout"
                 type="button"
-                aria-label="로그아웃"
+                aria-label={t("로그아웃")}
                 onClick={onLogout}
               >
                 {I.signout}
@@ -376,11 +379,10 @@ export function Sidebar({
             <div className="sb-auth">
               <div className="sb-auth-row">
                 <div className="sb-auth-avatar">{I.userOutline}</div>
-                <div className="sb-auth-title">로그인하면 학습 기록이 기기 간에 이어져요</div>
+                <div className="sb-auth-title">{t("로그인하면 학습 기록이 기기 간에 이어져요")}</div>
               </div>
               <button className="sb-login" type="button" onClick={onLogin}>
-                로그인
-              </button>
+                {t("로그인")}</button>
             </div>
           )}
         </div>

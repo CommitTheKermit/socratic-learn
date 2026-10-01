@@ -1,3 +1,4 @@
+import { localizedSystemPrompt, localizedSchema } from "./outputLanguage";
 import { onRequest } from "firebase-functions/v2/https";
 import { requireAuth, recordUsage } from "./auth";
 import { checkRateLimit, rateLimitMessage } from "./rateLimit";
@@ -109,14 +110,14 @@ export const answerEval = onRequest(
         model: CLAUDE_MODEL,
         thinking: { type: "between_tools" },
         max_tokens: 3000,
-        system: [{ type: "text", text: EVAL_SYSTEM, cache_control: { type: "ephemeral" } }],
+        system: [{ type: "text", text: localizedSystemPrompt(EVAL_SYSTEM, req.body?.language), cache_control: { type: "ephemeral" } }],
         messages: [
           {
             role: "user",
             content: evalUserMessage(concept, level, stepTitle, stepDesc, stepBody, qaText, mode),
           },
         ],
-        output_config: { format: jsonSchemaOutputFormat(evalSchema) },
+        output_config: { format: jsonSchemaOutputFormat(localizedSchema(evalSchema, req.body?.language)) },
       });
       logUsage("answerEval", CLAUDE_MODEL, resp.usage);
       const parsed = resp.parsed_output as StepEvaluation | undefined;

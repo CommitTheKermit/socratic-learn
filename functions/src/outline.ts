@@ -1,3 +1,4 @@
+import { localizedSystemPrompt, localizedSchema } from "./outputLanguage";
 import { onRequest } from "firebase-functions/v2/https";
 import { requireAuth, recordUsage, isTestMode } from "./auth";
 import { checkRateLimit, rateLimitMessage } from "./rateLimit";
@@ -103,10 +104,10 @@ export const outline = onRequest(
         model: CLAUDE_MODEL,
         thinking: { type: "between_tools" },
         max_tokens: 3000,
-        system: [{ type: "text", text: OUTLINE_SYSTEM, cache_control: { type: "ephemeral" } }],
+        system: [{ type: "text", text: localizedSystemPrompt(OUTLINE_SYSTEM, req.body?.language), cache_control: { type: "ephemeral" } }],
         messages: [{ role: "user", content: outlineUserMessage(concept, level, mode) }],
         // 테스트 모드: 2단계 스키마로 LLM 호출
-        output_config: { format: jsonSchemaOutputFormat(testMode ? outlineSchemaTest : outlineSchema) },
+        output_config: { format: jsonSchemaOutputFormat(localizedSchema(testMode ? outlineSchemaTest : outlineSchema, req.body?.language)) },
       });
       logUsage("outline", CLAUDE_MODEL, resp.usage);
       const parsed = resp.parsed_output as { steps: RoadmapOutlineItem[] } | undefined;

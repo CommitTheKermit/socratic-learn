@@ -1,3 +1,4 @@
+import { t } from "../../i18n/translate";
 import { PI } from "./prereqIcons";
 
 /**
@@ -19,17 +20,16 @@ export function ParentReturnBanner({
     <div className="g-bc2">
       <button className="g-bc2-back" type="button" onClick={onReturn}>
         {PI.back}
-        상위로
-      </button>
+        {t("상위로")}</button>
       <span className="g-bc2-main">
-        <span className="g-bc2-label">돌아갈 곳</span>
+        <span className="g-bc2-label">{t("돌아갈 곳")}</span>
         <span className="g-bc2-parent">{parentConcept}</span>
       </span>
       <span className="g-bc2-now">
-        <span className="l">지금 학습 중</span>
+        <span className="l">{t("지금 학습 중")}</span>
         <span className="v">{currentConcept}</span>
       </span>
-      <span className="g-bc2-depth">깊이 {depth} / 2</span>
+      <span className="g-bc2-depth">{t("깊이")}{" "}{depth} / 2</span>
     </div>
   );
 }

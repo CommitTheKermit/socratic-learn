@@ -1,3 +1,4 @@
+import { t } from "../i18n/translate";
 import { useState } from "react";
 import {
   estimateLevel,
@@ -44,7 +45,7 @@ function ChoiceRow({
   return (
     <div className={"probe-row" + (highlightRequired ? " is-required-missing" : "")}>
       <div className="probe-q">
-        <MathText text={p.q} /> <span className="probe-badge probe-badge--required">필수</span>
+        <MathText text={p.q} /> <span className="probe-badge probe-badge--required">{t("필수")}</span>
       </div>
       {p.sub && (
         <div className="probe-sub">
@@ -52,7 +53,7 @@ function ChoiceRow({
         </div>
       )}
       {highlightRequired && (
-        <div className="probe-error">선택지를 하나 골라주세요.</div>
+        <div className="probe-error">{t("선택지를 하나 골라주세요.")}</div>
       )}
       <div className="probe-choices">
         {p.options.map((o) => (
@@ -86,10 +87,10 @@ function MultiRow({
   return (
     <div className="probe-row">
       <div className="probe-q">
-        <MathText text={p.q} /> <span className="probe-badge">선택</span>
+        <MathText text={p.q} /> <span className="probe-badge">{t("선택")}</span>
       </div>
       <div className="probe-sub">
-        <MathText text={p.sub ?? "건너뛰셔도 괜찮아요."} />
+        <MathText text={p.sub ?? t("건너뛰셔도 괜찮아요.")} />
       </div>
       <div className="probe-chips">
         {p.options.map((o) => (
@@ -123,9 +124,9 @@ function TextRow({
   return (
     <div className="probe-row">
       <div className="probe-q">
-        <MathText text={p.q} /> <span className="probe-badge">선택</span>
+        <MathText text={p.q} /> <span className="probe-badge">{t("선택")}</span>
       </div>
-      <div className="probe-sub">건너뛰셔도 괜찮아요.</div>
+      <div className="probe-sub">{t("건너뛰셔도 괜찮아요.")}</div>
       <CameraAnswer cameraMode={cameraMode} value={value ?? ""} onText={onChange} disabled={disabled}>
         <textarea
           className="probe-text"
@@ -177,7 +178,7 @@ export function StageProbe({
     if (probes.p3?.trim()) {
       lines.push(`p3 한 줄 설명: ${probes.p3.trim()}`);
     }
-    return lines.join("\n") || "(답변 없음)";
+    return lines.join("\n") || t("(답변 없음)");
   };
 
   const submit = async () => {
@@ -216,31 +217,30 @@ export function StageProbe({
         />
       )}
       <header className="stage-head">
-        <div className="stage-eyebrow">01 · 수준 확인</div>
-        <h2 className="stage-title">{concept}, 몇 가지만 짧게 여쭐게요</h2>
-        <p className="stage-sub">답을 보고 수준을 추정해서 단계와 깊이를 맞춰드릴게요</p>
+        <div className="stage-eyebrow">{t("01 · 수준 확인")}</div>
+        <h2 className="stage-title">{concept}{t(", 몇 가지만 짧게 여쭐게요")}</h2>
+        <p className="stage-sub">{t("답을 보고 수준을 추정해서 단계와 깊이를 맞춰드릴게요")}</p>
       </header>
 
       <div className="stage-body">
         {loading && (
           <div className="lv-loading">
             <span className="lv-loading-dot" />
-            <p className="stage-sub">개념에 맞는 진단 문항을 만들고 있습니다…</p>
+            <p className="stage-sub">{t("개념에 맞는 진단 문항을 만들고 있습니다…")}</p>
           </div>
         )}
 
         {probeStatus === "error" && probeError && (
           <div className="probe-result" role="alert">
             <div className="pr-head">
-              <span className="pr-eyebrow">진단 문항 생성 실패</span>
+              <span className="pr-eyebrow">{t("진단 문항 생성 실패")}</span>
             </div>
             <p className="pr-reason">{describeErrorCode(probeError.code, probeError.message)}</p>
             {probeFromFallback && (
-              <p className="pr-note">샘플 문항을 임시로 보여드렸어요.</p>
+              <p className="pr-note">{t("샘플 문항을 임시로 보여드렸어요.")}</p>
             )}
             <button className="btn-ghost" type="button" onClick={onRetry}>
-              다시 시도
-            </button>
+              {t("다시 시도")}</button>
           </div>
         )}
 
@@ -297,8 +297,7 @@ export function StageProbe({
 
       <div className="stage-actions">
         <button className="btn-ghost" type="button" onClick={onPrev}>
-          ← 개념 다시 입력
-        </button>
+          {t("← 개념 다시 입력")}</button>
         <span className="grow" />
         {prereq.depth < 2 && <PrereqTrigger onClick={prereq.onOpen} />}
         <button
@@ -307,18 +306,18 @@ export function StageProbe({
           onClick={() => void submit()}
           disabled={loading || checkingOverwhelm}
         >
-          {checkingOverwhelm ? "난이도 확인 중…" : "단계 만들기 →"}
+          {checkingOverwhelm ? t("난이도 확인 중…") : t("단계 만들기 →")}
         </button>
       </div>
 
       {retreat && (
         <div className="retreat-dialog-backdrop" role="dialog" aria-modal="true">
           <div className="retreat-dialog">
-            <h3>한 단계 더 쉬운 개념부터 시작해볼까요?</h3>
+            <h3>{t("한 단계 더 쉬운 개념부터 시작해볼까요?")}</h3>
             <p className="retreat-reason">{retreat.reason}</p>
             {retreat.suggestedConcept && (
               <p className="retreat-suggestion">
-                제안: <strong>{retreat.suggestedConcept}</strong>
+                {t("제안:")}{" "}<strong>{retreat.suggestedConcept}</strong>
               </p>
             )}
             <div className="retreat-actions">
@@ -330,8 +329,7 @@ export function StageProbe({
                   onNext();
                 }}
               >
-                계속 진행할게요
-              </button>
+                {t("계속 진행할게요")}</button>
               <button
                 className="rd-primary"
                 type="button"
@@ -341,8 +339,7 @@ export function StageProbe({
                 }}
               >
                 <span style={{ display: "inline-flex" }}>{PI.branch}</span>
-                선행 개념 트리 보기
-              </button>
+                {t("선행 개념 트리 보기")}</button>
             </div>
           </div>
         </div>

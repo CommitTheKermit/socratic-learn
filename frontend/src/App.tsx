@@ -1,3 +1,5 @@
+import { LanguageSelector } from "./components/LanguageSelector";
+import { t } from "./i18n/translate";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import { Sidebar } from "./components/Sidebar";
@@ -85,14 +87,14 @@ function isMobileViewport(): boolean {
 function MobileTopBar({ onMenu, onNew }: { onMenu: () => void; onNew: () => void }) {
   return (
     <header className="m-topbar">
-      <button className="m-topbar-btn" type="button" aria-label="메뉴 열기" onClick={onMenu}>
+      <button className="m-topbar-btn" type="button" aria-label={t("메뉴 열기")} onClick={onMenu}>
         {I.menu}
       </button>
       <div className="m-topbar-brand">
         <span className="m-topbar-mark">{I.brand}</span>
         <span className="m-topbar-name">Socratic</span>
       </div>
-      <button className="m-topbar-btn" type="button" aria-label="새로 학습하기" onClick={onNew}>
+      <button className="m-topbar-btn" type="button" aria-label={t("새로 학습하기")} onClick={onNew}>
         {I.plus}
       </button>
     </header>
@@ -520,7 +522,7 @@ function AppWorkspace({
       } catch {
         startingRef.current = false;
         trackStartFailure("concept", "auth");
-        setStartError("학습 시작에 필요한 익명 인증에 실패했어요. 네트워크 상태를 확인하고 다시 시도해 주세요.");
+        setStartError(t("학습 시작에 필요한 익명 인증에 실패했어요. 네트워크 상태를 확인하고 다시 시도해 주세요."));
         return;
       }
     }
@@ -555,7 +557,7 @@ function AppWorkspace({
       } catch {
         startingRef.current = false;
         trackStartFailure("roadmap", "auth");
-        setStartError("학습 시작에 필요한 익명 인증에 실패했어요. 네트워크 상태를 확인하고 다시 시도해 주세요.");
+        setStartError(t("학습 시작에 필요한 익명 인증에 실패했어요. 네트워크 상태를 확인하고 다시 시도해 주세요."));
         return;
       }
     }
@@ -565,13 +567,13 @@ function AppWorkspace({
     } catch {
       startingRef.current = false;
       trackStartFailure("roadmap", "roadmap_load");
-      setStartError("로드맵을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.");
+      setStartError(t("로드맵을 불러오지 못했어요. 잠시 후 다시 시도해 주세요."));
       return;
     }
     if (!roadmap) {
       startingRef.current = false;
       trackStartFailure("roadmap", "roadmap_missing");
-      setStartError("로드맵을 찾을 수 없어요.");
+      setStartError(t("로드맵을 찾을 수 없어요."));
       return;
     }
     const newId = createSessionId();
@@ -884,7 +886,7 @@ function AppWorkspace({
         ref={edgeRef}
         className="sb-edge"
         type="button"
-        aria-label={drawerState === "peek" ? "사이드바 열기" : "사이드바 미리보기"}
+        aria-label={drawerState === "peek" ? t("사이드바 열기") : t("사이드바 미리보기")}
         aria-expanded={pinned}
         onMouseEnter={peekOn}
         onMouseLeave={peekOff}
@@ -901,13 +903,14 @@ function AppWorkspace({
       {wnOpen && (
         <>
           <div className="wn-flyout-scrim" aria-hidden onClick={closeWhatsNew} />
-          <aside className="wn-flyout" aria-label="업데이트 소식">
+          <aside className="wn-flyout" aria-label={t("업데이트 소식")}>
             <WhatsNewPanel onClose={closeWhatsNew} />
           </aside>
         </>
       )}
 
       <main className="main">
+        {stage === "input" && <div className="home-language"><LanguageSelector /></div>}
         <MobileTopBar onMenu={pin} onNew={() => { closeDrawerOnMobile(); newSession(); }} />
         {showAurora && (
           <div className="aurora" aria-hidden>

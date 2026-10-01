@@ -1,3 +1,4 @@
+import { t } from "../../i18n/translate";
 import { PI } from "./prereqIcons";
 
 /**
@@ -25,7 +26,7 @@ export function PrereqTrigger({
       role="button"
       tabIndex={disabled ? -1 : 0}
       aria-disabled={disabled || undefined}
-      title="이 개념이 너무 어려울 때, 먼저 알아야 할 선행 개념을 봅니다"
+      title={t("이 개념이 너무 어려울 때, 먼저 알아야 할 선행 개념을 봅니다")}
       onClick={(e) => {
         e.stopPropagation();
         activate();
@@ -42,7 +43,7 @@ export function PrereqTrigger({
         {PI.branch}
       </span>
       <span>
-        <b>선행 개념 보기</b>
+        <b>{t("선행 개념 보기")}</b>
       </span>
       {dot && <span className="pq-trigger-dot is-ping" aria-hidden />}
     </span>

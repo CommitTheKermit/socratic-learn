@@ -1,3 +1,4 @@
+import { localizedSystemPrompt, localizedSchema } from "./outputLanguage";
 import { onRequest } from "firebase-functions/v2/https";
 import { requireAuth, recordUsage, isTestMode } from "./auth";
 import { checkRateLimit, rateLimitMessage } from "./rateLimit";
@@ -128,9 +129,9 @@ export const probe = onRequest(
         model: CLAUDE_MODEL,
         thinking: { type: "between_tools" },
         max_tokens: 3000,
-        system: [{ type: "text", text: PROBE_SYSTEM, cache_control: { type: "ephemeral" } }],
+        system: [{ type: "text", text: localizedSystemPrompt(PROBE_SYSTEM, req.body?.language), cache_control: { type: "ephemeral" } }],
         messages: [{ role: "user", content: probeUserMessage(concept, materials, mode) }],
-        output_config: { format: jsonSchemaOutputFormat(probeSchema) },
+        output_config: { format: jsonSchemaOutputFormat(localizedSchema(probeSchema, req.body?.language)) },
       });
       logUsage("probe", CLAUDE_MODEL, resp.usage);
       const parsed = resp.parsed_output as ProbeQuestions | undefined;

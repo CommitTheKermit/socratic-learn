@@ -1,3 +1,4 @@
+import { getLanguage } from "../i18n/language";
 // 자동 생성: 저장소 루트 placeholders.md 의 7개 카테고리 300개 문구를 정적 배열로 보관한다.
 // 학습 단계 확인 질문 답변 textarea 의 placeholder 를 마운트 시 1회 랜덤 선택하는 데 쓰인다. (API 호출 없음)
 
@@ -350,7 +351,15 @@ export const PLACEHOLDER_POOL: string[] = PLACEHOLDER_CATEGORIES.flatMap(
 );
 
 /** 풀에서 문구 하나를 균등 랜덤으로 선택한다. 빈 풀이면 빈 문자열을 반환한다. */
-export function pickRandomPlaceholder(pool: string[] = PLACEHOLDER_POOL): string {
+export function pickRandomPlaceholder(pool: string[] = getLanguage() === "en" ? ENGLISH_PLACEHOLDERS : PLACEHOLDER_POOL): string {
   if (pool.length === 0) return "";
   return pool[Math.floor(Math.random() * pool.length)];
 }
+
+const ENGLISH_PLACEHOLDERS = [
+  "Explain it in your own words.",
+  "A short answer is enough to get started.",
+  "Write what you understand so far.",
+  "Not sure? You can say so.",
+  "Start with the key idea.",
+];

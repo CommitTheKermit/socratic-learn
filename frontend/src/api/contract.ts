@@ -1,3 +1,10 @@
+export type OutputLanguage = "ko" | "en";
+
+/** Omitted language preserves Korean output for older clients. */
+export interface LocalizedLearningRequest {
+  language?: OutputLanguage;
+}
+
 // SOURCE OF TRUTH: 이 파일이 API 경로/DTO 의 단일 진실 출처다.
 // (구 shared/ Kotlin 미러는 Firebase Functions 이전 후 제거됨.)
 // ApiPaths 의 키 = Function 이름 = 경로. functions/src/<fn>.ts 와 같은 PR 에서 함께 수정한다.
@@ -56,7 +63,7 @@ export interface StreamErrorPayload {
   message: string;
 }
 
-export interface OverwhelmRequest {
+export interface OverwhelmRequest extends LocalizedLearningRequest {
   concept: string;
   materials?: string;
   probeSummary: string;
@@ -77,7 +84,7 @@ export interface OverwhelmDecision {
  * - "learn": 선택된 로드맵 단계가 (이 사용자 수준에) 너무 어려울 때 그 단계를 이해하기 위한 선행.
  *   level/roadmapTitles/currentStepTitle 를 함께 주고, 로드맵에 이미 있는 개념은 제외한다.
  */
-export interface PrereqTreeRequest {
+export interface PrereqTreeRequest extends LocalizedLearningRequest {
   concept: string;
   materials?: string;
   probeSummary?: string;
@@ -121,19 +128,19 @@ export interface TestEligibleResponse {
   eligible: boolean;
 }
 
-export interface ProbeRequest {
+export interface ProbeRequest extends LocalizedLearningRequest {
   concept: string;
   materials?: string;
   mode?: LearnMode;
 }
 
-export interface OutlineRequest {
+export interface OutlineRequest extends LocalizedLearningRequest {
   concept: string;
   level: number;
   mode?: LearnMode;
 }
 
-export interface StepDetailRequest {
+export interface StepDetailRequest extends LocalizedLearningRequest {
   concept: string;
   level: number;
   outline: { title: string; desc: string }[];
@@ -141,7 +148,7 @@ export interface StepDetailRequest {
   mode?: LearnMode;
 }
 
-export interface AnswerEvalRequest {
+export interface AnswerEvalRequest extends LocalizedLearningRequest {
   concept: string;
   level: number;
   stepTitle: string;
@@ -160,7 +167,7 @@ export interface AnswerOcrResponse {
   text: string;
 }
 
-export interface BranchEvalRequest {
+export interface BranchEvalRequest extends LocalizedLearningRequest {
   concept: string;
   level: number;
   stepTitle: string;
@@ -181,7 +188,7 @@ export interface AskTurn {
  * 답변은 항상 산문으로 생성하고(현재 개념/로드맵 범위 안), 필요 시 route 로 기존
  * 선행 트리(prereq)·보충 단계(newStep) 기계를 '안내'로 병행한다. 후속은 프론트가 최대 2회로 캡한다.
  */
-export interface AskRouteRequest {
+export interface AskRouteRequest extends LocalizedLearningRequest {
   question: string;
   concept: string;
   level?: number;
@@ -203,7 +210,7 @@ export interface AskRouteResponse {
    * offtopic=현재 학습 범위 밖이라 답변하지 않고 복귀만 안내.
    */
   route: "prereq" | "newStep" | "none" | "offtopic";
-  /** 학습자 질문에 대한 산문 답변(한국어). route=offtopic 이면 빈 문자열. */
+  /** 학습자 질문에 대한 선택 언어의 산문 답변. route=offtopic 이면 빈 문자열. */
   answer: string;
   /** 답변에 곁들이는 1-2문장 흐름 안내(이 단계와의 연결/다음 학습). offtopic 이면 복귀 안내. */
   message: string;
@@ -216,7 +223,7 @@ export interface AskRouteResponse {
  * 검증 로직은 호출 지점(Hero/Learn)과 무관하게 공통이다(무의미·장난·욕설·비학습성 차단).
  * 맥락 관련성(오프토픽)은 여기서 보지 않으며 기존 askRoute 가 담당한다.
  */
-export interface ValidateInputRequest {
+export interface ValidateInputRequest extends LocalizedLearningRequest {
   text: string;
 }
 
@@ -316,7 +323,7 @@ export interface ReadymadeRoadmap {
   subject: string;
   /** 같은 subject 안에서의 학습 권장 순서(작을수록 먼저). 목록 정렬 기준. */
   order: number;
-  /** 로드맵 단계들. body/questions 가 채워진 완성 콘텐츠(일반 세션 steps 와 동일 구조). */
+  /** 로드맵 단계들. 한국어는 완성 콘텐츠, 영어는 body/questions 를 단계 진입 시 생성하는 outline. */
   steps: Step[];
   /** 선행 개념 트리. 시작 시 새 세션의 prereqTree 로 복사된다. */
   prereqTree: PrereqNode[];

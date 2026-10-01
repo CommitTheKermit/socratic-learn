@@ -1,3 +1,4 @@
+import { t } from "../i18n/translate";
 import type { ReactNode } from "react";
 
 interface Props {
@@ -18,9 +19,9 @@ export function StageShell({
   sub,
   children,
   prev,
-  prevLabel = "이전",
+  prevLabel = t("이전"),
   next,
-  nextLabel = "다음 →",
+  nextLabel = t("다음 →"),
   nextDisabled,
 }: Props) {
   return (

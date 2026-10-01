@@ -1,3 +1,5 @@
+import { getLanguage } from "../i18n/language";
+import { t } from "../i18n/translate";
 import { API_BASE_URL, ApiPaths } from "./contract";
 import type {
   ReadymadeRoadmap,
@@ -28,7 +30,7 @@ async function throwFromResponse(res: Response, fallbackMsg: string): Promise<ne
   try {
     const body = await res.json();
     if (body?.code) code = body.code as string;
-    if (body?.message) message = body.message as string;
+    if (body?.message && (getLanguage() === "ko" || !/[가-힣]/.test(body.message))) message = body.message as string;
   } catch {
     /* ignore */
   }
@@ -39,14 +41,14 @@ async function throwFromResponse(res: Response, fallbackMsg: string): Promise<ne
 export async function listReadymadeRoadmaps(): Promise<ReadymadeRoadmapListEntry[]> {
   let res: Response;
   try {
-    res = await fetch(`${API_BASE_URL}${ApiPaths.READYMADE_ROADMAP_LIST}`, {
+    res = await fetch(`${API_BASE_URL}${ApiPaths.READYMADE_ROADMAP_LIST}?language=${getLanguage()}`, {
       method: "GET",
       headers: await authHeaders(),
     });
   } catch (e) {
-    throw new RoadmapApiError("ROADMAP_ERROR", (e as Error)?.message ?? "네트워크 오류");
+    throw new RoadmapApiError("ROADMAP_ERROR", (e as Error)?.message ?? t("네트워크 오류"));
   }
-  if (!res.ok) await throwFromResponse(res, "로드맵 목록 조회 실패");
+  if (!res.ok) await throwFromResponse(res, t("로드맵 목록 조회 실패"));
   const body = (await res.json()) as ReadymadeRoadmapListResponse;
   return body.roadmaps ?? [];
 }
@@ -56,13 +58,13 @@ export async function getReadymadeRoadmap(id: string): Promise<ReadymadeRoadmap 
   let res: Response;
   try {
     res = await fetch(
-      `${API_BASE_URL}${ApiPaths.READYMADE_ROADMAP_GET}?id=${encodeURIComponent(id)}`,
+      `${API_BASE_URL}${ApiPaths.READYMADE_ROADMAP_GET}?id=${encodeURIComponent(id)}&language=${getLanguage()}`,
       { method: "GET", headers: await authHeaders() },
     );
   } catch (e) {
-    throw new RoadmapApiError("ROADMAP_ERROR", (e as Error)?.message ?? "네트워크 오류");
+    throw new RoadmapApiError("ROADMAP_ERROR", (e as Error)?.message ?? t("네트워크 오류"));
   }
-  if (!res.ok) await throwFromResponse(res, "로드맵 조회 실패");
+  if (!res.ok) await throwFromResponse(res, t("로드맵 조회 실패"));
   const body = (await res.json()) as ReadymadeRoadmapGetResponse;
   return body.roadmap ?? null;
 }

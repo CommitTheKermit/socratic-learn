@@ -1,3 +1,4 @@
+import { localizedSystemPrompt, localizedSchema } from "./outputLanguage";
 import { onRequest } from "firebase-functions/v2/https";
 import { requireAuth, recordUsage, isTestMode } from "./auth";
 import { checkRateLimit, rateLimitMessage } from "./rateLimit";
@@ -80,9 +81,9 @@ export const overwhelm = onRequest(
         model: CLAUDE_MODEL,
         thinking: { type: "between_tools" },
         max_tokens: 1500,
-        system: [{ type: "text", text: OVERWHELM_SYSTEM, cache_control: { type: "ephemeral" } }],
+        system: [{ type: "text", text: localizedSystemPrompt(OVERWHELM_SYSTEM, req.body?.language), cache_control: { type: "ephemeral" } }],
         messages: [{ role: "user", content: overwhelmUserMessage(concept, materials, probeSummary) }],
-        output_config: { format: jsonSchemaOutputFormat(overwhelmSchema) },
+        output_config: { format: jsonSchemaOutputFormat(localizedSchema(overwhelmSchema, req.body?.language)) },
       });
       logUsage("overwhelm", CLAUDE_MODEL, resp.usage);
       const parsed = resp.parsed_output as OverwhelmDecision | undefined;

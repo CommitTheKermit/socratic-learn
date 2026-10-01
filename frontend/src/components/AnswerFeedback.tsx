@@ -1,3 +1,4 @@
+import { t } from "../i18n/translate";
 import { useEffect, useRef } from "react";
 import { MathText } from "../lib/mathText";
 import { trackFirstFeedbackView } from "../lib/growthMetrics";
@@ -27,7 +28,7 @@ export function AnswerFeedback({ feedback, sessionId, stepIdx }: {
     };
   }, [feedback, sessionId, stepIdx]);
   return <div className="qa-feedback" ref={ref}>
-    <span className="qa-feedback-label">AI 피드백</span>
+    <span className="qa-feedback-label">{t("AI 피드백")}</span>
     <p><MathText text={feedback} /></p>
   </div>;
 }
