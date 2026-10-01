@@ -17,7 +17,7 @@ import {
 // Secret Manager 로 주입되는 Anthropic 키. 브라우저에는 절대 노출되지 않는다.
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
 
-const CLAUDE_MODEL = "claude-sonnet-4-6";
+const CLAUDE_MODEL = "claude-sonnet-5-5";
 
 // 선행 개념 트리 스키마. 구조화 출력은 재귀($ref)를 보장하기 어려워, 깊이를 3단계로 고정해 펼친다.
 // 가장 깊은(3단계) 노드의 children 은 빈 배열(maxItems:0)로 강제한다.
@@ -123,6 +123,7 @@ export const prereqTree = onRequest(
       const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY.value() });
       const resp = await client.messages.parse({
         model: CLAUDE_MODEL,
+        thinking: { type: "between_tools" },
         max_tokens: isLearn ? 1500 : 2500,
         system: [{ type: "text", text: systemText, cache_control: { type: "ephemeral" } }],
         messages: [{ role: "user", content: userText }],

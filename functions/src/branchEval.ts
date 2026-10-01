@@ -12,7 +12,7 @@ import { logUsage } from "./usageLog";
 // Secret Manager 로 주입되는 Anthropic 키. 브라우저에는 절대 노출되지 않는다.
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
 
-const CLAUDE_MODEL = "claude-sonnet-4-6";
+const CLAUDE_MODEL = "claude-sonnet-5-5";
 
 // 분기 옵션이 품는 한 단계(Step) 메타. exit 옵션은 stageContent=null.
 // body/questions 는 LLM 이 생성하지 않는다: 삽입된 분기 단계는 프론트의 loadStepDetail 이
@@ -148,6 +148,7 @@ export const branchEval = onRequest(
       const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY.value() });
       const resp = await client.messages.parse({
         model: CLAUDE_MODEL,
+        thinking: { type: "between_tools" },
         max_tokens: 3000,
         system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
         messages: [{ role: "user", content: user }],

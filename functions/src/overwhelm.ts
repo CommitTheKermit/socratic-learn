@@ -12,7 +12,7 @@ import { logUsage } from "./usageLog";
 // Secret Manager 로 주입되는 Anthropic 키. 브라우저에는 절대 노출되지 않는다.
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
 
-const CLAUDE_MODEL = "claude-sonnet-4-6";
+const CLAUDE_MODEL = "claude-sonnet-5-5";
 
 // frontend/src/api/claudeContent.ts 의 overwhelmSchema 를 그대로 옮겨온 것.
 const overwhelmSchema = {
@@ -78,6 +78,7 @@ export const overwhelm = onRequest(
       const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY.value() });
       const resp = await client.messages.parse({
         model: CLAUDE_MODEL,
+        thinking: { type: "between_tools" },
         max_tokens: 1500,
         system: [{ type: "text", text: OVERWHELM_SYSTEM, cache_control: { type: "ephemeral" } }],
         messages: [{ role: "user", content: overwhelmUserMessage(concept, materials, probeSummary) }],

@@ -15,7 +15,7 @@ import { logUsage } from "./usageLog";
 // Secret Manager 로 주입되는 Anthropic 키. 브라우저에는 절대 노출되지 않는다.
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
 
-const CLAUDE_MODEL = "claude-sonnet-4-6";
+const CLAUDE_MODEL = "claude-sonnet-5-5";
 
 interface RoadmapOutlineItem {
   title: string;
@@ -98,6 +98,7 @@ export const stepDetailStream = onRequest(
       const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY.value() });
       const stream = client.messages.stream({
         model: CLAUDE_MODEL,
+        thinking: { type: "between_tools" },
         max_tokens: 4000,
         system: [
           { type: "text", text: STEP_DETAIL_STREAM_SYSTEM, cache_control: { type: "ephemeral" } },

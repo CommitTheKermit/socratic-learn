@@ -8,8 +8,9 @@ interface AnthropicUsage {
   cache_read_input_tokens?: number | null;
 }
 
-// 모델별 백만 토큰당 단가(USD). 입력/출력. (claude-api 기준: Sonnet 4.6 $3/$15, Haiku 4.5 $1/$5, Opus 4.8 $5/$25)
+// 모델별 백만 토큰당 단가(USD). 입력/출력. (claude-api 기준: Sonnet 5.5 $2/$10, Sonnet 4.6 $3/$15, Haiku 4.5 $1/$5, Opus 4.8 $5/$25)
 const PRICE_PER_MTOK: Record<string, { in: number; out: number }> = {
+  "claude-sonnet-5-5": { in: 2, out: 10 },
   "claude-sonnet-4-6": { in: 3, out: 15 },
   "claude-haiku-4-5": { in: 1, out: 5 },
   "claude-opus-4-8": { in: 5, out: 25 },

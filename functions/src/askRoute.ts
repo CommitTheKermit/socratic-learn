@@ -12,7 +12,7 @@ import { ASK_ROUTE_SYSTEM, askRouteUserMessage } from "./prompts";
 // Secret Manager 로 주입되는 Anthropic 키. 브라우저에는 절대 노출되지 않는다.
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
 
-const CLAUDE_MODEL = "claude-sonnet-4-6";
+const CLAUDE_MODEL = "claude-sonnet-5-5";
 
 // 보충 단계 제안. route=newStep 일 때만 객체, 그 외엔 null(anyOf). body/questions 는 만들지 않는다:
 // 학습자가 진입하면 프론트 loadStepDetail(stepDetailStream)이 lazy 생성하므로(분기 단계와 동일),
@@ -122,6 +122,7 @@ export const askRoute = onRequest(
       const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY.value() });
       const resp = await client.messages.parse({
         model: CLAUDE_MODEL,
+        thinking: { type: "between_tools" },
         max_tokens: 1100,
         system: [{ type: "text", text: ASK_ROUTE_SYSTEM, cache_control: { type: "ephemeral" } }],
         messages: [
