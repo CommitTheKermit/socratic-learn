@@ -29,4 +29,12 @@ Prepared roadmap GET requests accept `language`. The English versions retain the
 - Browser requests directly to Anthropic: zero.
 - A saved-session integration test confirms that original Korean content and learner answers survive while new English feedback is displayed.
 
-This change has not been deployed.
+## Production deployment (2026-10-01)
+
+- Released v0.22.0 to Firebase Functions and Hosting at https://socratic-learn-web.web.app.
+- Firebase CLI completed successfully for both targets.
+- The live JavaScript asset matched the local production build byte for byte and contained version 0.22.0.
+- The same browser learning flow passed against production: language detection and persistence, draft preservation, English diagnostic questions, roadmap, streamed explanation, answer evaluation and follow-up answer.
+- A Japanese mobile browser defaulted to English; home and introduction pages fit the viewport.
+- Analytics collection requests were blocked during the production browser check. Direct browser requests to Anthropic: zero.
+- Existing Node.js 20 runtime warning: the deployment CLI reports decommissioning on 2026-10-30. Runtime migration is outside this English-support release.

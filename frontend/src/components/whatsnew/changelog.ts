@@ -50,6 +50,14 @@ export const CHANGE_TYPE_ORDER: ChangeType[] = ["feature", "improve", "fix"];
 /** 전체 버전 히스토리 (최신 → 과거). 맨 앞이 현재 버전. */
 export const CHANGELOG: VersionEntry[] = [
   {
+    version: "0.22.0",
+    date: "2026.10.01",
+    changes: [
+      { type: "feature", text: t("브라우저 언어에 맞춰 한국어 또는 영어로 시작하고, 메인에서 언어를 바꿀 수 있어요.") },
+      { type: "feature", text: t("선택한 언어로 학습 설명, 질문과 답변 피드백을 받을 수 있어요.") },
+    ],
+  },
+  {
     version: "0.21.1",
     date: "2026.10.01",
     changes: [

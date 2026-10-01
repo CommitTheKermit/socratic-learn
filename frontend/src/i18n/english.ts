@@ -1,5 +1,8 @@
 /** English application copy, keyed by the original Korean text. */
 export const english: Record<string, string> = {
+  "브라우저 언어에 맞춰 한국어 또는 영어로 시작하고, 메인에서 언어를 바꿀 수 있어요.": "Start in Korean or English based on your browser language, and switch languages on the home screen.",
+  "선택한 언어로 학습 설명, 질문과 답변 피드백을 받을 수 있어요.": "Get explanations, questions, and feedback in your selected language.",
+
   "메뉴 열기": "Open menu",
   "새로 학습하기": "New learning session",
   "학습 시작에 필요한 익명 인증에 실패했어요. 네트워크 상태를 확인하고 다시 시도해 주세요.": "Could not start a guest session. Check your connection and try again.",
