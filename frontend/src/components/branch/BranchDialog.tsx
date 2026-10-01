@@ -1,3 +1,4 @@
+import { t } from "../../i18n/translate";
 import { useEffect, useRef } from "react";
 import type { BranchOption } from "../../api/contract";
 import { MathText } from "../../lib/mathText";
@@ -20,7 +21,7 @@ export interface BranchErrorPayload {
   onExit: () => void;
 }
 
-const TYPE_PREVIEW_EXIT = "여기까지의 학습을 정리하고 마치기";
+const TYPE_PREVIEW_EXIT = t("여기까지의 학습을 정리하고 마치기");
 
 function IconArrow() {
   return (
@@ -93,7 +94,7 @@ function iconFor(type: BranchOption["type"]) {
   }
 }
 
-const TYPE_PREVIEW_REANSWER = "이 단계 답변을 지우고 다시 작성합니다";
+const TYPE_PREVIEW_REANSWER = t("이 단계 답변을 지우고 다시 작성합니다");
 
 function previewOf(option: BranchOption): string {
   if (option.type === "reanswer") return TYPE_PREVIEW_REANSWER;
@@ -151,22 +152,22 @@ function ChooseMode({
     <>
       <div className="bd-head">
         <div>
-          <div className="bd-eyebrow">평가 완료 · 다음 분기 선택</div>
-          <h3 className="bd-title" id="bd-title">다음으로 어디로 가볼까요?</h3>
-          <p className="bd-sub">방금 답변을 평가했어요. 알맞은 길을 골라주세요.</p>
+          <div className="bd-eyebrow">{t("평가 완료 · 다음 분기 선택")}</div>
+          <h3 className="bd-title" id="bd-title">{t("다음으로 어디로 가볼까요?")}</h3>
+          <p className="bd-sub">{t("방금 답변을 평가했어요. 알맞은 길을 골라주세요.")}</p>
         </div>
-        <button className="bd-close" type="button" aria-label="닫기" onClick={onClose}>
+        <button className="bd-close" type="button" aria-label={t("닫기")} onClick={onClose}>
           <IconClose />
         </button>
       </div>
       <div className="bd-body">
         <div className="bd-eval">
-          <div className="bd-eval-eyebrow">평가 결과</div>
+          <div className="bd-eval-eyebrow">{t("평가 결과")}</div>
           <p className="bd-eval-body"><MathText text={evaluationText} /></p>
         </div>
         <div className="bd-section-head">
-          <span className="h">다음 학습 분기</span>
-          <span className="meta">{options.length}개 옵션</span>
+          <span className="h">{t("다음 학습 분기")}</span>
+          <span className="meta">{options.length}{t("개 옵션")}</span>
         </div>
         <div className="bd-list">
           {options.map((opt, i) => {
@@ -188,7 +189,7 @@ function ChooseMode({
                 <span className="bd-body-col">
                   <span className="bd-label">
                     <MathText text={opt.label} />
-                    {opt.isRecommended && <span className="bd-rec">추천</span>}
+                    {opt.isRecommended && <span className="bd-rec">{t("추천")}</span>}
                   </span>
                   <span className="bd-preview"><MathText text={previewOf(opt)} /></span>
                 </span>
@@ -207,11 +208,11 @@ function ErrorMode({ error, onClose }: { error: BranchErrorPayload; onClose: () 
     <>
       <div className="bd-head">
         <div>
-          <div className="bd-eyebrow">분기 선택 · 오류</div>
-          <h3 className="bd-title" id="bd-title">다시 한 번 시도해볼까요?</h3>
-          <p className="bd-sub">LLM 응답을 분기 형식으로 받지 못했습니다</p>
+          <div className="bd-eyebrow">{t("분기 선택 · 오류")}</div>
+          <h3 className="bd-title" id="bd-title">{t("다시 한 번 시도해볼까요?")}</h3>
+          <p className="bd-sub">{t("LLM 응답을 분기 형식으로 받지 못했습니다")}</p>
         </div>
-        <button className="bd-close" type="button" aria-label="닫기" onClick={onClose}>
+        <button className="bd-close" type="button" aria-label={t("닫기")} onClick={onClose}>
           <IconClose />
         </button>
       </div>
@@ -220,22 +221,21 @@ function ErrorMode({ error, onClose }: { error: BranchErrorPayload; onClose: () 
           <div className="bd-err-head">
             <span className="bd-err-icon"><IconAlert /></span>
             <div className="bd-err-headtxt">
-              <div className="bd-err-title">분기 옵션을 만들지 못했어요</div>
-              <div className="bd-err-retries">재시도 {error.retryCount}회</div>
+              <div className="bd-err-title">{t("분기 옵션을 만들지 못했어요")}</div>
+              <div className="bd-err-retries">{t("재시도")}{" "}{error.retryCount}{t("회")}</div>
             </div>
           </div>
           <p className="bd-err-msg">{error.message}</p>
           {error.technicalDetail && (
             <details className="bd-err-details">
-              <summary>기술적 상세 보기</summary>
+              <summary>{t("기술적 상세 보기")}</summary>
               <pre>{error.technicalDetail}</pre>
             </details>
           )}
           <div className="bd-err-actions">
-            <button className="bd-btn-ghost" type="button" onClick={error.onExit}>학습 종료</button>
+            <button className="bd-btn-ghost" type="button" onClick={error.onExit}>{t("학습 종료")}</button>
             <button className="bd-btn-primary" type="button" onClick={error.onRetry}>
-              <IconRetry /> 다시 시도
-            </button>
+              <IconRetry /> {" "}{t("다시 시도")}</button>
           </div>
         </div>
       </div>

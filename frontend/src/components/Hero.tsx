@@ -1,3 +1,4 @@
+import { t } from "../i18n/translate";
 import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { HOW_STEPS, modesFor } from "../stages/data";
 import { loadGuideOpen, saveGuideOpen } from "../state/guideSetting";
@@ -86,17 +87,15 @@ export function Hero({
               })
             }
           >
-            Socratic은 이렇게 학습해요
-            <span className="chev">{I.chevSmall}</span>
+            {t("Socratic은 이렇게 학습해요")}<span className="chev">{I.chevSmall}</span>
           </button>
         </div>
       </div>
 
       <h1>
-        어떤 개념을<br />
-        가장 먼저 배워볼까요?
-      </h1>
-      <p className="sub">한 줄로 입력하시면 도와드릴게요</p>
+        {t("어떤 개념을")}<br />
+        {t("가장 먼저 배워볼까요?")}</h1>
+      <p className="sub">{t("한 줄로 입력하시면 도와드릴게요")}</p>
 
       <form className="input-bar has-lead" onSubmit={submit}>
         <ModeMenu value={mode} onChange={onMode} modes={modesFor(testEligible)} />
@@ -104,7 +103,7 @@ export function Hero({
           ref={ref}
           rows={1}
           autoFocus
-          placeholder="배우고 싶은 개념을 입력해서 시작해보세요"
+          placeholder={t("배우고 싶은 개념을 입력해서 시작해보세요")}
           value={concept}
           onChange={(e) => {
             setConcept(e.target.value);
@@ -115,8 +114,7 @@ export function Hero({
           }}
         />
         <button className="btn-capture" type="submit">
-          학습 시작
-        </button>
+          {t("학습 시작")}</button>
       </form>
 
       {error && (
@@ -134,8 +132,7 @@ export function Hero({
       >
         <span className="badge">{I.check}</span>
         <span>
-          <b>{toast}</b> 학습을 시작합니다…
-        </span>
+          <b>{toast}</b> {" "}{t("학습을 시작합니다…")}</span>
       </div>
     </section>
   );

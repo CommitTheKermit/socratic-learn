@@ -1,3 +1,4 @@
+import { t } from "../i18n/translate";
 import { useEffect, useRef, useState } from "react";
 import { listReadymadeRoadmaps } from "../api/readymadeRoadmapApi";
 import type { ReadymadeRoadmapListEntry } from "../api/contract";
@@ -158,7 +159,7 @@ export function RoadmapPanel({ onStart }: Props) {
             className="rmap-row"
             key={m.roadmapId}
             onClick={() => onStart(m.roadmapId, m.title)}
-            aria-label={"시작: " + m.title}
+            aria-label={t("시작: ") + m.title}
           >
             <span className="rmap-num">{String(mi + 1).padStart(2, "0")}</span>
             <span className="lbl">{m.title}</span>

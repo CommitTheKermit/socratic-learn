@@ -1,3 +1,4 @@
+import { t } from "../i18n/translate";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { recognizeAnswerImage } from "../api/claudeContent";
 import "../styles/camera-answer.css";
@@ -17,9 +18,9 @@ export function useCameraAnswerMode() {
   return {
     cameraMode: mobile && selected,
     modeSwitch: mobile ? (
-      <div className="lv-seg camera-mode-switch" role="group" aria-label="답변 입력 방식">
-        <button type="button" className={!selected ? "is-active" : ""} aria-pressed={!selected} onClick={() => setSelected(false)}>키보드</button>
-        <button type="button" className={selected ? "is-active" : ""} aria-pressed={selected} onClick={() => setSelected(true)}>카메라 답변</button>
+      <div className="lv-seg camera-mode-switch" role="group" aria-label={t("답변 입력 방식")}>
+        <button type="button" className={!selected ? "is-active" : ""} aria-pressed={!selected} onClick={() => setSelected(false)}>{t("키보드")}</button>
+        <button type="button" className={selected ? "is-active" : ""} aria-pressed={selected} onClick={() => setSelected(true)}>{t("카메라 답변")}</button>
       </div>
     ) : null,
   };
@@ -39,8 +40,8 @@ export function CameraAnswer({ cameraMode, value, disabled = false, onText, chil
   return (
     <div className="camera-answer">
       <div className="camera-actions">
-        <button type="button" className="lv-btn-ghost" onClick={() => setOpen(true)}>{value ? "답안 다시 촬영" : "답안 촬영"}</button>
-        {!editable && !value && <button type="button" className="lv-btn-ghost" onClick={() => setEditable(true)}>직접 입력</button>}
+        <button type="button" className="lv-btn-ghost" onClick={() => setOpen(true)}>{value ? t("답안 다시 촬영") : t("답안 촬영")}</button>
+        {!editable && !value && <button type="button" className="lv-btn-ghost" onClick={() => setEditable(true)}>{t("직접 입력")}</button>}
       </div>
       {(editable || !!value) && children}
       {open && <CameraCapture
@@ -52,7 +53,7 @@ export function CameraAnswer({ cameraMode, value, disabled = false, onText, chil
           setOpen(false);
         }}
       />}
-      {(editable || !!value) && <p className="camera-note">인식한 글자와 수식을 확인하고 수정한 뒤 제출해 주세요.</p>}
+      {(editable || !!value) && <p className="camera-note">{t("인식한 글자와 수식을 확인하고 수정한 뒤 제출해 주세요.")}</p>}
     </div>
   );
 }
@@ -102,7 +103,7 @@ function CameraCapture({ replacing, onClose, onText }: {
     setReady(false);
     setError(null);
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
-      setError("카메라를 사용할 수 없어요. HTTPS로 접속하거나 키보드로 답변해 주세요.");
+      setError(t("카메라를 사용할 수 없어요. HTTPS로 접속하거나 키보드로 답변해 주세요."));
       return;
     }
     void navigator.mediaDevices.getUserMedia({
@@ -120,7 +121,7 @@ function CameraCapture({ replacing, onClose, onText }: {
       if (!active) return;
       stopCamera();
       const denied = cause instanceof DOMException && cause.name === "NotAllowedError";
-      setError(denied ? "카메라 권한이 필요해요. 브라우저 설정에서 허용한 뒤 다시 열어 주세요." : "카메라를 열지 못했어요. 다른 앱에서 카메라를 사용 중인지 확인해 주세요.");
+      setError(denied ? t("카메라 권한이 필요해요. 브라우저 설정에서 허용한 뒤 다시 열어 주세요.") : t("카메라를 열지 못했어요. 다른 앱에서 카메라를 사용 중인지 확인해 주세요."));
     });
     return () => {
       active = false;
@@ -141,14 +142,14 @@ function CameraCapture({ replacing, onClose, onText }: {
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
       const data = canvas.toDataURL("image/jpeg", 0.9);
       if (!data.startsWith("data:image/jpeg;base64,") || data.length > 2 * 1024 * 1024 * 4 / 3) {
-        setError("사진이 너무 커요. 답안 부분을 가까이 잡아 다시 촬영해 주세요.");
+        setError(t("사진이 너무 커요. 답안 부분을 가까이 잡아 다시 촬영해 주세요."));
         return;
       }
       stopCamera();
       setError(null);
       setPhoto(data);
     } catch {
-      setError("사진을 가져오지 못했어요. 다시 촬영해 주세요.");
+      setError(t("사진을 가져오지 못했어요. 다시 촬영해 주세요."));
     }
   };
 
@@ -164,8 +165,8 @@ function CameraCapture({ replacing, onClose, onText }: {
       if (!controller.signal.aborted) latestOnText.current(text);
     } catch (cause) {
       if (dialogRef.current?.open) setError(controller.signal.aborted
-        ? "인식 시간이 오래 걸려 중단했어요. 다시 시도하거나 키보드로 입력해 주세요."
-        : cause instanceof Error ? cause.message : "인식하지 못했어요. 다시 시도해 주세요.");
+        ? t("인식 시간이 오래 걸려 중단했어요. 다시 시도하거나 키보드로 입력해 주세요.")
+        : cause instanceof Error ? cause.message : t("인식하지 못했어요. 다시 시도해 주세요."));
     } finally {
       window.clearTimeout(timer);
       requestRef.current = null;
@@ -175,22 +176,22 @@ function CameraCapture({ replacing, onClose, onText }: {
 
   return (
     <dialog ref={dialogRef} className="camera-dialog" aria-labelledby={titleId} onCancel={(event) => { event.preventDefault(); onClose(); }}>
-      <h3 id={titleId}>답안 촬영</h3>
-      <p className="camera-note">답안만 화면에 담아 주세요. 촬영 효과음은 재생하지 않아요.</p>
-      {photo ? <img className="camera-preview" src={photo} alt="촬영한 답안" /> :
-        <video ref={videoRef} className="camera-preview" autoPlay muted playsInline aria-label="후면 카메라 미리보기" onLoadedData={() => setReady(true)} />}
-      <p className="camera-note">인식 버튼을 누르면 사진을 Google Cloud Vision으로 전송해요. 서비스에는 사진을 저장하지 않아요. 손글씨와 수식은 잘못 읽힐 수 있어요.</p>
+      <h3 id={titleId}>{t("답안 촬영")}</h3>
+      <p className="camera-note">{t("답안만 화면에 담아 주세요. 촬영 효과음은 재생하지 않아요.")}</p>
+      {photo ? <img className="camera-preview" src={photo} alt={t("촬영한 답안")} /> :
+        <video ref={videoRef} className="camera-preview" autoPlay muted playsInline aria-label={t("후면 카메라 미리보기")} onLoadedData={() => setReady(true)} />}
+      <p className="camera-note">{t("인식 버튼을 누르면 사진을 Google Cloud Vision으로 전송해요. 서비스에는 사진을 저장하지 않아요. 손글씨와 수식은 잘못 읽힐 수 있어요.")}</p>
       {error && <p role="alert" className="camera-note">{error}</p>}
-      {busy && <p role="status" className="camera-note">답안을 읽고 있어요…</p>}
+      {busy && <p role="status" className="camera-note">{t("답안을 읽고 있어요…")}</p>}
       <div className="camera-actions">
         {photo ? <>
-          <button className="lv-btn-holo" type="button" disabled={busy} onClick={() => void recognize()}>{replacing ? "인식하여 답변 바꾸기" : "인식하여 답변에 넣기"}</button>
-          <button className="lv-btn-ghost" type="button" disabled={busy} onClick={() => setPhoto(null)}>다시 촬영</button>
+          <button className="lv-btn-holo" type="button" disabled={busy} onClick={() => void recognize()}>{replacing ? t("인식하여 답변 바꾸기") : t("인식하여 답변에 넣기")}</button>
+          <button className="lv-btn-ghost" type="button" disabled={busy} onClick={() => setPhoto(null)}>{t("다시 촬영")}</button>
         </> : <>
-          <button className="lv-btn-holo" type="button" disabled={!ready} onClick={capture}>촬영</button>
-          {error && <button className="lv-btn-ghost" type="button" onClick={() => setAttempt((n) => n + 1)}>카메라 다시 열기</button>}
+          <button className="lv-btn-holo" type="button" disabled={!ready} onClick={capture}>{t("촬영")}</button>
+          {error && <button className="lv-btn-ghost" type="button" onClick={() => setAttempt((n) => n + 1)}>{t("카메라 다시 열기")}</button>}
         </>}
-        <button className="lv-btn-ghost" type="button" onClick={onClose}>취소</button>
+        <button className="lv-btn-ghost" type="button" onClick={onClose}>{t("취소")}</button>
       </div>
     </dialog>
   );

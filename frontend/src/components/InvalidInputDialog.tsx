@@ -1,3 +1,4 @@
+import { t } from "../i18n/translate";
 import { createPortal } from "react-dom";
 
 // 부적합 입력 차단 모달(A: 학습 주제, D: 질문하기 공통).
@@ -8,7 +9,7 @@ import { createPortal } from "react-dom";
 // 의 width:min(720px) 제약과 .main 의 overflow:hidden 때문에 position:fixed 백드롭이
 // 전체 화면을 덮지 못하고 잘려 보인다. 포털로 레이아웃 containing block/overflow 영향을 피한다.
 
-const INVALID_INPUT_MESSAGE = "학습에 사용할 수 있는 내용을 입력해 주세요.";
+const INVALID_INPUT_MESSAGE = t("학습에 사용할 수 있는 내용을 입력해 주세요.");
 
 interface Props {
   /** 닫기(= 다시 입력). 호출자는 입력창에 포커스를 되돌린다. */
@@ -19,12 +20,11 @@ export function InvalidInputDialog({ onClose }: Props) {
   return createPortal(
     <div className="retreat-dialog-backdrop" role="dialog" aria-modal="true">
       <div className="retreat-dialog">
-        <h3>다시 입력해 주세요</h3>
+        <h3>{t("다시 입력해 주세요")}</h3>
         <p className="retreat-reason">{INVALID_INPUT_MESSAGE}</p>
         <div className="retreat-actions">
           <button className="rd-primary" type="button" onClick={onClose} autoFocus>
-            다시 입력
-          </button>
+            {t("다시 입력")}</button>
         </div>
       </div>
     </div>,

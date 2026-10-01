@@ -1,3 +1,5 @@
+import { getLanguage } from "../i18n/language";
+import { t } from "../i18n/translate";
 import { API_BASE_URL, ApiPaths } from "./contract";
 import type {
   AskRouteRequest,
@@ -33,11 +35,11 @@ export async function recognizeAnswerImage(imageBase64: string, signal: AbortSig
   });
   if (!res.ok) {
     const body = await res.json().catch(() => null);
-    throw new Error(body?.message || "사진을 읽지 못했어요. 잠시 후 다시 시도해 주세요.");
+    throw new Error(getLanguage() === "en" ? "Could not read the photo. Please try again." : body?.message || t("사진을 읽지 못했어요. 잠시 후 다시 시도해 주세요."));
   }
   const body: AnswerOcrResponse = await res.json();
-  if (typeof body.text !== "string") throw new Error("인식 결과를 읽지 못했어요.");
-  if (!body.text.trim()) throw new Error("글자를 찾지 못했어요. 답안을 밝고 선명하게 다시 촬영해 주세요.");
+  if (typeof body.text !== "string") throw new Error(t("인식 결과를 읽지 못했어요."));
+  if (!body.text.trim()) throw new Error(t("글자를 찾지 못했어요. 답안을 밝고 선명하게 다시 촬영해 주세요."));
   return body.text.trim();
 }
 
@@ -52,18 +54,18 @@ export async function generateProbeQuestions(
     res = await fetch(`${API_BASE_URL}${ApiPaths.PROBE}`, {
       method: "POST",
       headers: await authHeaders(),
-      body: JSON.stringify({ concept, materials, mode }),
+      body: JSON.stringify({ language: getLanguage(), concept, materials, mode }),
     });
   } catch (e) {
-    throw new ClaudeContentError("CLAUDE_API_ERROR", (e as Error)?.message ?? "네트워크 오류");
+    throw new ClaudeContentError("CLAUDE_API_ERROR", (e as Error)?.message ?? t("네트워크 오류"));
   }
   if (!res.ok) {
     let code = "CLAUDE_API_ERROR";
-    let message = `진단 질문 요청 실패: HTTP ${res.status}`;
+    let message = `${t("요청이 실패했어요.")}: HTTP ${res.status}`;
     try {
       const body = await res.json();
       if (body?.code) code = body.code as string;
-      if (body?.message) message = body.message as string;
+      if (body?.message && (getLanguage() === "ko" || !/[가-힣]/.test(body.message))) message = body.message as string;
     } catch {
       /* ignore */
     }
@@ -87,18 +89,18 @@ export async function detectOverwhelm(
     res = await fetch(`${API_BASE_URL}${ApiPaths.OVERWHELM}`, {
       method: "POST",
       headers: await authHeaders(),
-      body: JSON.stringify({ concept, materials, probeSummary, mode }),
+      body: JSON.stringify({ language: getLanguage(), concept, materials, probeSummary, mode }),
     });
   } catch (e) {
-    throw new ClaudeContentError("CLAUDE_API_ERROR", (e as Error)?.message ?? "네트워크 오류");
+    throw new ClaudeContentError("CLAUDE_API_ERROR", (e as Error)?.message ?? t("네트워크 오류"));
   }
   if (!res.ok) {
     let code = "CLAUDE_API_ERROR";
-    let message = `후퇴 판단 요청 실패: HTTP ${res.status}`;
+    let message = `${t("요청이 실패했어요.")}: HTTP ${res.status}`;
     try {
       const body = await res.json();
       if (body?.code) code = body.code as string;
-      if (body?.message) message = body.message as string;
+      if (body?.message && (getLanguage() === "ko" || !/[가-힣]/.test(body.message))) message = body.message as string;
     } catch {
       /* ignore */
     }
@@ -135,18 +137,18 @@ export async function generatePrereqTree(args: {
     res = await fetch(`${API_BASE_URL}${ApiPaths.PREREQ_TREE}`, {
       method: "POST",
       headers: await authHeaders(),
-      body: JSON.stringify(args),
+      body: JSON.stringify({ ...args, language: getLanguage() }),
     });
   } catch (e) {
-    throw new ClaudeContentError("CLAUDE_API_ERROR", (e as Error)?.message ?? "네트워크 오류");
+    throw new ClaudeContentError("CLAUDE_API_ERROR", (e as Error)?.message ?? t("네트워크 오류"));
   }
   if (!res.ok) {
     let code = "CLAUDE_API_ERROR";
-    let message = `선행 개념 트리 요청 실패: HTTP ${res.status}`;
+    let message = `${t("요청이 실패했어요.")}: HTTP ${res.status}`;
     try {
       const body = await res.json();
       if (body?.code) code = body.code as string;
-      if (body?.message) message = body.message as string;
+      if (body?.message && (getLanguage() === "ko" || !/[가-힣]/.test(body.message))) message = body.message as string;
     } catch {
       /* ignore */
     }
@@ -172,18 +174,18 @@ export async function generateRoadmapOutline(
     res = await fetch(`${API_BASE_URL}${ApiPaths.OUTLINE}`, {
       method: "POST",
       headers: await authHeaders(),
-      body: JSON.stringify({ concept, level, mode }),
+      body: JSON.stringify({ language: getLanguage(), concept, level, mode }),
     });
   } catch (e) {
-    throw new ClaudeContentError("CLAUDE_API_ERROR", (e as Error)?.message ?? "네트워크 오류");
+    throw new ClaudeContentError("CLAUDE_API_ERROR", (e as Error)?.message ?? t("네트워크 오류"));
   }
   if (!res.ok) {
     let code = "CLAUDE_API_ERROR";
-    let message = `로드맵 요청 실패: HTTP ${res.status}`;
+    let message = `${t("요청이 실패했어요.")}: HTTP ${res.status}`;
     try {
       const body = await res.json();
       if (body?.code) code = body.code as string;
-      if (body?.message) message = body.message as string;
+      if (body?.message && (getLanguage() === "ko" || !/[가-힣]/.test(body.message))) message = body.message as string;
     } catch {
       /* ignore */
     }
@@ -210,18 +212,18 @@ export async function generateStepDetail(
     res = await fetch(`${API_BASE_URL}${ApiPaths.STEP_DETAIL}`, {
       method: "POST",
       headers: await authHeaders(),
-      body: JSON.stringify({ concept, level, outline, stepIdx, mode }),
+      body: JSON.stringify({ language: getLanguage(), concept, level, outline, stepIdx, mode }),
     });
   } catch (e) {
-    throw new ClaudeContentError("CLAUDE_API_ERROR", (e as Error)?.message ?? "네트워크 오류");
+    throw new ClaudeContentError("CLAUDE_API_ERROR", (e as Error)?.message ?? t("네트워크 오류"));
   }
   if (!res.ok) {
     let code = "CLAUDE_API_ERROR";
-    let message = `단계 상세 요청 실패: HTTP ${res.status}`;
+    let message = `${t("요청이 실패했어요.")}: HTTP ${res.status}`;
     try {
       const body = await res.json();
       if (body?.code) code = body.code as string;
-      if (body?.message) message = body.message as string;
+      if (body?.message && (getLanguage() === "ko" || !/[가-힣]/.test(body.message))) message = body.message as string;
     } catch {
       /* ignore */
     }
@@ -266,18 +268,18 @@ export async function generateAnswerEvaluation(
     res = await fetch(`${API_BASE_URL}${ApiPaths.ANSWER_EVAL}`, {
       method: "POST",
       headers: await authHeaders(),
-      body: JSON.stringify({ concept, level, stepTitle, stepDesc, stepBody, questions, mode }),
+      body: JSON.stringify({ language: getLanguage(), concept, level, stepTitle, stepDesc, stepBody, questions, mode }),
     });
   } catch (e) {
-    throw new ClaudeContentError("CLAUDE_API_ERROR", (e as Error)?.message ?? "네트워크 오류");
+    throw new ClaudeContentError("CLAUDE_API_ERROR", (e as Error)?.message ?? t("네트워크 오류"));
   }
   if (!res.ok) {
     let code = "CLAUDE_API_ERROR";
-    let message = `평가 요청 실패: HTTP ${res.status}`;
+    let message = `${t("요청이 실패했어요.")}: HTTP ${res.status}`;
     try {
       const body = await res.json();
       if (body?.code) code = body.code as string;
-      if (body?.message) message = body.message as string;
+      if (body?.message && (getLanguage() === "ko" || !/[가-힣]/.test(body.message))) message = body.message as string;
     } catch {
       /* ignore */
     }
@@ -311,7 +313,7 @@ export async function generateBranchEvaluation(
     res = await fetch(`${API_BASE_URL}${ApiPaths.BRANCH_EVAL}`, {
       method: "POST",
       headers: await authHeaders(),
-      body: JSON.stringify({
+      body: JSON.stringify({ language: getLanguage(),
         concept,
         level,
         stepTitle,
@@ -322,15 +324,15 @@ export async function generateBranchEvaluation(
       }),
     });
   } catch (e) {
-    throw new ClaudeContentError("CLAUDE_API_ERROR", (e as Error)?.message ?? "네트워크 오류");
+    throw new ClaudeContentError("CLAUDE_API_ERROR", (e as Error)?.message ?? t("네트워크 오류"));
   }
   if (!res.ok) {
     let code = "CLAUDE_API_ERROR";
-    let message = `분기 평가 요청 실패: HTTP ${res.status}`;
+    let message = `${t("요청이 실패했어요.")}: HTTP ${res.status}`;
     try {
       const body = await res.json();
       if (body?.code) code = body.code as string;
-      if (body?.message) message = body.message as string;
+      if (body?.message && (getLanguage() === "ko" || !/[가-힣]/.test(body.message))) message = body.message as string;
     } catch {
       /* ignore */
     }
@@ -352,18 +354,18 @@ export async function askLearnQuestion(args: AskRouteRequest): Promise<AskRouteR
     res = await fetch(`${API_BASE_URL}${ApiPaths.ASK_ROUTE}`, {
       method: "POST",
       headers: await authHeaders(),
-      body: JSON.stringify(args),
+      body: JSON.stringify({ ...args, language: getLanguage() }),
     });
   } catch (e) {
-    throw new ClaudeContentError("CLAUDE_API_ERROR", (e as Error)?.message ?? "네트워크 오류");
+    throw new ClaudeContentError("CLAUDE_API_ERROR", (e as Error)?.message ?? t("네트워크 오류"));
   }
   if (!res.ok) {
     let code = "CLAUDE_API_ERROR";
-    let message = `질문 분류 요청 실패: HTTP ${res.status}`;
+    let message = `${t("요청이 실패했어요.")}: HTTP ${res.status}`;
     try {
       const body = await res.json();
       if (body?.code) code = body.code as string;
-      if (body?.message) message = body.message as string;
+      if (body?.message && (getLanguage() === "ko" || !/[가-힣]/.test(body.message))) message = body.message as string;
     } catch {
       /* ignore */
     }
@@ -383,18 +385,18 @@ export async function validateInput(text: string): Promise<boolean> {
     res = await fetch(`${API_BASE_URL}${ApiPaths.VALIDATE_INPUT}`, {
       method: "POST",
       headers: await authHeaders(),
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ language: getLanguage(), text }),
     });
   } catch (e) {
-    throw new ClaudeContentError("CLAUDE_API_ERROR", (e as Error)?.message ?? "네트워크 오류");
+    throw new ClaudeContentError("CLAUDE_API_ERROR", (e as Error)?.message ?? t("네트워크 오류"));
   }
   if (!res.ok) {
     let code = "CLAUDE_API_ERROR";
-    let message = `입력 검증 요청 실패: HTTP ${res.status}`;
+    let message = `${t("요청이 실패했어요.")}: HTTP ${res.status}`;
     try {
       const body = await res.json();
       if (body?.code) code = body.code as string;
-      if (body?.message) message = body.message as string;
+      if (body?.message && (getLanguage() === "ko" || !/[가-힣]/.test(body.message))) message = body.message as string;
     } catch {
       /* ignore */
     }

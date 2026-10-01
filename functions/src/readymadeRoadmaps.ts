@@ -1,3 +1,4 @@
+import { localizeRoadmap } from "./englishRoadmaps";
 import { onRequest } from "firebase-functions/v2/https";
 import { getFirestore } from "firebase-admin/firestore";
 import * as logger from "firebase-functions/logger";
@@ -63,7 +64,8 @@ export const readymadeRoadmapList = onRequest(
       const snap = await roadmapsCol().get();
       const roadmaps = snap.docs
         .map((d) => {
-          const data = d.data() as Partial<RoadmapDoc>;
+          const data = localizeRoadmap(d.id, d.data() as Partial<RoadmapDoc>, req.query.language);
+          if (!data) return null;
           return {
             roadmapId: d.id,
             title: asStr(data.title),
@@ -75,6 +77,7 @@ export const readymadeRoadmapList = onRequest(
             stepTitles: stepTitlesOf(data.steps),
           };
         })
+        .filter((roadmap): roadmap is NonNullable<typeof roadmap> => roadmap !== null)
         .sort((a, b) => {
           if (a.subject !== b.subject) return a.subject.localeCompare(b.subject, "ko");
           if (a.order !== b.order) return a.order - b.order;
@@ -115,7 +118,8 @@ export const readymadeRoadmapGet = onRequest(
         res.json({ roadmap: null });
         return;
       }
-      const data = doc.data() as Partial<RoadmapDoc>;
+      const data = localizeRoadmap(doc.id, doc.data() as Partial<RoadmapDoc>, req.query.language);
+      if (!data) { res.json({ roadmap: null }); return; }
       const roadmap = {
         roadmapId: doc.id,
         title: asStr(data.title),

@@ -1,3 +1,4 @@
+import { t } from "../i18n/translate";
 import { PHASES, type Stage } from "../stages/data";
 import { useLearnContent } from "../state/LearnContent";
 import { getLabelForStep } from "../lib/stepLabel";
@@ -33,7 +34,7 @@ export function ProgressBar({ stage, stepIdx }: Props) {
               <span className="pb-name">{p.label}</span>
               {p.id === "learn" && state === "curr" && (
                 <span className="pb-sub">
-                  개념 {stepLabel}/{stepsCount}
+                  {t("개념")}{" "}{stepLabel}/{stepsCount}
                 </span>
               )}
             </span>

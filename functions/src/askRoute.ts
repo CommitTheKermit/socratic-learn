@@ -1,3 +1,4 @@
+import { localizedSystemPrompt, localizedSchema } from "./outputLanguage";
 import { onRequest } from "firebase-functions/v2/https";
 import { requireAuth, recordUsage, isTestMode } from "./auth";
 import { checkRateLimit, rateLimitMessage } from "./rateLimit";
@@ -124,7 +125,7 @@ export const askRoute = onRequest(
         model: CLAUDE_MODEL,
         thinking: { type: "between_tools" },
         max_tokens: 1100,
-        system: [{ type: "text", text: ASK_ROUTE_SYSTEM, cache_control: { type: "ephemeral" } }],
+        system: [{ type: "text", text: localizedSystemPrompt(ASK_ROUTE_SYSTEM, req.body?.language), cache_control: { type: "ephemeral" } }],
         messages: [
           {
             role: "user",
@@ -140,7 +141,7 @@ export const askRoute = onRequest(
             ),
           },
         ],
-        output_config: { format: jsonSchemaOutputFormat(askRouteSchema) },
+        output_config: { format: jsonSchemaOutputFormat(localizedSchema(askRouteSchema, req.body?.language)) },
       });
       logUsage("askRoute", CLAUDE_MODEL, resp.usage);
       const parsed = resp.parsed_output as AskRouteResult | undefined;

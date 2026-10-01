@@ -1,9 +1,10 @@
+import { t } from "../i18n/translate";
 import { useEffect, useState } from "react";
 
 const SESSION_LOAD_MSGS = [
-  "세션을 불러오는 중",
-  "지난 진행 상황을 복원하고 있어요",
-  "마지막 단계로 이동하고 있어요",
+  t("세션을 불러오는 중"),
+  t("지난 진행 상황을 복원하고 있어요"),
+  t("마지막 단계로 이동하고 있어요"),
 ];
 
 /** 오버레이가 떠 있는 동안 안내 문구를 1.5초 간격으로 순환한다. */
@@ -45,7 +46,7 @@ export function SessionLoadOverlay({
       data-wash="veil"
       role="alertdialog"
       aria-busy="true"
-      aria-label="세션 불러오는 중"
+      aria-label={t("세션 불러오는 중")}
       onMouseDown={(e) => e.preventDefault()}
       onWheel={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.preventDefault()}

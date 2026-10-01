@@ -1,3 +1,4 @@
+import { localizedSystemPrompt, localizedSchema } from "./outputLanguage";
 import { onRequest } from "firebase-functions/v2/https";
 import { requireAuth, recordUsage } from "./auth";
 import { checkRateLimit, rateLimitMessage } from "./rateLimit";
@@ -150,15 +151,15 @@ export const branchEval = onRequest(
         model: CLAUDE_MODEL,
         thinking: { type: "between_tools" },
         max_tokens: 3000,
-        system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
+        system: [{ type: "text", text: localizedSystemPrompt(system, req.body?.language), cache_control: { type: "ephemeral" } }],
         messages: [{ role: "user", content: user }],
-        output_config: { format: jsonSchemaOutputFormat(branchSchema) },
+        output_config: { format: jsonSchemaOutputFormat(localizedSchema(branchSchema, req.body?.language)) },
       });
       logUsage("branchEval", CLAUDE_MODEL, resp.usage);
       const parsed = resp.parsed_output as BranchEvalRaw | undefined;
       if (!parsed) {
         // 기존 ParseFailure 계약 유지: 형식 해석 실패는 200 + {parseError}.
-        res.json({ parseError: "응답을 분기 형식으로 해석하지 못했습니다." });
+        res.json({ parseError: req.body?.language === "en" ? "Could not read the learning options." : "응답을 분기 형식으로 해석하지 못했습니다." });
         return;
       }
       // stageContent 의 body/questions 는 LLM 이 만들지 않으므로, 삽입 시 프론트가 lazy 생성할

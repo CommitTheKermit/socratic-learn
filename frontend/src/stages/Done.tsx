@@ -1,3 +1,4 @@
+import { t } from "../i18n/translate";
 import { useLearnContent } from "../state/LearnContent";
 import { MathText } from "../lib/mathText";
 
@@ -28,14 +29,14 @@ export function StageDone({ onPrev, onRestart }: Props) {
   return (
     <section className="stage">
       <header className="stage-head">
-        <h2 className="stage-title">나이스 잡!</h2>
+        <h2 className="stage-title">{t("나이스 잡!")}</h2>
       </header>
       <div className="stage-body">
         <div className="done2">
           {/* 별도 사후 진단이 없으므로 완료를 실력 상승이나 개념 습득으로 표현하지 않는다. */}
           <div className="done2-recap">
             <div className="done2-recap-head">
-              <span className="h">이번 학습의 개념</span>
+              <span className="h">{t("이번 학습의 개념")}</span>
             </div>
             {steps.map((s) => (
               <div className="done2-rc-row" key={s.id}>
@@ -53,12 +54,10 @@ export function StageDone({ onPrev, onRestart }: Props) {
       </div>
       <div className="stage-actions">
         <button className="btn-ghost" type="button" onClick={onPrev}>
-          ← 마지막 답변 다시 보기
-        </button>
+          {t("← 마지막 답변 다시 보기")}</button>
         <span className="grow" />
         <button className="btn-holo" type="button" onClick={onRestart}>
-          메인으로 →
-        </button>
+          {t("메인으로 →")}</button>
       </div>
     </section>
   );

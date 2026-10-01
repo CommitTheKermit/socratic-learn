@@ -1,3 +1,4 @@
+import { localizedSystemPrompt, localizedSchema } from "./outputLanguage";
 import { onRequest } from "firebase-functions/v2/https";
 import { requireAuth, recordUsage } from "./auth";
 import { checkRateLimit, rateLimitMessage } from "./rateLimit";
@@ -68,9 +69,9 @@ export const validateInput = onRequest(
       const resp = await client.messages.parse({
         model: CLAUDE_MODEL,
         max_tokens: 128,
-        system: [{ type: "text", text: VALIDATE_INPUT_SYSTEM, cache_control: { type: "ephemeral" } }],
+        system: [{ type: "text", text: localizedSystemPrompt(VALIDATE_INPUT_SYSTEM, req.body?.language), cache_control: { type: "ephemeral" } }],
         messages: [{ role: "user", content: validateInputUserMessage(text) }],
-        output_config: { format: jsonSchemaOutputFormat(validateSchema) },
+        output_config: { format: jsonSchemaOutputFormat(localizedSchema(validateSchema, req.body?.language)) },
       });
       logUsage("validateInput", CLAUDE_MODEL, resp.usage);
       const parsed = resp.parsed_output as ValidateResult | undefined;

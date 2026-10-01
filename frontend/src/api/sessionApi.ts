@@ -1,3 +1,5 @@
+import { getLanguage } from "../i18n/language";
+import { t } from "../i18n/translate";
 import { API_BASE_URL, ApiPaths } from "./contract";
 import type {
   SessionDeleteRequest,
@@ -30,7 +32,7 @@ async function throwFromResponse(res: Response, fallbackMsg: string): Promise<ne
   try {
     const body = await res.json();
     if (body?.code) code = body.code as string;
-    if (body?.message) message = body.message as string;
+    if (body?.message && (getLanguage() === "ko" || !/[가-힣]/.test(body.message))) message = body.message as string;
   } catch {
     /* ignore */
   }
@@ -48,9 +50,9 @@ export async function saveSessionRemote(state: SessionState): Promise<void> {
       body: JSON.stringify(payload),
     });
   } catch (e) {
-    throw new SessionApiError("PERSIST_ERROR", (e as Error)?.message ?? "네트워크 오류");
+    throw new SessionApiError("PERSIST_ERROR", (e as Error)?.message ?? t("네트워크 오류"));
   }
-  if (!res.ok) await throwFromResponse(res, "세션 저장 실패");
+  if (!res.ok) await throwFromResponse(res, t("세션 저장 실패"));
 }
 
 /** uid 의 세션 메타 목록을 서버 수신 시각 내림차순으로 가져온다. */
@@ -62,9 +64,9 @@ export async function listSessionsRemote(): Promise<SessionIndexEntry[]> {
       headers: await authHeaders(),
     });
   } catch (e) {
-    throw new SessionApiError("PERSIST_ERROR", (e as Error)?.message ?? "네트워크 오류");
+    throw new SessionApiError("PERSIST_ERROR", (e as Error)?.message ?? t("네트워크 오류"));
   }
-  if (!res.ok) await throwFromResponse(res, "세션 목록 조회 실패");
+  if (!res.ok) await throwFromResponse(res, t("세션 목록 조회 실패"));
   const body = (await res.json()) as SessionListResponse;
   return body.sessions ?? [];
 }
@@ -83,9 +85,9 @@ export async function deleteSessionRemote(sessionId: string): Promise<void> {
       body: JSON.stringify(payload),
     });
   } catch (e) {
-    throw new SessionApiError("PERSIST_ERROR", (e as Error)?.message ?? "네트워크 오류");
+    throw new SessionApiError("PERSIST_ERROR", (e as Error)?.message ?? t("네트워크 오류"));
   }
-  if (!res.ok) await throwFromResponse(res, "세션 삭제 실패");
+  if (!res.ok) await throwFromResponse(res, t("세션 삭제 실패"));
 }
 
 /** 단일 세션 본문을 가져온다. 서버에 없으면 null. */
@@ -97,9 +99,9 @@ export async function getSessionRemote(id: string): Promise<SessionState | null>
       { method: "GET", headers: await authHeaders() },
     );
   } catch (e) {
-    throw new SessionApiError("PERSIST_ERROR", (e as Error)?.message ?? "네트워크 오류");
+    throw new SessionApiError("PERSIST_ERROR", (e as Error)?.message ?? t("네트워크 오류"));
   }
-  if (!res.ok) await throwFromResponse(res, "세션 조회 실패");
+  if (!res.ok) await throwFromResponse(res, t("세션 조회 실패"));
   const body = (await res.json()) as SessionGetResponse;
   return body.state ?? null;
 }

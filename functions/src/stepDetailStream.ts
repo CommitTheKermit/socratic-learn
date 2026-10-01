@@ -1,3 +1,4 @@
+import { localizedSystemPrompt } from "./outputLanguage";
 import { onRequest } from "firebase-functions/v2/https";
 import { requireAuth, recordUsage, isTestMode } from "./auth";
 import { checkRateLimit, rateLimitMessage } from "./rateLimit";
@@ -88,7 +89,7 @@ export const stepDetailStream = onRequest(
       (res as unknown as { flush?: () => void }).flush?.();
     };
 
-    send("status", { status: "started", message: "본문 생성 중" });
+    send("status", { status: "started", message: req.body?.language === "en" ? "Generating explanation" : "본문 생성 중" });
 
     const marker = STEP_DETAIL_STREAM_MARKER;
     let full = "";
@@ -101,7 +102,7 @@ export const stepDetailStream = onRequest(
         thinking: { type: "between_tools" },
         max_tokens: 4000,
         system: [
-          { type: "text", text: STEP_DETAIL_STREAM_SYSTEM, cache_control: { type: "ephemeral" } },
+          { type: "text", text: localizedSystemPrompt(STEP_DETAIL_STREAM_SYSTEM, req.body?.language), cache_control: { type: "ephemeral" } },
         ],
         messages: [
           {

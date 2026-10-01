@@ -1,3 +1,5 @@
+import { getLanguage } from "../i18n/language";
+import { t } from "../i18n/translate";
 import { useEffect, useRef, useState } from "react";
 import { useLearnContent } from "../state/LearnContent";
 import { Markdown } from "../lib/markdown";
@@ -51,7 +53,7 @@ function normalizeBranchOptions(
   const nextStep = steps[stepIdx + 1];
   if (!nextStep) return rest;
   const roadmapNext: BranchOption = {
-    label: "로드맵 다음 단계로 이동",
+    label: t("로드맵 다음 단계로 이동"),
     type: "roadmap_next",
     isRecommended: false,
     stageContent: nextStep,
@@ -61,7 +63,7 @@ function normalizeBranchOptions(
 
 /** 분기 다이얼로그에 항상 끼워 넣는 클라이언트 전용 옵션. 현재 단계를 다시 답변하기. */
 const REANSWER_OPTION: BranchOption = {
-  label: "다시 답변하기",
+  label: t("다시 답변하기"),
   type: "reanswer",
   isRecommended: false,
   stageContent: null,
@@ -196,18 +198,18 @@ interface Props {
 }
 
 const GRADE_LABEL: Record<Grade, string> = {
-  correct: "정답",
-  almost: "거의 맞음",
-  partial: "부족",
-  wrong: "오답",
+  correct: t("정답"),
+  almost: t("거의 맞음"),
+  partial: t("부족"),
+  wrong: t("오답"),
 };
 
 // '질문하기' 흐름 안내(라우팅) 배지 라벨.
 const ASK_ROUTE_LABEL: Record<AskRouteResponse["route"], string> = {
-  prereq: "선행 개념을 권해요",
-  newStep: "보충 단계로 더 볼 만해요",
-  none: "안내",
-  offtopic: "안내",
+  prereq: t("선행 개념을 권해요"),
+  newStep: t("보충 단계로 더 볼 만해요"),
+  none: t("안내"),
+  offtopic: t("안내"),
 };
 
 const IcoRows = () => (
@@ -355,7 +357,7 @@ export function StageLearn({
   };
   // 본문에서 고른 문구를 질문으로 시드해 바로 모달을 연다.
   const openAskWith = (sel: string) => {
-    const q = `'${sel}' - 여기서 정확히 무슨 뜻이에요?`;
+    const q = (getLanguage() === "en" ? `What does '${sel}' mean here?` : `'${sel}' - 여기서 정확히 무슨 뜻이에요?`);
     setSelChip(null);
     window.getSelection()?.removeAllRanges();
     setAskStatus("idle");
@@ -568,9 +570,9 @@ export function StageLearn({
       } catch {
         // 검증 게이트 장애로 질문 자체가 막히지 않도록 통과시킨다.
       }
-      const priorTurns = askTurns.map((t) => ({
-        question: t.question,
-        answer: t.result.answer,
+      const priorTurns = askTurns.map((priorTurn) => ({
+        question: priorTurn.question,
+        answer: priorTurn.result.answer,
       }));
       const result = await askLearnQuestion({
         question: q,
@@ -596,7 +598,7 @@ export function StageLearn({
       }
     } catch (e) {
       const code = e instanceof ClaudeContentError ? e.code : "CLAUDE_API_ERROR";
-      setAskError({ code, message: (e as Error)?.message ?? "알 수 없는 오류" });
+      setAskError({ code, message: (e as Error)?.message ?? t("알 수 없는 오류") });
       setAskStatus("error");
     }
   };
@@ -621,7 +623,7 @@ export function StageLearn({
     if (sessionId) logEvent("sl_ask_add", { session_id: sessionId, step_idx: stepIdx });
     insertStepAt(stepIdx + 1, makeSupplementStep(suggestion, computeInsertedMeta(steps, stepIdx)));
     resetAsk();
-    showToast("다음 단계로 로드맵에 추가했어요");
+    showToast(t("다음 단계로 로드맵에 추가했어요"));
   };
 
   // prereq: 기존 선행 개념 모달을 그대로 연다(트리 생성 + '선행세션 학습' 재사용).
@@ -703,7 +705,7 @@ export function StageLearn({
       <div className="lv-board">
         <div className="lv-loading">
           <span className="lv-loading-dot" />
-          <p className="stage-sub">학습 로드맵을 구성하고 있어요…</p>
+          <p className="stage-sub">{t("학습 로드맵을 구성하고 있어요…")}</p>
         </div>
       </div>
     );
@@ -714,14 +716,13 @@ export function StageLearn({
       <div className="lv-board">
         <div className="probe-result lv-status" role="alert">
           <div className="pr-head">
-            <span className="pr-eyebrow">로드맵 생성 실패</span>
+            <span className="pr-eyebrow">{t("로드맵 생성 실패")}</span>
           </div>
           <p className="pr-reason">
-            {outlineError ? describeErrorCode(outlineError.code, outlineError.message) : "알 수 없는 오류"}
+            {outlineError ? describeErrorCode(outlineError.code, outlineError.message) : t("알 수 없는 오류")}
           </p>
           <button className="btn-ghost" type="button" onClick={onRetry}>
-            다시 시도
-          </button>
+            {t("다시 시도")}</button>
         </div>
       </div>
     );
@@ -744,11 +745,11 @@ export function StageLearn({
   };
   const goNext = () => {
     if (!isEvaluated) {
-      showToast("답변 제출이 필요합니다");
+      showToast(t("답변 제출이 필요합니다"));
       return;
     }
     if (isBranchGated) {
-      showToast("분기 옵션을 먼저 선택해주세요");
+      showToast(t("분기 옵션을 먼저 선택해주세요"));
       return;
     }
     if (stepIdx >= steps.length - 1) {
@@ -769,7 +770,7 @@ export function StageLearn({
   // 후진(i <= stepIdx)은 항상 허용, 전진(i > stepIdx)은 분기 미완료 시 차단.
   const handleChipClick = (i: number) => {
     if (branchEnabled && i > stepIdx && !!step && !branchedStepIds.has(step.id)) {
-      showToast("분기 옵션을 먼저 선택해주세요");
+      showToast(t("분기 옵션을 먼저 선택해주세요"));
       return;
     }
     setStepIdx(i);
@@ -841,8 +842,7 @@ export function StageLearn({
         <path d="M9 14L4 9l5-5" />
         <path d="M4 9h11a5 5 0 0 1 0 10h-1" />
       </svg>
-      다시 답변하기
-    </button>
+      {t("다시 답변하기")}</button>
   );
   // 제출/재답변 액션 영역. 로딩 > 평가완료(잠김) > 미제출 순으로 분기.
   const submitButton = fullLoading ? (
@@ -853,8 +853,7 @@ export function StageLearn({
       aria-busy
     >
       <span className="lv-submit-icon" aria-hidden>{I.brand}</span>
-      평가 중…
-    </button>
+      {t("평가 중…")}</button>
   ) : isEvaluated ? (
     <>
       {/* 분기가 준비됐거나(branchReady) 게이트에 걸린(isBranchGated) 동안 항상 "평가 보기"를 노출한다.
@@ -866,8 +865,7 @@ export function StageLearn({
           onClick={handleOpenBranch}
         >
           <span className="lv-submit-icon" aria-hidden>{I.brand}</span>
-          평가 보기
-        </button>
+          {t("평가 보기")}</button>
       )}
       {reanswerButton}
     </>
@@ -878,8 +876,7 @@ export function StageLearn({
       onClick={submitAnswers}
     >
       <span className="lv-submit-icon" aria-hidden>{I.brand}</span>
-      답변 제출하기
-    </button>
+      {t("답변 제출하기")}</button>
   );
 
   const explainDetail = step ? (
@@ -887,7 +884,7 @@ export function StageLearn({
       {detailLoading && (
         <div className="lv-loading lv-loading-inline">
           <span className="lv-loading-dot" />
-          <p className="stage-sub">개념 설명을 생성하고 있어요…</p>
+          <p className="stage-sub">{t("개념 설명을 생성하고 있어요…")}</p>
         </div>
       )}
       {detailErrored && detailError && (
@@ -898,8 +895,7 @@ export function StageLearn({
             type="button"
             onClick={() => loadStepDetail(concept, safeLevel, stepIdx, mode)}
           >
-            다시 시도
-          </button>
+            {t("다시 시도")}</button>
         </div>
       )}
       {!detailLoading && !detailErrored && step.body && (
@@ -919,14 +915,13 @@ export function StageLearn({
             type="button"
             onClick={() => submitEvaluation(concept, safeLevel, stepIdx, answers, skips, mode)}
           >
-            다시 시도
-          </button>
+            {t("다시 시도")}</button>
         </div>
       )}
       {!detailReady && !detailErrored && (
         <div className="lv-loading lv-loading-inline">
           <span className="lv-loading-dot" />
-          <p className="stage-sub">확인 질문을 만들고 있어요…</p>
+          <p className="stage-sub">{t("확인 질문을 만들고 있어요…")}</p>
         </div>
       )}
       {detailReady &&
@@ -972,8 +967,8 @@ export function StageLearn({
                     </svg>
                   </span>
                   <div className="qa-dunno-text">
-                    <strong>모르겠다고 표시했어요</strong>
-                    <span>다음 학습에서 다시 만나요</span>
+                    <strong>{t("모르겠다고 표시했어요")}</strong>
+                    <span>{t("다음 학습에서 다시 만나요")}</span>
                   </div>
                   <button
                     type="button"
@@ -994,8 +989,7 @@ export function StageLearn({
                       <path d="M9 14L4 9l5-5" />
                       <path d="M4 9h11a5 5 0 0 1 0 10h-1" />
                     </svg>
-                    되돌리기
-                  </button>
+                    {t("되돌리기")}</button>
                 </div>
               ) : (
                 <>
@@ -1056,8 +1050,7 @@ export function StageLearn({
                         className="qa-dunno"
                         onClick={() => setSkips({ ...skips, [q.id]: true })}
                       >
-                        모르겠어요
-                      </button>
+                        {t("모르겠어요")}</button>
                     </div>
                   )}
                 </>
@@ -1116,7 +1109,7 @@ export function StageLearn({
       <button
         type="button"
         className="aq-trigger"
-        title="이 단계를 읽다가 생긴 의문을 물어보세요 - 답변과 함께 더 나은 학습 경로도 안내해요"
+        title={t("이 단계를 읽다가 생긴 의문을 물어보세요 - 답변과 함께 더 나은 학습 경로도 안내해요")}
         onClick={(e) => {
           // 헤더 토글 등 상위 클릭과 충돌 방지(세로형 설명 헤더 내부에 위치).
           e.stopPropagation();
@@ -1128,7 +1121,7 @@ export function StageLearn({
             <path d="M5 5h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H10l-4 3v-3H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" />
           </svg>
         </span>
-        <span><b>질문하기</b></span>
+        <span><b>{t("질문하기")}</b></span>
         <span className="aq-trigger-dot is-ping" aria-hidden />
       </button>
     ) : null;
@@ -1157,8 +1150,8 @@ export function StageLearn({
         )}
         {result.route === "newStep" && result.suggestedStep && (
           <div className="aq-step">
-            <span className="tag">제안</span>
-            <span className="pv-eyebrow">보충 단계 미리보기</span>
+            <span className="tag">{t("제안")}</span>
+            <span className="pv-eyebrow">{t("보충 단계 미리보기")}</span>
             <div className="pv-title"><MathText text={result.suggestedStep.title} /></div>
             <div className="pv-sub"><MathText text={result.suggestedStep.desc} /></div>
           </div>
@@ -1167,17 +1160,14 @@ export function StageLearn({
           <div className="aq-res-actions">
             {result.route === "prereq" && (
               <button type="button" className="aq-btn aq-btn--prereq" onClick={handleAskPrereq}>
-                선행 개념 보기
-              </button>
+                {t("선행 개념 보기")}</button>
             )}
             {result.route === "newStep" && result.suggestedStep && (
               <>
                 <button type="button" className="aq-btn aq-btn--holo" onClick={handleAskNavigate}>
-                  바로 이동
-                </button>
+                  {t("바로 이동")}</button>
                 <button type="button" className="aq-btn aq-btn--violet" onClick={handleAskAddToRoadmap}>
-                  로드맵에 추가
-                </button>
+                  {t("로드맵에 추가")}</button>
               </>
             )}
           </div>
@@ -1190,7 +1180,7 @@ export function StageLearn({
   const askHeadTitle =
     askTurns.length > 0
       ? askTurns[0].question
-      : askText.trim() || "이 단계, 무엇이 궁금한가요?";
+      : askText.trim() || t("이 단계, 무엇이 궁금한가요?");
 
   // 본문 드래그 → 질문 칩 (선택 위에 떠서, 누르면 그 문구로 모달을 연다).
   const selChipEl =
@@ -1210,8 +1200,7 @@ export function StageLearn({
             <path d="M5 5h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H10l-4 3v-3H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" />
           </svg>
         </span>
-        질문하기
-      </button>
+        {t("질문하기")}</button>
     ) : null;
 
   // '질문하기' 모달: 작성 → 로딩/오류 → 답변+안내(스레드) → 후속(최대 2) → 마무리.
@@ -1227,7 +1216,7 @@ export function StageLearn({
           className={"aqm" + (askStatus === "error" ? " is-error" : "")}
           role="dialog"
           aria-modal="true"
-          aria-label="질문하기"
+          aria-label={t("질문하기")}
         >
           <div className="aqm-head">
             <span className="aqm-ico" aria-hidden>
@@ -1236,13 +1225,13 @@ export function StageLearn({
               </svg>
             </span>
             <span className="aqm-htext">
-              <span className="aqm-eyebrow">{askTurns.length > 0 ? "질문하기 · 답변" : "질문하기"}</span>
+              <span className="aqm-eyebrow">{askTurns.length > 0 ? t("질문하기 · 답변") : t("질문하기")}</span>
               <span className="aqm-title"><MathText text={askHeadTitle} /></span>
               {askTurns.length > 0 && (
-                <span className="aqm-sub">이 학습 범위 안에서 답하고, 더 나은 경로가 있으면 함께 안내해요.</span>
+                <span className="aqm-sub">{t("이 학습 범위 안에서 답하고, 더 나은 경로가 있으면 함께 안내해요.")}</span>
               )}
             </span>
-            <button className="aqm-close" type="button" onClick={resetAsk} aria-label="닫기">
+            <button className="aqm-close" type="button" onClick={resetAsk} aria-label={t("닫기")}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6 6 18 18" /><path d="M18 6 6 18" /></svg>
             </button>
           </div>
@@ -1253,7 +1242,7 @@ export function StageLearn({
                 {askStatus === "loading" && (
                   <div className="aq-loading">
                     <span className="aq-dots"><i /><i /><i /></span>
-                    <span className="txt">질문을 살펴보고 있어요…</span>
+                    <span className="txt">{t("질문을 살펴보고 있어요…")}</span>
                   </div>
                 )}
                 {askStatus === "error" && (
@@ -1263,29 +1252,28 @@ export function StageLearn({
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" /><path d="M12 9v4" /><path d="M12 17h.01" /></svg>
                       </span>
                       <div className="body">
-                        <strong>답변을 가져오지 못했어요</strong>
-                        <p>{askError ? describeErrorCode(askError.code, askError.message) : "잠시 후 다시 시도해 주세요."}</p>
+                        <strong>{t("답변을 가져오지 못했어요")}</strong>
+                        <p>{askError ? describeErrorCode(askError.code, askError.message) : t("잠시 후 다시 시도해 주세요.")}</p>
                       </div>
                     </div>
                     <div className="aq-actions">
                       <span className="grow" />
-                      <button className="aq-btn aq-btn--ghost" type="button" onClick={resetAsk}>닫기</button>
+                      <button className="aq-btn aq-btn--ghost" type="button" onClick={resetAsk}>{t("닫기")}</button>
                       <button className="aq-btn aq-btn--holo" type="button" onClick={() => void submitAsk()}>
-                        다시 시도
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8" /><path d="M3 3v5h5" /></svg>
+                        {t("다시 시도")}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8" /><path d="M3 3v5h5" /></svg>
                       </button>
                     </div>
                   </>
                 )}
                 {askStatus === "idle" && (
                   <>
-                    <p className="aq-guide">이 단계를 읽다가 생긴 의문을 한 줄로 적어보세요.</p>
+                    <p className="aq-guide">{t("이 단계를 읽다가 생긴 의문을 한 줄로 적어보세요.")}</p>
                     <div className="aq-field">
                       <input
                         ref={askInputRef}
                         type="text"
                         maxLength={120}
-                        placeholder="예: 여기서 말하는 '상태'가 정확히 뭐예요?"
+                        placeholder={t("예: 여기서 말하는 '상태'가 정확히 뭐예요?")}
                         value={askText}
                         onChange={(e) => setAskText(e.target.value)}
                         onKeyDown={(e) => {
@@ -1299,15 +1287,14 @@ export function StageLearn({
                     </div>
                     <div className="aq-actions">
                       <span className="grow" />
-                      <button className="aq-btn aq-btn--ghost" type="button" onClick={resetAsk}>취소</button>
+                      <button className="aq-btn aq-btn--ghost" type="button" onClick={resetAsk}>{t("취소")}</button>
                       <button
                         className="aq-btn aq-btn--holo"
                         type="button"
                         onClick={() => void submitAsk()}
                         disabled={!askText.trim()}
                       >
-                        질문 보내기
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="m13 6 6 6-6 6" /></svg>
+                        {t("질문 보내기")}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="m13 6 6 6-6 6" /></svg>
                       </button>
                     </div>
                   </>
@@ -1316,20 +1303,20 @@ export function StageLearn({
             ) : (
               <>
                 <div className="aq-thread">
-                  {askTurns.map((t, i) => {
+                  {askTurns.map((turn, i) => {
                     const isLast = i === askTurns.length - 1;
                     return (
                       <div className="aq-turn" key={i}>
                         {i > 0 && (
                           <div className="aq-recap">
-                            <span className="qm">질문</span>
-                            <span className="q"><MathText text={t.question} /></span>
+                            <span className="qm">{t("질문")}</span>
+                            <span className="q"><MathText text={turn.question} /></span>
                           </div>
                         )}
-                        {t.result.route !== "offtopic" && t.result.answer.trim() && (
-                          <div className="aq-answer"><Markdown text={t.result.answer} /></div>
+                        {turn.result.route !== "offtopic" && turn.result.answer.trim() && (
+                          <div className="aq-answer"><Markdown text={turn.result.answer} /></div>
                         )}
-                        {isLast && renderAskGuidance(t.result)}
+                        {isLast && renderAskGuidance(turn.result)}
                       </div>
                     );
                   })}
@@ -1338,7 +1325,7 @@ export function StageLearn({
                 {askStatus === "loading" && (
                   <div className="aq-loading" style={{ marginTop: 14 }}>
                     <span className="aq-dots"><i /><i /><i /></span>
-                    <span className="txt">이어서 살펴보고 있어요…</span>
+                    <span className="txt">{t("이어서 살펴보고 있어요…")}</span>
                   </div>
                 )}
                 {askStatus === "error" && (
@@ -1347,11 +1334,11 @@ export function StageLearn({
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" /><path d="M12 9v4" /><path d="M12 17h.01" /></svg>
                     </span>
                     <div className="body">
-                      <strong>답변을 가져오지 못했어요</strong>
-                      <p>{askError ? describeErrorCode(askError.code, askError.message) : "잠시 후 다시 시도해 주세요."}</p>
+                      <strong>{t("답변을 가져오지 못했어요")}</strong>
+                      <p>{askError ? describeErrorCode(askError.code, askError.message) : t("잠시 후 다시 시도해 주세요.")}</p>
                       <div className="aq-actions">
                         <span className="grow" />
-                        <button className="aq-btn aq-btn--holo" type="button" onClick={() => void submitAsk()}>다시 시도</button>
+                        <button className="aq-btn aq-btn--holo" type="button" onClick={() => void submitAsk()}>{t("다시 시도")}</button>
                       </div>
                     </div>
                   </div>
@@ -1359,15 +1346,15 @@ export function StageLearn({
                 {askStatus === "idle" && askCanFollowup && (
                   <div className="aq-followup">
                     <div className="aq-followup-label">
-                      <span className="left">이어서 더 물어보기</span>
-                      <span className="remain">남은 후속 {askRemaining}회</span>
+                      <span className="left">{t("이어서 더 물어보기")}</span>
+                      <span className="remain">{t("남은 후속")}{" "}{askRemaining}{t("회")}</span>
                     </div>
                     <div className="aq-field">
                       <input
                         ref={askInputRef}
                         type="text"
                         maxLength={120}
-                        placeholder="이 답변에 이어서 한 줄로…"
+                        placeholder={t("이 답변에 이어서 한 줄로…")}
                         value={askText}
                         onChange={(e) => setAskText(e.target.value)}
                         onKeyDown={(e) => {
@@ -1387,8 +1374,7 @@ export function StageLearn({
                         onClick={() => void submitAsk()}
                         disabled={!askText.trim()}
                       >
-                        이어 묻기
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="m13 6 6 6-6 6" /></svg>
+                        {t("이어 묻기")}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="m13 6 6 6-6 6" /></svg>
                       </button>
                     </div>
                   </div>
@@ -1396,7 +1382,7 @@ export function StageLearn({
                 {askStatus === "idle" && askExhausted && (
                   <div className="aq-exhausted">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="12" cy="12" r="9" /><path d="M12 11v5" /><path d="M12 8h.01" /></svg>
-                    <span>이어지는 질문은 여기까지예요. 더 깊이 가려면 위 안내를 따라가거나, 아래에서 새 질문을 시작하세요.</span>
+                    <span>{t("이어지는 질문은 여기까지예요. 더 깊이 가려면 위 안내를 따라가거나, 아래에서 새 질문을 시작하세요.")}</span>
                   </div>
                 )}
               </>
@@ -1407,11 +1393,10 @@ export function StageLearn({
             <div className="aqm-foot">
               <button className="aqm-reset" type="button" onClick={startAskThread}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8" /><path d="M3 3v5h5" /></svg>
-                다른 질문하기
-              </button>
-              <span className="aqm-hint">새 질문은 새로 답해요</span>
+                {t("다른 질문하기")}</button>
+              <span className="aqm-hint">{t("새 질문은 새로 답해요")}</span>
               <span className="grow" />
-              <button className="aqm-reset" type="button" style={{ color: "var(--fg)" }} onClick={resetAsk}>닫기</button>
+              <button className="aqm-reset" type="button" style={{ color: "var(--fg)" }} onClick={resetAsk}>{t("닫기")}</button>
             </div>
           )}
         </div>
@@ -1433,29 +1418,27 @@ export function StageLearn({
       )}
       <header className="lv-bar" ref={headRef}>
         <div className="lv-bar-top">
-          <span className="lv-bar-eyebrow">학습 진행</span>
+          <span className="lv-bar-eyebrow">{t("학습 진행")}</span>
           <span className="lv-bar-title">{concept}</span>
           <span className="lv-bar-meta">
             {Math.min(stepIdx + 1, Math.max(steps.length, 1))} / {steps.length}
           </span>
           <span className="lv-bar-spacer" />
-          <div className="lv-seg" role="group" aria-label="레이아웃 방향">
+          <div className="lv-seg" role="group" aria-label={t("레이아웃 방향")}>
             <button
               type="button"
               className={orient === "vertical" ? "is-active" : ""}
               aria-pressed={orient === "vertical"}
               onClick={() => setOrient("vertical")}
             >
-              <IcoRows /> 세로
-            </button>
+              <IcoRows /> {" "}{t("세로")}</button>
             <button
               type="button"
               className={orient === "horizontal" ? "is-active" : ""}
               aria-pressed={orient === "horizontal"}
               onClick={() => setOrient("horizontal")}
             >
-              <IcoCols /> 가로
-            </button>
+              <IcoCols /> {" "}{t("가로")}</button>
           </div>
         </div>
         <ol className="lv-steps">{renderStepItems()}</ol>
@@ -1484,7 +1467,7 @@ export function StageLearn({
               <div className="lv2-left-inner">
                 <div className="lv2-left-head">
                   <div>
-                    <span className="lv2-eyebrow">개념 설명</span>
+                    <span className="lv2-eyebrow">{t("개념 설명")}</span>
                     <h3>{step.title}</h3>
                   </div>
                   {affordances}
@@ -1496,8 +1479,8 @@ export function StageLearn({
             </div>
             <div className="lv2-right">
               <div className="lv2-right-head">
-                <span className="label">확인 질문</span>
-                <span className="count">{detailReady ? `${step.questions.length}문항` : "..."}</span>
+                <span className="label">{t("확인 질문")}</span>
+                <span className="count">{detailReady ? (getLanguage() === "en" ? `${step.questions.length} questions` : `${step.questions.length}문항`) : "..."}</span>
               </div>
               {questionsList}
               {detailReady && submitButton && (
@@ -1510,7 +1493,7 @@ export function StageLearn({
           <div className="lv-body lvv-body">
             <section className={"lvv-explain" + (explainOpen ? "" : " is-closed")}>
               <div className="lvv-explain-head">
-                <span className="eyebrow">개념 설명</span>
+                <span className="eyebrow">{t("개념 설명")}</span>
                 <span className="ttl">{step.title}</span>
                 <span className="grow" />
                 {affordances}
@@ -1520,7 +1503,7 @@ export function StageLearn({
                   aria-expanded={explainOpen}
                   onClick={() => setExplainOpen((v) => !v)}
                 >
-                  <span className="toggle">{explainOpen ? "접기" : "펼쳐 보기"}</span>
+                  <span className="toggle">{explainOpen ? t("접기") : t("펼쳐 보기")}</span>
                   <span className="chev">▾</span>
                 </button>
               </div>
@@ -1535,9 +1518,9 @@ export function StageLearn({
 
             <section className="lvv-questions">
               <div className="lvv-q-head">
-                <span className="label">확인 질문</span>
+                <span className="label">{t("확인 질문")}</span>
                 <span className="grow" />
-                <span className="count">{detailReady ? `${step.questions.length}문항` : "..."}</span>
+                <span className="count">{detailReady ? (getLanguage() === "en" ? `${step.questions.length} questions` : `${step.questions.length}문항`) : "..."}</span>
               </div>
               <div className="lvv-qlist">{questionsList}</div>
               {detailReady && submitButton && (
@@ -1549,7 +1532,7 @@ export function StageLearn({
 
       <div className="lv-foot">
         <button className="lv-btn-ghost" type="button" onClick={goPrev}>
-          ← {stepIdx === 0 ? "수준 확인 다시 보기" : "이전 개념"}
+          ← {stepIdx === 0 ? t("수준 확인 다시 보기") : t("이전 개념")}
         </button>
         <span className="grow" />
         <button
@@ -1558,8 +1541,7 @@ export function StageLearn({
           onClick={skipStep}
           disabled={detailLoading || isEvaluated || isEvaluating}
         >
-          모르겠어요 (전체 건너뜀)
-        </button>
+          {t("모르겠어요 (전체 건너뜀)")}</button>
         <button
           className={"lv-btn-holo" + (isBranchGated ? " is-disabled" : "")}
           type="button"
@@ -1567,7 +1549,7 @@ export function StageLearn({
           disabled={detailLoading || isEvaluating}
           aria-disabled={isBranchGated ? true : undefined}
         >
-          {stepIdx >= steps.length - 1 ? "학습 마치기" : "다음 개념"} →
+          {stepIdx >= steps.length - 1 ? t("학습 마치기") : t("다음 개념")} →
         </button>
       </div>
 
@@ -1582,7 +1564,7 @@ export function StageLearn({
         error={
           branch.mode === "error"
             ? {
-                message: branch.errorMessage ?? "분기 옵션을 불러오지 못했습니다.",
+                message: branch.errorMessage ?? t("분기 옵션을 불러오지 못했습니다."),
                 retryCount: branch.retryCount,
                 technicalDetail: branch.technicalDetail ?? undefined,
                 onRetry: handleRetry,

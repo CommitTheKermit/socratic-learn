@@ -1,3 +1,4 @@
+import { localizedSystemPrompt, localizedSchema } from "./outputLanguage";
 import { onRequest } from "firebase-functions/v2/https";
 import { requireAuth, recordUsage, isTestMode } from "./auth";
 import { checkRateLimit, rateLimitMessage } from "./rateLimit";
@@ -125,9 +126,9 @@ export const prereqTree = onRequest(
         model: CLAUDE_MODEL,
         thinking: { type: "between_tools" },
         max_tokens: isLearn ? 1500 : 2500,
-        system: [{ type: "text", text: systemText, cache_control: { type: "ephemeral" } }],
+        system: [{ type: "text", text: localizedSystemPrompt(systemText, req.body?.language), cache_control: { type: "ephemeral" } }],
         messages: [{ role: "user", content: userText }],
-        output_config: { format: jsonSchemaOutputFormat(prereqTreeSchema) },
+        output_config: { format: jsonSchemaOutputFormat(localizedSchema(prereqTreeSchema, req.body?.language)) },
       });
       logUsage("prereqTree", CLAUDE_MODEL, resp.usage);
       const parsed = resp.parsed_output as { prerequisites: PrereqNode[] } | undefined;
